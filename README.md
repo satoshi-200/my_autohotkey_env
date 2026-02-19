@@ -1,0 +1,2 @@
+# my_autohotkey_env
+私が普段使っているAutoHotKeyのスクリプトです。
