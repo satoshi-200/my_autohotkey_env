@@ -165,7 +165,12 @@ vk1D & 7::      SendInput("+{Left}")
 vk1D & 8::      SendInput("+{Up}")
 vk1D & 9::      SendInput("+{Down}")
 vk1D & 0::      SendInput("+{Right}")
-vk1D & sc00C::  
+
+; --- Ctrl+矢印(powerpoint 図形編集、その他) ---
+vk1D & F9::     SendInput("^{Left}")
+vk1D & F10::    SendInput("^{Up}")
+vk1D & F11::    SendInput("^{Down}")
+vk1D & F12::    SendInput("^{Right}")
 
 ; ------------------------------------------------------------------------------
 ; レイヤー：Spaceキー (vk20) ＋ 各種キー
