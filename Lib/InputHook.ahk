@@ -15,9 +15,25 @@ WaitForKeyInput_show_input(){
 ; キー入力を待つ関数 1階層目
 WaitForKeyInput_for_Caps_1level() {
     global ih
+    
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}", "E")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        return
+    }
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
@@ -37,7 +53,8 @@ WaitForKeyInput_for_Caps_1level() {
       Fold_all_on_vscode()                      ; vscode すべて折りたたみ
     }
     else if (ih.Input = "g") {
-      SendInput("^{y}")
+      ; SendInput("^{y}")
+      SendInput("{Enter}")
     }
     else if (ih.Input = "f") {
       WaitForKeyInput_call_Fnkeys()
@@ -100,7 +117,8 @@ WaitForKeyInput_for_Caps_1level() {
       ; turn_on_roman_input_mode()
       ; WaitForKeyInput_call_CtrlChar_keys()
       ; Capitalize_next_character_you_type()  ;次の文字を大文字に
-      SendInput("^{z}")
+      ; SendInput("^{z}")
+      SendInput("{Enter}")
     }
     else if (ih.Input = "j") {
       ; WaitForKeyInput_call_CtrlChar_keys()
@@ -1252,9 +1270,25 @@ WaitForKeyInput_symbol_keys() {
 ; --------------------------------------------
 WaitForKeyInput_templete() {
     global ih
+    
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}", "E")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        return
+    }
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
