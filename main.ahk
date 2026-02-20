@@ -50,7 +50,7 @@
 ; --- 特殊・編集 ---
 vk1C & vk20::   SendInput("{Space}")        ; 変換 + Space -> Space
 vk1C & sc03A::  SendInput("{Space}")        ; 変換 + CapsLock -> Space
-vk1C & vk1D::   WaitForKeyInput_for_pressing_far_keys() ; 遠隔キー入力待機
+vk1C & vk1D::   return
 vk1C & sc00F::  SendInput("^{y}")           ; 変換 + Tab -> やり直し (Redo)
 vk1C & LShift:: SendInput("^{z}")           ; 変換 + LShift -> 元に戻す (Undo)
 vk1C & t::      SendInput("{Blind}{Delete}")    ; 変換 + t -> Delete
@@ -150,7 +150,7 @@ vk1D & .::      SendInput("{%}")
 vk1D & /::      SendInput("{&}")
 vk1D & h::      Bullet_points()             ; h -> 箇条書き記号
 vk1D & *::      SendInput("{?}")
-vk1C & @::      SendInput("{!}")            ; (vk1C指定ですが元の流れを維持)
+vk1D & @::      SendInput("{!}")            
 vk1D & y::      SendInput("{~}")
 vk1D & [::      SendInput("{\}")
 vk1D & ]::      SendInput("{^}")
@@ -159,13 +159,13 @@ vk1D & RShift:: SendInput("{|}")
 vk1D & sc00D::  SendInput(obsidian_folderlink_templete) ; Obsidianリンク
 vk1D & sc07D::  SendInput("{- 30}")         ; コメント用ライン (---)
 
-; --- 日付・時刻入力 ---
-vk1D & 6::      Input_current_Date1()       ; yyyy/MM/dd HH:mm:ss
-vk1D & 7::      Input_current_Date2()
-vk1D & 8::      Input_current_Date3()
-vk1D & 9::      Input_current_Date4()
-vk1D & 0::      Input_current_Date5()
-vk1D & sc00C::  Input_current_Time1()       ; HH:mm
+; --- shift+矢印(powerpoint 図形編集) ---
+vk1D & 6::      return
+vk1D & 7::      SendInput("+{Left}")
+vk1D & 8::      SendInput("+{Up}")
+vk1D & 9::      SendInput("+{Down}")
+vk1D & 0::      SendInput("+{Right}")
+vk1D & sc00C::  
 
 ; ------------------------------------------------------------------------------
 ; レイヤー：Spaceキー (vk20) ＋ 各種キー
@@ -211,6 +211,7 @@ vk20 & o::      SendInput("{WheelDown 1}")
 
 ; --- 編集・入力補助 ---
 vk20 & h::      SendInput("{Enter}")
+vk20 & g::      SendInput("{Enter}")
 vk20 & m::      SendInput("+{Enter}")
 vk20 & ,::      SendInput("^{Enter}")
 vk20 & .::      SendInput("!{Enter}")
