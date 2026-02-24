@@ -3,6 +3,7 @@
 ; InputHookオブジェクトを作成
 ih := InputHook("L1")
 
+
 ; ih := InputHook("M")
 
 ; 動作チェック用
@@ -14,12 +15,184 @@ WaitForKeyInput_show_input(){
 }
 ; キー入力を待つ関数 1階層目
 WaitForKeyInput_for_Caps_1level() {
-    global ih
-    
+    ; global ih
+    ; 1. 関数が呼ばれるたびに、新しい監視員（インスタンス）を作成する
+    local_ih := InputHook()
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}", "E")
+    local_ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "ES")
+    ; マウスカーソルの横に状態を表示
+    ToolTip("⌨️ キー入力待機中... (Escでキャンセル)")
+    
+    local_ih.Start()
+    local_ih.Wait()
+    ; 入力が終わったらすぐにツールチップを消す
+    ToolTip()
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (local_ih.EndReason = "EndKey") {
+        key := local_ih.EndReason = "EndKey" ? local_ih.EndKey : ""
+        ; 画面に何を押したか出す（確認用）
+        ToolTip("EndKey検出: " key)
+        SetTimer(() => ToolTip(), -1000)
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          turn_on_roman_input_mode()
+        }
+        else if (key = "vk1C") {
+          turn_on_hira_input_mode()
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        local_ih.Stop()
+        return
+    }
+    ; MsgBox("入力されたキー: [" local_ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
+    ; 入力されたキーに応じて処理を分岐
+    ; --- 2. 一般キーの判定 ---
+    ; もし何も動かない場合は、ここが実行されているかチェックするため、
+    ; 一瞬だけツールチップで押された文字を出してみます
+    ; ここを if に戻し、else を外します
+    if (local_ih.Input != "") {
+        ToolTip("一般キー受理: " local_ih.Input)
+        SetTimer(() => ToolTip(), -1000)
+    }
+
+    ; 全ての if を独立させるか、Inputの中身を順番にチェックします
+    ; (さっきの else if だと一番上しか実行されませんでした)
+    keyIn := local_ih.Input
+    if (KeyIn = "t") {
+      Toggle_fold_and_expand_on_vscode()                ; vscode 折りたたみ／展開のトグル
+    }
+    else if (KeyIn = "r") {
+      Recursive_expand_on_vscode()                  ; vscode 再帰的展開
+    }
+    else if (KeyIn = "q")
+    {
+      Recursive_fold_on_vscode()                    ; vscode 再帰的折りたたみ
+    }
+    else if (KeyIn = "e") {
+      Expand_all_on_vscode()                      ; vscode すべて展開
+    }
+    else if (KeyIn = "w") {
+      Fold_all_on_vscode()                      ; vscode すべて折りたたみ
+    }
+    else if (KeyIn = "g") {
+      ; SendInput("^{y}")
+      SendInput("{Enter}")
+    }
+    else if (KeyIn = "f") {
+      WaitForKeyInput_call_Fnkeys()
+      ; Right_click()
+    }
+    else if (KeyIn = "a") {
+      ; SendInput("{LWin}")
+      WaitForKeyInput_call_Ctrl_Shift_Fnkeys()
+      ; turn_on_roman_input_mode()
+    }
+    else if (KeyIn = "d") {
+      WaitForKeyInput_call_Shift_Fnkeys()
+    }
+    else if (KeyIn = "s") {
+      
+      WaitForKeyInput_call_Ctrl_Fnkeys()
+    }
+    else if (KeyIn = "b") {
+      CheckContent()  ; multi_clipboard.ahk の関数
+    }
+    else if (KeyIn = "v") {
+      ; SendInput ("^!{l}")                          ; vscode 次のbookmarkへ移動
+      PasteText() ; multi_clipboard.ahk の関数
+    }
+    else if (KeyIn = "c") {
+      ; SendInput ("^!{k}")                          ; vscode bookmark toggle
+      SaveText() ; multi_clipboard.ahk の関数
+    }
+    else if (KeyIn = "z") {
+      ClearBox()  ; multi_clipboard.ahk の関数
+    }
+    else if (KeyIn = "x") {
+      ; SendInput ("^!{j}")                          ; vscode 前のbookmarkへ移動
+      CutAndSaveText()  ; multi_clipboard.ahk の関数
+    }
+    else if(KeyIn = "y") {
+      ; Input_current_Date1() 
+    }
+    else if(KeyIn = "u") {
+      ; Input_current_Date2()
+      ; SendInput("{Ctrl}")
+      ; WaitForKeyInput_call_CtrlChar_keys()
+    }
+    else if(KeyIn = "i") {
+      ; Input_current_Date3()
+      ; Right_click()
+      ; WaitForKeyInput_call_CtrlShiftChar_keys()
+      WaitForKeyInput_call_AltChar_keys()
+    }
+    else if(KeyIn = "o") {
+      ; Input_current_Date4()
+      ; WaitForKeyInput_call_AltChar_keys()
+      WaitForKeyInput_call_CtrlShiftChar_keys()
+    }
+    else if(KeyIn = "p") {
+      ; Input_current_Date5() 
+    }
+    else if (KeyIn = "h") {
+      ; turn_on_roman_input_mode()
+      ; WaitForKeyInput_call_CtrlChar_keys()
+      ; Capitalize_next_character_you_type()  ;次の文字を大文字に
+      ; SendInput("^{z}")
+      SendInput("{Enter}")
+    }
+    else if (KeyIn = "j") {
+      turn_on_roman_input_mode()
+    }
+    else if (KeyIn = "k") {
+      turn_on_hira_input_mode()
+    }
+    else if (KeyIn = "l") {
+      ; WaitForKeyInput_call_AltChar_keys()
+      ; turn_on_hiragana_input_mode()
+      ; toggle_input_mode()
+      WaitForKeyInput_call_CtrlChar_keys()
+    }
+    else if (KeyIn = ";") {
+      ; Capitalize_next_character_you_type()  ;次の文字を大文字に
+      ; toggle_input_mode()
+      WaitForKeyInput_call_WinChar_keys()
+    }
+    else if (KeyIn = ":") {
+      ; turn_on_hiragana_input_mode()               ; ひらがな入力モード
+    }
+    else if (KeyIn = "n") {
+      Capitalize_next_character_you_type()  ;次の文字を大文字に
+    }
+    ; else if (KeyIn = " ") {
+    ;   turn_on_roman_input_mode()                ; ローマ字入力モード
+    ; }
+    else if (KeyIn = "\") {
+      ResetAll()  ; multi_clipboard.ahk
+    }
+    local_ih.Stop()
+}
+
+WaitForKeyInput_for_Space_and_f_1level() {
+  global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
@@ -32,135 +205,18 @@ WaitForKeyInput_for_Caps_1level() {
         else if (key = "Tab") {
           MsgBox("Tabが押されたよ！")
         }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        ih.Stop()
         return
     }
-    ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
-    ; 入力されたキーに応じて処理を分岐
-    if (ih.Input = "t") {
-      Toggle_fold_and_expand_on_vscode()                ; vscode 折りたたみ／展開のトグル
-    }
-    else if (ih.Input = "r") {
-      Recursive_expand_on_vscode()                  ; vscode 再帰的展開
-    }
-    else if (ih.Input = "q")
-    {
-      Recursive_fold_on_vscode()                    ; vscode 再帰的折りたたみ
-    }
-    else if (ih.Input = "e") {
-      Expand_all_on_vscode()                      ; vscode すべて展開
-    }
-    else if (ih.Input = "w") {
-      Fold_all_on_vscode()                      ; vscode すべて折りたたみ
-    }
-    else if (ih.Input = "g") {
-      ; SendInput("^{y}")
-      SendInput("{Enter}")
-    }
-    else if (ih.Input = "f") {
-      WaitForKeyInput_call_Fnkeys()
-      ; Right_click()
-    }
-    else if (ih.Input = "a") {
-      ; SendInput("{LWin}")
-      WaitForKeyInput_call_Ctrl_Shift_Fnkeys()
-      ; turn_on_roman_input_mode()
-    }
-    else if (ih.Input = "d") {
-      WaitForKeyInput_call_Shift_Fnkeys()
-    }
-    else if (ih.Input = "s") {
-      
-      WaitForKeyInput_call_Ctrl_Fnkeys()
-    }
-    else if (ih.Input = "b") {
-      CheckContent()  ; multi_clipboard.ahk の関数
-    }
-    else if (ih.Input = "v") {
-      ; SendInput ("^!{l}")                          ; vscode 次のbookmarkへ移動
-      PasteText() ; multi_clipboard.ahk の関数
-    }
-    else if (ih.Input = "c") {
-      ; SendInput ("^!{k}")                          ; vscode bookmark toggle
-      SaveText() ; multi_clipboard.ahk の関数
-    }
-    else if (ih.Input = "z") {
-      ClearBox()  ; multi_clipboard.ahk の関数
-    }
-    else if (ih.Input = "x") {
-      ; SendInput ("^!{j}")                          ; vscode 前のbookmarkへ移動
-      CutAndSaveText()  ; multi_clipboard.ahk の関数
-    }
-    else if(ih.Input = "y") {
-      ; Input_current_Date1() 
-    }
-    else if(ih.Input = "u") {
-      ; Input_current_Date2()
-      ; SendInput("{Ctrl}")
-      ; WaitForKeyInput_call_CtrlChar_keys()
-    }
-    else if(ih.Input = "i") {
-      ; Input_current_Date3()
-      ; Right_click()
-      ; WaitForKeyInput_call_CtrlShiftChar_keys()
-      WaitForKeyInput_call_AltChar_keys()
-    }
-    else if(ih.Input = "o") {
-      ; Input_current_Date4()
-      ; WaitForKeyInput_call_AltChar_keys()
-      WaitForKeyInput_call_CtrlShiftChar_keys()
-    }
-    else if(ih.Input = "p") {
-      ; Input_current_Date5()
-      
-    }
-    else if (ih.Input = "h") {
-      ; turn_on_roman_input_mode()
-      ; WaitForKeyInput_call_CtrlChar_keys()
-      ; Capitalize_next_character_you_type()  ;次の文字を大文字に
-      ; SendInput("^{z}")
-      SendInput("{Enter}")
-    }
-    else if (ih.Input = "j") {
-      ; WaitForKeyInput_call_CtrlChar_keys()
-      turn_on_roman_input_mode()
-      ; turn_on_hiragana_input_mode()
-    }
-    else if (ih.Input = "k") {
-      ; WaitForKeyInput_call_CtrlShiftChar_keys()
-      turn_on_hiragana_input_mode()
-      ; turn_on_roman_input_mode()
-    }
-    else if (ih.Input = "l") {
-      ; WaitForKeyInput_call_AltChar_keys()
-      ; turn_on_hiragana_input_mode()
-      ; toggle_input_mode()
-      WaitForKeyInput_call_CtrlChar_keys()
-    }
-    else if (ih.Input = ";") {
-      ; Capitalize_next_character_you_type()  ;次の文字を大文字に
-      ; toggle_input_mode()
-      WaitForKeyInput_call_WinChar_keys()
-    }
-    else if (ih.Input = ":") {
-      ; turn_on_hiragana_input_mode()               ; ひらがな入力モード
-    }
-    else if (ih.Input = "n") {
-      Capitalize_next_character_you_type()  ;次の文字を大文字に
-    }
-    ; else if (ih.Input = " ") {
-    ;   turn_on_roman_input_mode()                ; ローマ字入力モード
-    ; }
-    else if (ih.Input = "\") {
-      ResetAll()  ; multi_clipboard.ahk
-    }
-    ih.Stop()
-}
-
-WaitForKeyInput_for_Space_and_f_1level() {
-  global ih
-  ih.Start() ; 入力を開始
-  ih.Wait() ; 入力が完了するまで待機
-
   ; 入力されたキーに応じて処理を分岐
   if (ih.Input = "t") {
     return
@@ -292,9 +348,38 @@ WaitForKeyInput_for_Space_and_f_1level() {
 }
 
 WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
-    global ih
+global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        return
+    }
 
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
@@ -399,9 +484,38 @@ WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
 }
 
 WaitForKeyInput_call_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
-    global ih
-    ih.Start() ; 入力を再開
+global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
+    ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        return
+    }
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -990,9 +1104,38 @@ WaitForKeyInput_call_AltChar_keys() {  ; キー入力を待つ関数 Ctrlキー�
 }
 
 WaitForKeyInput_kata_hira_romeji() {
-    global ih
+global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        return
+    }
 
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
@@ -1083,8 +1226,37 @@ WaitForKeyInput_kata_hira_romeji() {
 
 WaitForKeyInput_for_pressing_far_keys() {
     global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        return
+    }
 
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
@@ -1175,9 +1347,37 @@ WaitForKeyInput_for_pressing_far_keys() {
 
 WaitForKeyInput_symbol_keys() {
     global ih
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
+    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
+    Suspend(True)
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-
+    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
+    Suspend(False)
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
+        if (key = "RAlt") {   ; 右Alt
+          MsgBox("右Altが押されたよ！")
+        }
+        else if (key = "LShift") { ; 左Shift
+          MsgBox("LShiftが押されたよ！")
+        }
+        else if (key = "Tab") {
+          MsgBox("Tabが押されたよ！")
+        }
+        else if (key = "Space") {
+          MsgBox("Spaceが押されたよ！")
+        }
+        else if (key = "vk1C") {
+          MsgBox("変換が押されたよ！")
+        }
+        else if (key = "vk1D") {
+          MsgBox("無変換が押されたよ！")
+        }
+        return
+    }
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {

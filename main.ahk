@@ -102,8 +102,9 @@ vk1C & sc070::  return                      ; カタカナひらがな (未割�
 ; ------------------------------------------------------------------------------
 
 ; --- 特殊・システム ---
-vk1D & vk20::   ToggleClick()               ; 無変換 + Space -> クリック状態切替
-vk1D & LAlt::   SendInput("{Blind}{m}")     ; 無変換 + LAlt -> m
+vk1D & vk20::   turn_on_hira_input_mode()   ; 無変換 + Space -> ひらがな入力
+vk1D & vk1C::   turn_on_roman_input_mode()  ; 無変換 + 変換 -> ローマ字入力
+vk1D & LAlt::   return                      ; 無変換 + LAlt -> 
 vk1D & sc00F::  SendInput("#+{Right}")      ; 無変換 + Tab -> ウィンドウを右モニタへ
 vk1D & sc03A::  SendInput("{Space}")        ; 無変換 + CapsLock -> Space
 vk1D & sc070::  Jump_to_center_display4()   ; 無変換 + かな -> 第4画面中央へ移動

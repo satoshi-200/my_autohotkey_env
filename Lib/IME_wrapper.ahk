@@ -1,7 +1,7 @@
 ﻿#Requires AutoHotkey v2.0
 #Include IME.ahk
 
-turn_on_hiragana_input_mode(){
+turn_on_hira_input_mode(){
     SendInput("{vkF3sc029}")
     ; Sleep(1)
     IME_SET(0)
