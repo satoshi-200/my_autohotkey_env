@@ -2,9 +2,8 @@
 
 ; InputHookオブジェクトを作成
 ih := InputHook("L1")
-
-
-; ih := InputHook("M")
+isWaitingInput := false              ; InputHookで変換・無変換・スペースキーをつかえるようにするため
+tooltipDuration := 500
 
 ; 動作チェック用
 WaitForKeyInput_show_input(){
@@ -13,210 +12,237 @@ WaitForKeyInput_show_input(){
   ih.Wait() ; 入力が完了するまで待機
   MsgBox("入力された文字: " ih.Input)
 }
-; キー入力を待つ関数 1階層目
+
 WaitForKeyInput_for_Caps_1level() {
-    ; global ih
-    ; 1. 関数が呼ばれるたびに、新しい監視員（インスタンス）を作成する
-    local_ih := InputHook()
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    local_ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "ES")
-    ; マウスカーソルの横に状態を表示
-    ToolTip("⌨️ キー入力待機中... (Escでキャンセル)")
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
+    ih.Start() ; 入力を開始
+    ih.Wait() ; 入力が完了するまで待機
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
     
-    local_ih.Start()
-    local_ih.Wait()
-    ; 入力が終わったらすぐにツールチップを消す
-    ToolTip()
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
-    if (local_ih.EndReason = "EndKey") {
-        key := local_ih.EndReason = "EndKey" ? local_ih.EndKey : ""
-        ; 画面に何を押したか出す（確認用）
-        ToolTip("EndKey検出: " key)
-        SetTimer(() => ToolTip(), -1000)
+    if (ih.EndReason = "EndKey") {
+        key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          turn_on_roman_input_mode()
+          turn_on_roman_input_mode() 
+          ; MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          turn_on_hira_input_mode()
+        else if (key = "sc079") {
+          turn_on_hiragana_input_mode()
+          ; MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          ; Capitalize_next_character_you_type()
+          ; 🤮　これだけ機能しない。
+          MsgBox("無変換キー検知")
         }
-        local_ih.Stop()
+        else if (key = "sc070") {
+          Capitalize_next_character_you_type()
+          ; MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        ih.Stop()
         return
     }
-    ; MsgBox("入力されたキー: [" local_ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
+    ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
-    ; --- 2. 一般キーの判定 ---
-    ; もし何も動かない場合は、ここが実行されているかチェックするため、
-    ; 一瞬だけツールチップで押された文字を出してみます
-    ; ここを if に戻し、else を外します
-    if (local_ih.Input != "") {
-        ToolTip("一般キー受理: " local_ih.Input)
-        SetTimer(() => ToolTip(), -1000)
-    }
-
-    ; 全ての if を独立させるか、Inputの中身を順番にチェックします
-    ; (さっきの else if だと一番上しか実行されませんでした)
-    keyIn := local_ih.Input
-    if (KeyIn = "t") {
+    if (ih.Input = "t") {
       Toggle_fold_and_expand_on_vscode()                ; vscode 折りたたみ／展開のトグル
     }
-    else if (KeyIn = "r") {
+    else if (ih.Input = "r") {
       Recursive_expand_on_vscode()                  ; vscode 再帰的展開
     }
-    else if (KeyIn = "q")
+    else if (ih.Input = "q")
     {
       Recursive_fold_on_vscode()                    ; vscode 再帰的折りたたみ
     }
-    else if (KeyIn = "e") {
+    else if (ih.Input = "e") {
       Expand_all_on_vscode()                      ; vscode すべて展開
     }
-    else if (KeyIn = "w") {
+    else if (ih.Input = "w") {
       Fold_all_on_vscode()                      ; vscode すべて折りたたみ
     }
-    else if (KeyIn = "g") {
+    else if (ih.Input = "g") {
       ; SendInput("^{y}")
       SendInput("{Enter}")
     }
-    else if (KeyIn = "f") {
+    else if (ih.Input = "f") {
       WaitForKeyInput_call_Fnkeys()
       ; Right_click()
     }
-    else if (KeyIn = "a") {
+    else if (ih.Input = "a") {
       ; SendInput("{LWin}")
       WaitForKeyInput_call_Ctrl_Shift_Fnkeys()
       ; turn_on_roman_input_mode()
     }
-    else if (KeyIn = "d") {
+    else if (ih.Input = "d") {
       WaitForKeyInput_call_Shift_Fnkeys()
     }
-    else if (KeyIn = "s") {
+    else if (ih.Input = "s") {
       
       WaitForKeyInput_call_Ctrl_Fnkeys()
     }
-    else if (KeyIn = "b") {
+    else if (ih.Input = "b") {
       CheckContent()  ; multi_clipboard.ahk の関数
     }
-    else if (KeyIn = "v") {
+    else if (ih.Input = "v") {
       ; SendInput ("^!{l}")                          ; vscode 次のbookmarkへ移動
       PasteText() ; multi_clipboard.ahk の関数
     }
-    else if (KeyIn = "c") {
+    else if (ih.Input = "c") {
       ; SendInput ("^!{k}")                          ; vscode bookmark toggle
       SaveText() ; multi_clipboard.ahk の関数
     }
-    else if (KeyIn = "z") {
+    else if (ih.Input = "z") {
       ClearBox()  ; multi_clipboard.ahk の関数
     }
-    else if (KeyIn = "x") {
+    else if (ih.Input = "x") {
       ; SendInput ("^!{j}")                          ; vscode 前のbookmarkへ移動
       CutAndSaveText()  ; multi_clipboard.ahk の関数
     }
-    else if(KeyIn = "y") {
+    else if(ih.Input = "y") {
       ; Input_current_Date1() 
     }
-    else if(KeyIn = "u") {
+    else if(ih.Input = "u") {
       ; Input_current_Date2()
       ; SendInput("{Ctrl}")
       ; WaitForKeyInput_call_CtrlChar_keys()
     }
-    else if(KeyIn = "i") {
+    else if(ih.Input = "i") {
       ; Input_current_Date3()
       ; Right_click()
       ; WaitForKeyInput_call_CtrlShiftChar_keys()
       WaitForKeyInput_call_AltChar_keys()
     }
-    else if(KeyIn = "o") {
+    else if(ih.Input = "o") {
       ; Input_current_Date4()
       ; WaitForKeyInput_call_AltChar_keys()
       WaitForKeyInput_call_CtrlShiftChar_keys()
     }
-    else if(KeyIn = "p") {
-      ; Input_current_Date5() 
+    else if(ih.Input = "p") {
+      ; Input_current_Date5()
+      
     }
-    else if (KeyIn = "h") {
+    else if (ih.Input = "h") {
       ; turn_on_roman_input_mode()
       ; WaitForKeyInput_call_CtrlChar_keys()
       ; Capitalize_next_character_you_type()  ;次の文字を大文字に
       ; SendInput("^{z}")
       SendInput("{Enter}")
     }
-    else if (KeyIn = "j") {
+    else if (ih.Input = "j") {
+      ; WaitForKeyInput_call_CtrlChar_keys()
       turn_on_roman_input_mode()
+      ; turn_on_hiragana_input_mode()
     }
-    else if (KeyIn = "k") {
-      turn_on_hira_input_mode()
+    else if (ih.Input = "k") {
+      ; WaitForKeyInput_call_CtrlShiftChar_keys()
+      turn_on_hiragana_input_mode()
+      ; turn_on_roman_input_mode()
     }
-    else if (KeyIn = "l") {
+    else if (ih.Input = "l") {
       ; WaitForKeyInput_call_AltChar_keys()
       ; turn_on_hiragana_input_mode()
       ; toggle_input_mode()
       WaitForKeyInput_call_CtrlChar_keys()
     }
-    else if (KeyIn = ";") {
+    else if (ih.Input = ";") {
       ; Capitalize_next_character_you_type()  ;次の文字を大文字に
       ; toggle_input_mode()
       WaitForKeyInput_call_WinChar_keys()
     }
-    else if (KeyIn = ":") {
+    else if (ih.Input = ":") {
       ; turn_on_hiragana_input_mode()               ; ひらがな入力モード
     }
-    else if (KeyIn = "n") {
+    else if (ih.Input = "n") {
       Capitalize_next_character_you_type()  ;次の文字を大文字に
     }
-    ; else if (KeyIn = " ") {
+    ; else if (ih.Input = " ") {
     ;   turn_on_roman_input_mode()                ; ローマ字入力モード
     ; }
-    else if (KeyIn = "\") {
+    else if (ih.Input = "\") {
       ResetAll()  ; multi_clipboard.ahk
     }
-    local_ih.Stop()
+    ih.Stop()
+    return
 }
 
 WaitForKeyInput_for_Space_and_f_1level() {
-  global ih
+    global ih, isWaitingInput
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
+          MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
+        else if (key = "sc079") {
+          MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          MsgBox("無変換キー検知")
+        }
+        else if (key = "sc070") {
+          MsgBox("カタカナひらがなローマ字キー検知")
         }
         ih.Stop()
         return
     }
+
   ; 入力されたキーに応じて処理を分岐
   if (ih.Input = "t") {
     return
@@ -345,42 +371,60 @@ WaitForKeyInput_for_Space_and_f_1level() {
     
   }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
-global ih
+global ih, isWaitingInput
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
+          MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
+        else if (key = "sc079") {
+          MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          MsgBox("無変換キー検知")
         }
+        else if (key = "sc070") {
+          MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        ih.Stop()
         return
     }
-
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
@@ -479,43 +523,14 @@ global ih
     else if (ih.Input = "5") {
       SendInput("{6}")
     }
-    
     ih.Stop()
+    return
 }
 
 WaitForKeyInput_call_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
-global ih
-    ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
-    ih.Start() ; 入力を開始
+    global ih
+    ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
-    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
-    if (ih.EndReason = "EndKey") {
-        key := ih.EndKey
-        if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
-        }
-        else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
-        }
-        else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
-        }
-        else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
-        }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
-        }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
-        }
-        return
-    }
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -555,6 +570,7 @@ global ih
     SendInput("{F9}")
     }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_call_Shift_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
@@ -600,6 +616,7 @@ WaitForKeyInput_call_Shift_Fnkeys() { ; キー入力を待つ関数 Fnキー関�
     SendInput("+{F9}")
     }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_call_Ctrl_Fnkeys() {  ; キー入力を待つ関数 Fnキー関連
@@ -645,6 +662,7 @@ WaitForKeyInput_call_Ctrl_Fnkeys() {  ; キー入力を待つ関数 Fnキー関�
     SendInput("^{F9}")
     }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_call_Ctrl_Shift_Fnkeys() {  ; キー入力を待つ関数 Fnキー関連
@@ -690,6 +708,7 @@ WaitForKeyInput_call_Ctrl_Shift_Fnkeys() {  ; キー入力を待つ関数 Fnキ�
     SendInput("^+{F9}")
     }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_call_CtrlChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
@@ -840,6 +859,7 @@ WaitForKeyInput_call_CtrlChar_keys() {  ; キー入力を待つ関数 Ctrlキー
     SendInput("^{9}")
     }
   ih.Stop()
+  return
 }
 
 WaitForKeyInput_call_CtrlShiftChar_keys() { ; キー入力を待つ関数 Ctrlキー関連
@@ -927,6 +947,7 @@ WaitForKeyInput_call_CtrlShiftChar_keys() { ; キー入力を待つ関数 Ctrl�
       SendInput("^+{z}")
     }
     ih.Stop()
+    return
 }
 
 WaitForKeyInput_call_WinChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
@@ -1014,7 +1035,7 @@ WaitForKeyInput_call_WinChar_keys() {  ; キー入力を待つ関数 Ctrlキー�
         SendInput("#{z}")
     }
     ih.Stop()
-
+    return
 }
 
 WaitForKeyInput_call_AltChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
@@ -1101,39 +1122,58 @@ WaitForKeyInput_call_AltChar_keys() {  ; キー入力を待つ関数 Ctrlキー�
         SendInput("!{z}")
     }
     ih.Stop()
+    return
 }
 
 WaitForKeyInput_kata_hira_romeji() {
-global ih
+    global ih, isWaitingInput
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
+          MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
+        else if (key = "sc079") {
+          MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          MsgBox("無変換キー検知")
         }
+        else if (key = "sc070") {
+          MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        ih.Stop()
         return
     }
 
@@ -1220,44 +1260,62 @@ global ih
     else if (ih.Input = "n") {
       
     }
-    
     ih.Stop()
+    return
 }
 
 WaitForKeyInput_for_pressing_far_keys() {
-    global ih
+    global ih, isWaitingInput
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
+          MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
+        else if (key = "sc079") {
+          MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          MsgBox("無変換キー検知")
         }
+        else if (key = "sc070") {
+          MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        ih.Stop()
         return
     }
-
+    
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
@@ -1341,43 +1399,62 @@ WaitForKeyInput_for_pressing_far_keys() {
     else if (ih.Input = "n") {
       
     }
-    
     ih.Stop()
+    return
 }
 
 WaitForKeyInput_symbol_keys() {
-    global ih
+global ih, isWaitingInput
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
     ; 特殊キーを「EndKey（終了キー）」として登録
-    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{vk1C}{vk1D}", "E")
-    ; ▼▼▼ 1. ここで一時的にキーの割り当てルールをお休みさせる ▼▼▼
-    Suspend(True)
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
-    ; ▼▼▼ 2. 入力が終わったら、すぐにお休みを解除して元に戻す ▼▼▼
-    Suspend(False)
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Altが押されたよ！")
+          MsgBox("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShiftが押されたよ！")
+          MsgBox("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tabが押されたよ！")
+          MsgBox("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("Spaceが押されたよ！")
+          MsgBox("{Spaceキー検知")
         }
-        else if (key = "vk1C") {
-          MsgBox("変換が押されたよ！")
+        else if (key = "sc079") {
+          MsgBox("{変換キー検知}")
         }
-        else if (key = "vk1D") {
-          MsgBox("無変換が押されたよ！")
+        else if (key = "sc07B") {
+          MsgBox("無変換キー検知")
         }
+        else if (key = "sc070") {
+          MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        ih.Stop()
         return
     }
+    
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
@@ -1460,9 +1537,9 @@ WaitForKeyInput_symbol_keys() {
     }
     else if (ih.Input = "n") {
       
-    }
-    
+    }   
     ih.Stop()
+    return
 }
 
 ; --------------------------------------------
@@ -1487,6 +1564,7 @@ WaitForKeyInput_templete() {
         else if (key = "Tab") {
           MsgBox("Tabが押されたよ！")
         }
+        ih.Stop()
         return
     }
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
@@ -1572,6 +1650,147 @@ WaitForKeyInput_templete() {
     else if (ih.Input = "n") {
       
     }
-    
     ih.Stop()
+    return
+}
+
+WaitForKeyInput_templete_v2() {
+    global ih, isWaitingInput
+    isWaitingInput := true ; 他のスペース系スクリプトを一時停止
+    ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
+    ToolTip("⌨️ 入力待ちモード...")
+
+    ; 特殊キーを「EndKey（終了キー）」として登録
+    ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
+    ih.Start() ; 入力を開始
+    ih.Wait() ; 入力が完了するまで待機
+
+    ; --- ここで何が入力されたかツールチップに出す ---
+    ; ih.EndKey には最後に押された特殊キーの名前が入っています
+    ; もし普通の文字(tやrなど)なら ih.Input に入ります
+    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
+    ToolTip("✅ 入力検知: [" . pressedKey . "]")
+    
+    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
+    SetTimer () => ToolTip(), -tooltipDuration
+
+    ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
+    ; ToolTip()
+    isWaitingInput := false
+    ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
+    if (ih.EndReason = "EndKey") {
+      key := ih.EndKey
+      if (key = "RAlt") {   ; 右Alt
+        MsgBox("右Alt検知")
+      }
+      else if (key = "LShift") { ; 左Shift
+        MsgBox("LShift検知")
+      }
+      else if (key = "Tab") {
+        MsgBox("Tab検知")
+      }
+      else if (key = "Space") {
+        MsgBox("{Spaceキー検知")
+      }
+      else if (key = "sc079") {
+        MsgBox("{変換キー検知}")
+      }
+      else if (key = "sc07B") {
+        MsgBox("無変換キー検知")
+      }
+      else if (key = "sc070") {
+        MsgBox("カタカナひらがなローマ字キー検知")
+      }
+      ih.Stop()
+      return
+    }
+  ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
+  ; 入力されたキーに応じて処理を分岐
+  if (ih.Input = "t") {
+    
+  }
+  else if (ih.Input = "r") {
+    
+  }
+  else if (ih.Input = "q")
+  {
+    
+  }
+  else if (ih.Input = "e") {
+    
+  }
+  else if (ih.Input = "w") {
+    
+  }
+  else if (ih.Input = "g") {
+    
+  }
+  else if (ih.Input = "f") {
+    
+  }
+  else if (ih.Input = "a") {
+    
+  }
+  else if (ih.Input = "d") {
+    
+  }
+  else if (ih.Input = "s") {
+    
+  }
+  else if (ih.Input = "b") {
+    
+  }
+  else if (ih.Input = "v") {
+    
+  }
+  else if (ih.Input = "c") {
+    
+  }
+  else if (ih.Input = "z") {
+    
+  }
+  else if (ih.Input = "x") {
+    
+  }
+  else if(ih.Input = "y") {
+    
+  }
+  else if(ih.Input = "u") {
+    
+  }
+  else if(ih.Input = "i") {
+    
+  }
+  else if(ih.Input = "o") {
+    
+  }
+  else if(ih.Input = "p") {
+    
+  }
+  else if (ih.Input = "h") {
+    
+  }
+  else if (ih.Input = "j") {
+    
+  }
+  else if (ih.Input = "k") {
+    
+  }
+  else if (ih.Input = "l") {
+    
+  }
+  else if (ih.Input = ";") {
+    
+  }
+  else if (ih.Input = ":") {
+    
+  }
+  else if (ih.Input = "n") {
+    
+  }
+  else if (ih.Input = "\") {
+    
+  }
+  ih.Stop()
+  return
 }
