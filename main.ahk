@@ -132,6 +132,8 @@ vk1D & q::      SendInput("{WheelLeft 1}")
 vk1D & n::      MouseClick()                ; n -> マスクリック
 vk1D & g::      FocusUnderCursor()
 vk1D & b::      MouseClick()
+vk1D & [::      SendInput("^{WheelUp}")
+vk1D & ]::      SendInput("^{WheelDown}")
 
 ; --- カーソル移動 (fdsa / vcxc) ---
 vk1D & f::      MoveCursorToRight()
@@ -160,8 +162,6 @@ vk1D & h::      Bullet_points()             ; h -> 箇条書き記号
 vk1D & *::      SendInput("{?}")
 vk1D & @::      SendInput("{!}")            
 vk1D & y::      SendInput("{~}")
-vk1D & [::      SendInput("{\}")
-vk1D & ]::      SendInput("{^}")
 vk1D & _::      SendInput("{~}")
 vk1D & RShift:: SendInput("{|}")
 vk1D & sc00D::  SendInput(obsidian_folderlink_templete) ; Obsidianリンク
