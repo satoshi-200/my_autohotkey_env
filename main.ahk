@@ -125,10 +125,10 @@ vk1D & 1::      SendInput("#{Up}")          ; 無変換 + 1 -> ウィンドウ�
 vk1D & WheelUp::    Text_cursor_move_left_by_using_mouse_wheel()  ; ホイール上 -> カーソル左
 vk1D & WheelDown::  Text_cursor_move_right_by_using_mouse_wheel() ; ホイール下 -> カーソル右
 vk1D & RButton::    SendInput("{MButton}")  ; 右クリック -> 中央クリック
-vk1D & r::      SendInput("{WheelRight 1}")
+vk1D & r::      SendInput("{WheelDown 3}")
 vk1D & e::      SendInput("{WheelDown 1}")
 vk1D & w::      SendInput("{WheelUp 1}")
-vk1D & q::      SendInput("{WheelLeft 1}")
+vk1D & q::      SendInput("{WheelUp 3}")
 vk1D & n::      MouseClick()                ; n -> マスクリック
 vk1D & g::      FocusUnderCursor()
 vk1D & b::      MouseClick()

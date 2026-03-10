@@ -414,7 +414,7 @@ WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
         MsgBox("{Spaceキー検知")
       }
       else if (key = "sc079") {
-        MsgBox("{変換キー検知}")
+        Capitalize_next_character_you_type() ;次の入力だけ大文字化
       }
       else if (key = "sc07B") {
         MsgBox("無変換キー検知")
