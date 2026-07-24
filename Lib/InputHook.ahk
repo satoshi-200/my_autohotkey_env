@@ -40,13 +40,16 @@ WaitForKeyInput_for_Caps_1level() {
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Alt検知")
+          ; MsgBox("右Alt検知")
+          ToolTip("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShift検知")
+          ; MsgBox("LShift検知")
+          ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tab検知")
+          ; MsgBox("Tab検知")
+          ToolTip("Tab検知")
         }
         else if (key = "Space") {
           turn_on_roman_input_mode() 
@@ -219,25 +222,32 @@ WaitForKeyInput_for_Space_and_f_1level() {
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Alt検知")
+          ; MsgBox("右Alt検知")
+          ToolTip("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShift検知")
+          ; MsgBox("LShift検知")
+          ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tab検知")
+          ; MsgBox("Tab検知")
+          ToolTip("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("{Spaceキー検知")
+          ; MsgBox("{Spaceキー検知")
+          ToolTip("{Spaceキー検知")
         }
         else if (key = "sc079") {
-          MsgBox("{変換キー検知}")
+          ; MsgBox("{変換キー検知}")
+          ToolTip("{変換キー検知}")
         }
         else if (key = "sc07B") {
-          MsgBox("無変換キー検知")
+          ; MsgBox("無変換キー検知")
+          ToolTip("無変換キー検知")
         }
         else if (key = "sc070") {
-          MsgBox("カタカナひらがなローマ字キー検知")
+          ; MsgBox("カタカナひらがなローマ字キー検知")
+          ToolTip("カタカナひらがなローマ字キー検知")
         }
         ih.Stop()
         return
@@ -402,25 +412,31 @@ WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
   if (ih.EndReason = "EndKey") {
       key := ih.EndKey
       if (key = "RAlt") {   ; 右Alt
-        MsgBox("右Alt検知")
+        ; MsgBox("右Alt検知")
+        ToolTip("右Alt検知")
       }
       else if (key = "LShift") { ; 左Shift
-        MsgBox("LShift検知")
+        ; MsgBox("LShift検知")
+        ToolTip("LShift検知")
       }
       else if (key = "Tab") {
-        MsgBox("Tab検知")
+        ; MsgBox("Tab検知")
+        ToolTip("Tab検知")
       }
       else if (key = "Space") {
-        MsgBox("{Spaceキー検知")
+        ; MsgBox("{Spaceキー検知")
+        ToolTip("{Spaceキー検知")
       }
       else if (key = "sc079") {
         Capitalize_next_character_you_type() ;次の入力だけ大文字化
       }
       else if (key = "sc07B") {
-        MsgBox("無変換キー検知")
+        ; MsgBox("無変換キー検知")
+        ToolTip("無変換キー検知")
       }
       else if (key = "sc070") {
-        MsgBox("カタカナひらがなローマ字キー検知")
+        ; MsgBox("カタカナひらがなローマ字キー検知")
+        ToolTip("カタカナひらがなローマ字キー検知")
       }
       ih.Stop()
       return
@@ -1159,25 +1175,32 @@ WaitForKeyInput_kata_hira_romeji() {
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Alt検知")
+          ; MsgBox("右Alt検知")
+          ToolTip("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShift検知")
+          ; MsgBox("LShift検知")
+          ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tab検知")
+          ; MsgBox("Tab検知")
+          ToolTip("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("{Spaceキー検知")
+          ; MsgBox("{Spaceキー検知")
+          ToolTip("{Spaceキー検知}")
         }
         else if (key = "sc079") {
-          MsgBox("{変換キー検知}")
+          ; MsgBox("{変換キー検知}")
+          ToolTip("{変換キー検知}")
         }
         else if (key = "sc07B") {
-          MsgBox("無変換キー検知")
+          ; MsgBox("無変換キー検知")
+          ToolTip("無変換キー検知")
         }
         else if (key = "sc070") {
-          MsgBox("カタカナひらがなローマ字キー検知")
+          ; MsgBox("カタカナひらがなローマ字キー検知")
+          ToolTip("カタカナひらがなローマ字キー検知")
         }
         ih.Stop()
         return
@@ -1298,25 +1321,32 @@ WaitForKeyInput_for_pressing_far_keys() {
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Alt検知")
+          ; MsgBox("右Alt検知")
+          ToolTip("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShift検知")
+          ; MsgBox("LShift検知")
+          ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tab検知")
+          ; MsgBox("Tab検知")
+          ToolTip("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("{Spaceキー検知")
+          ; MsgBox("{Spaceキー検知")
+          ToolTip("{Spaceキー検知}")
         }
         else if (key = "sc079") {
-          MsgBox("{変換キー検知}")
+          ; MsgBox("{変換キー検知}")
+          ToolTip("{変換キー検知}")
         }
         else if (key = "sc07B") {
-          MsgBox("無変換キー検知")
+          ; MsgBox("無変換キー検知")
+          ToolTip("無変換キー検知")
         }
         else if (key = "sc070") {
-          MsgBox("カタカナひらがなローマ字キー検知")
+          ; MsgBox("カタカナひらがなローマ字キー検知")
+          ToolTip("カタカナひらがなローマ字キー検知")
         }
         ih.Stop()
         return
@@ -1437,25 +1467,32 @@ global ih, isWaitingInput
     if (ih.EndReason = "EndKey") {
         key := ih.EndKey
         if (key = "RAlt") {   ; 右Alt
-          MsgBox("右Alt検知")
+          ; MsgBox("右Alt検知")
+          ToolTip("右Alt検知")
         }
         else if (key = "LShift") { ; 左Shift
-          MsgBox("LShift検知")
+          ; MsgBox("LShift検知")
+          ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          MsgBox("Tab検知")
+          ; MsgBox("Tab検知")
+          ToolTip("Tab検知")
         }
         else if (key = "Space") {
-          MsgBox("{Spaceキー検知")
+          ; MsgBox("{Spaceキー検知")
+          ToolTip("{Spaceキー検知}")
         }
         else if (key = "sc079") {
-          MsgBox("{変換キー検知}")
+          ; MsgBox("{変換キー検知}")
+          ToolTip("{変換キー検知}")
         }
         else if (key = "sc07B") {
-          MsgBox("無変換キー検知")
+          ; MsgBox("無変換キー検知")
+          ToolTip("無変換キー検知")
         }
         else if (key = "sc070") {
-          MsgBox("カタカナひらがなローマ字キー検知")
+          ; MsgBox("カタカナひらがなローマ字キー検知")
+          ToolTip("カタカナひらがなローマ字キー検知")
         }
         ih.Stop()
         return
