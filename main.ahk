@@ -141,6 +141,10 @@ vk1D & f::      MoveCursorToRight()
 vk1D & d::      MoveCursorToDown()
 vk1D & s::      MoveCursorToUp()
 vk1D & a::      MoveCursorToLeft()
+vk1D & 7::      MoveCursorToLeftMinimal()
+vk1D & 8::      MoveCursorToUpMinimal()
+vk1D & 9::      MoveCursorToDownMinimal()
+vk1D & 0::      MoveCursorToRightMinimal()
 vk1D & v::      SendInput("{Right}")
 vk1D & z::      SendInput("{Left}")
 vk1D & x::      SendInput("{up}")
@@ -170,16 +174,17 @@ vk1D & sc07D::  SendInput("{- 30}")         ; コメント用ライン (---)
 
 ; --- shift+矢印(powerpoint 図形編集) ---
 vk1D & 6::      return
-vk1D & 7::      SendInput("+{Left}")
-vk1D & 8::      SendInput("+{Up}")
-vk1D & 9::      SendInput("+{Down}")
-vk1D & 0::      SendInput("+{Right}")
+
 
 ; --- Ctrl+矢印(powerpoint 図形編集、その他) ---
 vk1D & F9::     SendInput("^{Left}")
 vk1D & F10::    SendInput("^{Up}")
 vk1D & F11::    SendInput("^{Down}")
 vk1D & F12::    SendInput("^{Right}")
+vk1D & Up::     SendInput("^{Up}")
+vk1D & Down::   SendInput("^{Down}")
+vk1D & Right::  SendInput("^{Right}")
+vk1D & Left::   SendInput("^{Left}")
 
 ; ------------------------------------------------------------------------------
 ; レイヤー：Spaceキー (vk20) ＋ 各種キー
@@ -204,11 +209,11 @@ vk20 & 8::      SendInput("^{Left}")
 vk20 & 9::      SendInput("^{Right}")
 vk20 & 7::      SendInput("^{Home}")
 vk20 & 0::      SendInput("^{End}")
-vk20 & Up::     SendInput("{WheelUp 3}")
-vk20 & Down::   SendInput("{WheelDown 3}")
-vk20 & Right::  SendInput("{WheelRight 3}")
-vk20 & Left::   SendInput("{WheelLeft 3}")
-vk20 & PgUp::   SendInput("{{WheelUp 6}")
+vk20 & Up::     SendInput("+{Up}")
+vk20 & Down::   SendInput("+{Down}")
+vk20 & Right::  SendInput("+{Right}")
+vk20 & Left::   SendInput("+{Left}")
+vk20 & PgUp::   SendInput("{WheelUp 6}")
 vk20 & PgDn::   SendInput("{WheelDown 6}")
 
 ; --- マウスエミュレート ---
@@ -226,9 +231,13 @@ vk20 & o::      SendInput("{WheelDown 1}")
 ; --- 編集・入力補助 ---
 vk20 & h::      SendInput("{Enter}")
 vk20 & g::      SendInput("{Enter}")
-vk20 & m::      SendInput("+{Enter}")
-vk20 & ,::      SendInput("^{Enter}")
-vk20 & .::      SendInput("!{Enter}")
+;vk20 & m::      SendInput("+{Enter}")
+;vk20 & ,::      SendInput("^{Enter}")
+;vk20 & .::      SendInput("!{Enter}")
+vk20 & m::      MoveCursorToLeftMinimal()
+vk20 & ,::      MoveCursorToUpMinimal()
+vk20 & .::      MoveCursorToDownMinimal()
+vk20 & /::      MoveCursorToRightMinimal()
 vk20 & s::      SendInput("{Backspace}")
 vk20 & d::      SendInput("{Delete}")
 vk20 & *::      SendInput("{F2}")           ; 名前変更
@@ -254,8 +263,9 @@ vk20 & a::      WaitForKeyInput_Input_letter_only_lefthand_and_symbols()
 
 ; --- その他 ---
 vk20 & LShift::   SendInput("^{z}")
-vk20 & RShift::   SendInput("{Blind}^{Space}") ; Ctrl + Space
-vk20 & RCtrl::    SendInput("{Blind}+{Space}") ; Shift + Space
+vk20 & RShift::   SendInput("{Blind}+{Space}")
+vk20 & RControl::    SendInput("{Blind}^{Space}")
+
 
 ; ------------------------------------------------------------------------------
 ; 単独キー・InputHook階層呼び出し
