@@ -968,6 +968,9 @@ WaitForKeyInput_call_CtrlShiftChar_keys() { ; キー入力を待つ関数 Ctrl�
     else if (ih.Input = "z") {
       SendInput("^+{z}")
     }
+    else if (ih.Input = ";") {
+      SendInput("^+{;}")
+    }
     ih.Stop()
     return
 }

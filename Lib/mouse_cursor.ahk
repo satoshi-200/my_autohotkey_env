@@ -317,8 +317,8 @@ FocusUnderCursor() {
 ; CoordModeはSetCursorPosの引数には影響しませんが、
 ; MouseGetPosのためにScreenの絶対座標のまま維持
 CoordMode("Mouse", "Screen")
-amount_of_movement := 300
-
+amount_of_movement := 200
+amount_of_movement_minimal := 30
 MoveCursorToRight() {
     MouseGetPos(&x, &y)
     DllCall("SetCursorPos", "Int", x + amount_of_movement, "Int", y)
@@ -336,6 +336,25 @@ MoveCursorToUp() {
 MoveCursorToDown() {
     MouseGetPos(&x, &y)
     DllCall("SetCursorPos", "Int", x, "Int", y + amount_of_movement)
+}
+
+MoveCursorToRightMinimal() {
+    MouseGetPos(&x, &y)
+    DllCall("SetCursorPos", "Int", x + amount_of_movement_minimal, "Int", y)
+}
+
+MoveCursorToLeftMinimal() {
+    MouseGetPos(&x, &y)
+    DllCall("SetCursorPos", "Int", x - amount_of_movement_minimal, "Int", y)
+}
+MoveCursorToUpMinimal() {
+    MouseGetPos(&x, &y)
+    DllCall("SetCursorPos", "Int", x, "Int", y - amount_of_movement_minimal)
+}
+
+MoveCursorToDownMinimal() {
+    MouseGetPos(&x, &y)
+    DllCall("SetCursorPos", "Int", x, "Int", y + amount_of_movement_minimal)
 }
 
 ToggleClick()
