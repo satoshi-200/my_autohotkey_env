@@ -85,11 +85,11 @@ IME_GET(WinTitle:="A")  {
         cbSize := 4+4+(PtrSize*6)+16
         stGTI := Buffer(cbSize,0)
         NumPut("DWORD", cbSize, stGTI.Ptr,0)   ;   DWORD   cbSize;
-        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Uint", stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"Uint") : hwnd
+        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "UInt", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "UInt", 0x0283  ;Message : WM_IME_CONTROL
           ,  "Int", 0x0005  ;wParam  : IMC_GETOPENSTATUS
           ,  "Int", 0)      ;lParam  : 0
@@ -108,11 +108,11 @@ IME_SET(SetSts, WinTitle:="A")    {
         cbSize := 4+4+(PtrSize*6)+16
         stGTI := Buffer(cbSize,0)
         NumPut("Uint", cbSize, stGTI.Ptr,0)   ;   DWORD   cbSize;
-        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Uint",stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"Uint") : hwnd
+        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "UInt", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "UInt", 0x0283  ;Message : WM_IME_CONTROL
           ,  "Int", 0x006   ;wParam  : IMC_SETOPENSTATUS
           ,  "Int", SetSts) ;lParam  : 0 or 1
@@ -174,11 +174,11 @@ IME_GetConvMode(WinTitle:="A")   {
         cbSize := 4+4+(PtrSize*6)+16	; DWORD*2+HWND*6+RECT
         stGTI := Buffer(cbSize,0)
         NumPut("UInt", cbSize, stGTI.Ptr,0)   ;   DWORD   cbSize;
-        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Uint",stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"Uint") : hwnd
+        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "Uint", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "Uint", 0x0283  ;Message : WM_IME_CONTROL
           ,  "Int", 0x001   ;wParam  : IMC_GETCONVERSIONMODE
           ,  "Int", 0)      ;lParam  : 0
@@ -198,10 +198,10 @@ IME_SetConvMode(ConvMode,WinTitle:="A")   {
         stGTI := Buffer(cbSize,0)
         NumPut("Uint", cbSize, stGTI.Ptr,0)   ;   DWORD   cbSize;
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"Uint") : hwnd
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "UInt", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "UInt", 0x0283      ;Message : WM_IME_CONTROL
           ,  "Int", 0x002       ;wParam  : IMC_SETCONVERSIONMODE
           ,  "Int", ConvMode)   ;lParam  : CONVERSIONMODE
@@ -231,11 +231,11 @@ IME_GetSentenceMode(WinTitle:="A")   {
         cbSize := 4+4+(PtrSize*6)+16
         stGTI := Buffer(cbSize,0)
         NumPut("Uint", cbSize, stGTI.Ptr,0)   ;   DWORD   cbSize;
-        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Uint", stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"UInt") : hwnd
+        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "UInt", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "UInt", 0x0283  ;Message : WM_IME_CONTROL
           ,  "Int", 0x003   ;wParam  : IMC_GETSENTENCEMODE
           ,  "Int", 0)      ;lParam  : 0
@@ -259,11 +259,11 @@ IME_SetSentenceMode(SentenceMode,WinTitle:="A")  {
         cbSize:=4+4+(PtrSize*6)+16
         stGTI := Buffer(cbSize,0)
         NumPut("Uint", cbSize, stGTI.Ptr)   ;   DWORD   cbSize;
-        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Uint", stGTI.Ptr)
-                 ? NumGet(stGTI.Ptr,8+PtrSize,"UInt") : hwnd
+        hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
+                 ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
     return DllCall("SendMessage"
-          , "UInt", DllCall("imm32\ImmGetDefaultIMEWnd", "Uint",hwnd)
+          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
           , "UInt", 0x0283          ;Message : WM_IME_CONTROL
           ,  "Int", 0x004           ;wParam  : IMC_SETSENTENCEMODE
           ,  "Int", SentenceMode)   ;lParam  : SentenceMode
@@ -390,11 +390,11 @@ Get_Keyboard_Layout(WinTitle:="A")  {
         stGTI := Buffer(cbSize,0)
         NumPut("Uint", cbSize, stGTI.Ptr)   ;   DWORD   cbSize;
         hwnd := DllCall("GetGUIThreadInfo", "UInt",0, "Ptr",stGTI)
-                 ? NumGet(stGTI,8+PtrSize,"UInt") : hwnd
+                 ? NumGet(stGTI,8+PtrSize,"Ptr") : hwnd
     }
 
-    ThreadID := DllCall("GetWindowThreadProcessId", "UInt", hwnd, "UInt", 0 )
-    InputLocaleID := DllCall("GetKeyboardLayout", "UInt", ThreadID)
+    ThreadID := DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "UInt", 0 )
+    InputLocaleID := DllCall("GetKeyboardLayout", "UInt", ThreadID, "Ptr")
     return InputLocaleID
 }
 
