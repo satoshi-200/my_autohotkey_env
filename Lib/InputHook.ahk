@@ -158,14 +158,10 @@ WaitForKeyInput_for_Caps_1level() {
       SendInput("{Enter}")
     }
     else if (ih.Input = "j") {
-      ; WaitForKeyInput_call_CtrlChar_keys()
-      turn_on_roman_input_mode()
-      ; turn_on_hiragana_input_mode()
+      
     }
     else if (ih.Input = "k") {
-      ; WaitForKeyInput_call_CtrlShiftChar_keys()
-      turn_on_hiragana_input_mode()
-      ; turn_on_roman_input_mode()
+      
     }
     else if (ih.Input = "l") {
       ; WaitForKeyInput_call_AltChar_keys()

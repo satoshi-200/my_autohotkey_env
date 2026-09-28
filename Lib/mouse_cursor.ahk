@@ -432,11 +432,11 @@ CoordMode("Mouse", "Screen")
 DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
 
 ; --- 設定 ---
-amount_of_movement2 := 130
+amount_of_movement2 := 200
 amount_of_movement2_minimal := 30
-REPEAT_WINDOW := 100 ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
-MAX_ACCEL := 4.0 ; 加速の上限倍率
-ACCEL_STEP := 0.5 ; 1回あたりの加速量
+REPEAT_WINDOW := 10 ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
+MAX_ACCEL := 20.0 ; 加速の上限倍率
+ACCEL_STEP := 7.0 ; 1回あたりの加速量
 
 ; --- API を起動時に一度だけ解決 ---
 _hUser32 := DllCall("GetModuleHandle", "Str", "user32", "Ptr")

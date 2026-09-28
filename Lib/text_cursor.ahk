@@ -29,3 +29,4 @@ Text_cursor_move_left_by_using_mouse_wheel()    ;
     SendInput("{Blind}{left}")
     Sleep(sleep_timer_for_text_cursor)
 }
+
