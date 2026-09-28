@@ -30,7 +30,6 @@
 #Include Lib\IME.ahk
 #Include Lib\IME_wrapper.ahk
 #Include Lib\hotstring.ahk
-#Include Lib\launch_execute.ahk
 #Include Lib\char_input_assist.ahk
 #Include Lib\vscode.ahk
 #Include Lib\parameter.ahk
@@ -125,7 +124,7 @@ vk1D & LShift:: SendInput("#+{s}")
 ; --- マウスエミュレート ---
 vk1D & WheelUp::    Text_cursor_move_left_by_using_mouse_wheel()  ; ホイール上 -> カーソル左
 vk1D & WheelDown::  Text_cursor_move_right_by_using_mouse_wheel() ; ホイール下 -> カーソル右
-vk1D & RButton::    SendInput("{MButton}")  ; 右クリック -> 中央クリック
+vk1D & RButton::    SendInput("^{LButton}")  ; 右クリック -> Ctrl + Click
 vk1D & r::      SendInput("{WheelRight 1}")
 vk1D & e::      SendInput("{WheelDown 1}")
 vk1D & w::      SendInput("{WheelUp 1}")
@@ -135,6 +134,7 @@ vk1D & g::      FocusUnderCursor()
 vk1D & b::      MouseClick()
 vk1D & [::      SendInput("^{WheelUp}")
 vk1D & ]::      SendInput("^{WheelDown}")
+
 
 ; --- カーソル移動 (fdsa / vcxc) ---
 vk1D & f::      MoveCursorToRight2()
@@ -203,12 +203,12 @@ vk20 & j::      SendInput("{Blind}{Left}")
 vk20 & l::      SendInput("{Blind}{Down}")
 vk20 & k::      SendInput("{Blind}{Up}")
 vk20 & +::      SendInput("{Blind}{Right}")
-;vk20 & u::      SendInput("{Blind}{Home}")
-;vk20 & p::      SendInput("{Blind}{End}")
-vk20 & u::      SendInput("{Blind}^{Left}")
-vk20 & p::      SendInput("{Blind}^{Right}")
-vk20 & 8::      SendInput("{Blind}^{Left}") ; 無駄、要検討
-vk20 & 9::      SendInput("{Blind}^{Right}") ; 無駄、要検討
+vk20 & u::      SendInput("{Blind}{Home}")
+vk20 & p::      SendInput("{Blind}{End}")
+vk20 & y::      SendInput("{Blind}^{Left}")
+vk20 & @::      SendInput("{Blind}^{Right}")
+vk20 & 8::      SendInput("{Blind}^{Left}") ; 重複、要検討
+vk20 & 9::      SendInput("{Blind}^{Right}") ; 重複、要検討
 vk20 & 7::      SendInput("{Blind}^{Home}")
 vk20 & 0::      SendInput("{Blind}^{End}")
 vk20 & Up::     SendInput("+{Up}")
@@ -224,8 +224,6 @@ vk20 & WheelDown::  Text_cursor_move_down_by_using_mouse_wheel()
 vk20 & RButton::    MouseClick()
 vk20 & LButton::    SendInput("{WheelDown}")
 vk20 & n::      MouseClick()
-vk20 & y::      SendInput("{Blind}{Home}")
-vk20 & @::      SendInput("{Blind}{End}")
 vk20 & b::      MouseClick()
 vk20 & i::      SendInput("{WheelUp 1}")
 vk20 & o::      SendInput("{WheelDown 1}")

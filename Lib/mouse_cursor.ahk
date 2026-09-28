@@ -476,3 +476,7 @@ MoveCursorToLeftMinimal2() => _MoveCursor(-amount_of_movement2_minimal, 0, false
 MoveCursorToUpMinimal2() => _MoveCursor( 0, -amount_of_movement2_minimal, false)
 MoveCursorToDownMinimal2() => _MoveCursor( 0, amount_of_movement2_minimal, false)
 
+Right_click(){
+    turn_on_roman_input_mode()
+    SendInput("{vk5Dsc15D}")
+}

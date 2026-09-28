@@ -158,10 +158,10 @@ WaitForKeyInput_for_Caps_1level() {
       SendInput("{Enter}")
     }
     else if (ih.Input = "j") {
-      
+      AlwaysOnTop_Set()
     }
     else if (ih.Input = "k") {
-      
+      AlwaysOnTop_Release()
     }
     else if (ih.Input = "l") {
       ; WaitForKeyInput_call_AltChar_keys()
@@ -1054,6 +1054,12 @@ WaitForKeyInput_call_WinChar_keys() {  ; キー入力を待つ関数 Ctrlキー�
     }
     else if (ih.Input = "z") {
         SendInput("#{z}")
+    }
+    else if (ih.Input = ",") {
+        SendInput("#{,}")
+    }
+    else if (ih.Input = ".") {
+        SendInput("#{.}")
     }
     ih.Stop()
     return
