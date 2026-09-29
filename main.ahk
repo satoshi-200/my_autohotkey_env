@@ -40,7 +40,7 @@
 #Include Lib\os_operate_assist.ahk
 #Include Lib\test_scripts.ahk
 #Include Lib\multi_clipboard.ahk
-#Include Lib\MouseNav.ahk
+#Include Lib\mouse_cursor.ahk
 
 ; --- 待機中だけこれらのショートカットを「無効」にする ---
 #HotIf !isWaitingInput  ; 「待機中でない（!）」ときだけ有効
@@ -122,11 +122,11 @@ vk1D & 1::      SendInput("#{Up}")          ; 無変換 + 1 -> ウィンドウ�
 ; --- マウスエミュレート ---
 vk1D & WheelUp::    Text_cursor_move_left_by_using_mouse_wheel()  ; ホイール上 -> カーソル左
 vk1D & WheelDown::  Text_cursor_move_right_by_using_mouse_wheel() ; ホイール下 -> カーソル右
-vk1D & RButton::    SendInput("^{LButton}")  ; 右クリック -> Ctrl + Click
-vk1D & r::      SendInput("{WheelRight 1}")
-vk1D & e::      SendInput("{WheelDown 1}")
-vk1D & w::      SendInput("{WheelUp 1}")
-vk1D & q::      SendInput("{WheelLeft 1}")
+vk1D & RButton::    SendInput("^{LButton}")  ; 右クリック -> Ctrl + Clickwew
+vk1D & w:: MouseNav_ScrollUp()
+vk1D & e:: MouseNav_ScrollDown()
+vk1D & q:: MouseNav_ScrollLeft()
+vk1D & r:: MouseNav_ScrollRight()
 vk1D & n::      MouseClick()                ; n -> マスクリック
 vk1D & g::      FocusUnderCursor()
 vk1D & b::      MouseClick()
@@ -143,7 +143,7 @@ vk1D & f::      MouseNav_Right()
 vk1D & d::      MouseNav_Down()
 vk1D & s::      MouseNav_Up()
 vk1D & a::      MouseNav_Left()
-vk1D & LShift:: MouseNav_WarpCenter()    ; 無変換 + LShift -> アクティブウィンドウの中央へ移動　
+vk1D & LShift:: MouseNav_WarpCenter()    ; 無変換 + LShift -> モニターの中央へ移動　
 vk1D & sc070::  MouseNav_WarpMonitor()   ; 無変換 + かな -> モニター切り替え
 vk1D & sc03A::  FocusUnderCursor()       ; 無変換 + CapsLock -> カーソル下のウィンドウにフォーカス
 vk1D & 7::      MouseNav_JumpLeft()
@@ -179,7 +179,6 @@ vk1D & sc07D::  SendInput("{- 30}")         ; コメント用ライン (---)
 
 ; --- shift+矢印(powerpoint 図形編集) ---
 vk1D & 6::      return
-
 
 ; --- Ctrl+矢印(powerpoint 図形編集、その他) ---
 vk1D & F9::     SendInput("^{Left}")
@@ -230,8 +229,8 @@ vk20 & RButton::    MouseClick()
 vk20 & LButton::    SendInput("{WheelDown}")
 vk20 & n::      MouseClick()
 vk20 & b::      MouseClick()
-vk20 & i::      SendInput("{WheelUp 1}")
-vk20 & o::      SendInput("{WheelDown 1}")
+vk20 & i::      MouseNav_ScrollUp()
+vk20 & o::      MouseNav_ScrollDown()
 
 ; --- 編集・入力補助 ---
 vk20 & h::      SendInput("{Enter}")
