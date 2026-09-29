@@ -36,7 +36,6 @@
 #Include Lib\global_settings.ahk
 #Include Lib\InputHook.ahk
 #Include Lib\screen_saver.ahk
-#Include Lib\mouse_cursor.ahk
 #Include Lib\text_cursor.ahk
 #Include Lib\os_operate_assist.ahk
 #Include Lib\test_scripts.ahk
@@ -240,10 +239,10 @@ vk20 & g::      SendInput("{Enter}")
 ;vk20 & m::      SendInput("+{Enter}")
 ;vk20 & ,::      SendInput("^{Enter}")
 ;vk20 & .::      SendInput("!{Enter}")
-vk20 & m::      MoveCursorToLeftMinimal()
-vk20 & ,::      MoveCursorToUpMinimal()
-vk20 & .::      MoveCursorToDownMinimal()
-vk20 & /::      MoveCursorToRightMinimal()
+vk20 & m::      return
+vk20 & ,::      return
+vk20 & .::      return
+vk20 & /::      return
 vk20 & s::      SendInput("{Backspace}")
 vk20 & d::      SendInput("{Delete}")
 vk20 & *::      SendInput("{F2}")           ; 名前変更

@@ -1,3 +1,4 @@
+#Requires AutoHotkey v2.0
 ;==============================================================================
 ; MouseNav : ホームポジションのままマウスカーソルを操作する（AutoHotkey v2）
 ;------------------------------------------------------------------------------
@@ -17,9 +18,11 @@
 ; (5) Bisect（2 分割ジャンプ）
 ;     押すたびに対象領域を半分に絞り込み、その中央へ移動する。
 ;     5～6 回で画面上の任意の位置に到達できる（最初はカーソルのあるモニター全体）。
-; (6) Warp：アクティブウィンドウの中央／モニターの中央／次のモニターへ瞬間移動
+; (6) Warp：アクティブウィンドウの中央／モニターの中央／モニターの四隅／
+;     次のモニター（同じ相対位置 or 中央）へ瞬間移動
 ;     アクティブウィンドウが対象外（デスクトップ、タスクバー、最小化中など）の場合は
 ;     カーソルのあるモニターの中央へ移動する。
+;     モニターの巡回順は「左から右、同じ左端なら上から下」で、座標から自動判定する。
 ; (7) 従来版の高速化策は継承
 ;     API アドレスの事前解決、GetCursorPos/SetCursorPos による生ピクセル座標の統一、
 ;     per-monitor v2 DPI、Buffer の使い回し
@@ -29,7 +32,6 @@
 ;   停止は物理キーを離したことを検知して自動で行うので、キーを離したときの処理は不要。
 ; ・MouseNav.Keys に、実際に割り当てている物理キー名を必ず設定すること。
 ;   （離したことの検知に GetKeyState(key, "P") を使用するため）
-; ・初期化は初回呼び出し時に自動で行われるため、#Include の位置に依存しない。
 ;
 ; 【調整ポイント】
 ; V_START   … 押し始めの速度。短く押したときの移動量に効く。
@@ -37,7 +39,29 @@
 ; RAMP_MS   … 最高速度に達するまでの時間。短いほどすぐ速くなる。
 ; CURVE     … 加速の立ち上がり方。大きいほど出だしが穏やかで、後半に一気に加速する。
 ; V_SLOW    … 精密モードの速度（加速なし）。
+;------------------------------------------------------------------------------
+; 【2026/09/29 旧マウス関連ファイルからの移行】
+; 旧ファイルの関数のうち、MouseNav で代替できないものだけを本ファイルへ移した。
+;   継続（名前・呼び出し方はそのまま）
+;     Right_click / Get_cursor_xy_pos / FocusUnderCursor / ToggleClick
+;   置き換え
+;     move_mouse_cursor_to_*、MoveCursorTo*、MoveCursorTo*2  → MouseNav_Left() 等
+;     MoveCursorTo*Minimal、MoveCursorTo*Minimal2            → 廃止（微調整はトラックポイント）
+;     Jump_to_upper_left_point 等（四隅）                     → MouseNav_Corner*()
+;     Jump_to_center_display1～4（モニター巡回）              → MouseNav_WarpMonitorCenter()
+;   廃止に伴い削除した変数
+;     display1～3、currentDisplay、amount_of_movement*、REPEAT_WINDOW、MAX_ACCEL、ACCEL_STEP、
+;     _hUser32、_pSetCursor、_pGetCursor、_ptBuf
 ;==============================================================================
+
+;--- スクリプト全体の設定（旧ファイルから継承）---------------------------------
+#SingleInstance Force
+ListLines False
+KeyHistory 0
+ProcessSetPriority "High"
+CoordMode("Mouse", "Screen")
+DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")
+
 
 class MouseNav {
     ;--- 設定 -----------------------------------------------------------------
@@ -162,26 +186,39 @@ class MouseNav {
         DllCall(this._pSet, "Int", (r.L + r.R) // 2, "Int", (r.T + r.B) // 2, "Int")
     }
 
-    ; 次のモニターの同じ相対位置へ移動
-    static WarpToNextMonitor() {
-        n := MonitorGetCount()
-        if (n < 2)
+    ; カーソルのあるモニターの四隅へ移動（corner: "TL"=左上 / "TR"=右上 / "BL"=左下 / "BR"=右下）
+    static WarpToCorner(corner) {
+        this._GetPos(&x, &y)
+        r := this._MonitorRect(x, y)
+        nx := SubStr(corner, 2, 1) = "R" ? r.R - 1 : r.L
+        ny := SubStr(corner, 1, 1) = "B" ? r.B - 1 : r.T
+        DllCall(this._pSet, "Int", nx, "Int", ny, "Int")
+    }
+
+    ; 次のモニターへ移動
+    ; center = false : 現在と同じ相対位置へ
+    ; center = true  : モニターの中央へ
+    static WarpToNextMonitor(center := false) {
+        mons := this._Monitors()
+        if (mons.Length < 2)
             return
         this._GetPos(&x, &y)
         cur := 1
-        loop n {
-            MonitorGet(A_Index, &l, &t, &r, &b)
-            if (x >= l && x < r && y >= t && y < b) {
-                cur := A_Index
+        for i, m in mons {
+            if (x >= m.L && x < m.R && y >= m.T && y < m.B) {
+                cur := i
                 break
             }
         }
-        MonitorGet(cur, &l, &t, &r, &b)
-        fx := (x - l) / (r - l), fy := (y - t) / (b - t)
-        MonitorGet(Mod(cur, n) + 1, &l, &t, &r, &b)
-        DllCall(this._pSet
-            , "Int", l + Round(fx * (r - l))
-            , "Int", t + Round(fy * (b - t)), "Int")
+        a := mons[cur], b := mons[Mod(cur, mons.Length) + 1]
+        if center {
+            nx := (b.L + b.R) // 2
+            ny := (b.T + b.B) // 2
+        } else {
+            nx := b.L + Round((x - a.L) / (a.R - a.L) * (b.R - b.L))
+            ny := b.T + Round((y - a.T) / (a.B - a.T) * (b.B - b.T))
+        }
+        DllCall(this._pSet, "Int", nx, "Int", ny, "Int")
     }
 
     ;=== 内部処理 ===============================================================
@@ -282,32 +319,88 @@ class MouseNav {
         return {L: NumGet(mi, 4, "Int"), T: NumGet(mi, 8, "Int")
               , R: NumGet(mi, 12, "Int"), B: NumGet(mi, 16, "Int")}
     }
+
+    ; 全モニターの矩形を「左端の小さい順、同じなら上端の小さい順」で返す
+    static _Monitors() {
+        mons := []
+        loop MonitorGetCount() {
+            MonitorGet(A_Index, &l, &t, &r, &b)
+            i := mons.Length + 1
+            while (i > 1 && (mons[i - 1].L > l || (mons[i - 1].L = l && mons[i - 1].T > t)))
+                i--
+            mons.InsertAt(i, {L: l, T: t, R: r, B: b})
+        }
+        return mons
+    }
 }
 
 ;==============================================================================
 ; 呼び出し用ラッパー（引数なしで呼べる）
 ;==============================================================================
 ; 連続移動（押している間だけ動く）
-MouseNav_Left()        => MouseNav.Hold("Left")
-MouseNav_Right()       => MouseNav.Hold("Right")
-MouseNav_Up()          => MouseNav.Hold("Up")
-MouseNav_Down()        => MouseNav.Hold("Down")
+MouseNav_Left()              => MouseNav.Hold("Left")
+MouseNav_Right()             => MouseNav.Hold("Right")
+MouseNav_Up()                => MouseNav.Hold("Up")
+MouseNav_Down()              => MouseNav.Hold("Down")
 ; モード（移動中に押している間だけ有効）
-MouseNav_Slow()        => MouseNav.Hold("Slow")
-MouseNav_Fast()        => MouseNav.Hold("Fast")
+MouseNav_Slow()              => MouseNav.Hold("Slow")
+MouseNav_Fast()              => MouseNav.Hold("Fast")
 ; 微小移動（1 回押すごとに NUDGE_PX 移動）
-MouseNav_NudgeLeft()   => MouseNav.Nudge("Left")
-MouseNav_NudgeRight()  => MouseNav.Nudge("Right")
-MouseNav_NudgeUp()     => MouseNav.Nudge("Up")
-MouseNav_NudgeDown()   => MouseNav.Nudge("Down")
+MouseNav_NudgeLeft()         => MouseNav.Nudge("Left")
+MouseNav_NudgeRight()        => MouseNav.Nudge("Right")
+MouseNav_NudgeUp()           => MouseNav.Nudge("Up")
+MouseNav_NudgeDown()         => MouseNav.Nudge("Down")
 ; 2 分割ジャンプ
-MouseNav_JumpLeft()    => MouseNav.Bisect("Left")
-MouseNav_JumpRight()   => MouseNav.Bisect("Right")
-MouseNav_JumpUp()      => MouseNav.Bisect("Up")
-MouseNav_JumpDown()    => MouseNav.Bisect("Down")
+MouseNav_JumpLeft()          => MouseNav.Bisect("Left")
+MouseNav_JumpRight()         => MouseNav.Bisect("Right")
+MouseNav_JumpUp()            => MouseNav.Bisect("Up")
+MouseNav_JumpDown()          => MouseNav.Bisect("Down")
 ; ワープ
-MouseNav_WarpWindow()  => MouseNav.WarpToActiveWindow()
-MouseNav_WarpCenter()  => MouseNav.WarpToMonitorCenter()
-MouseNav_WarpMonitor() => MouseNav.WarpToNextMonitor()
+MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
+MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()
+MouseNav_WarpMonitor()       => MouseNav.WarpToNextMonitor()
+MouseNav_WarpMonitorCenter() => MouseNav.WarpToNextMonitor(true)
+; 四隅（カーソルのあるモニター）
+MouseNav_CornerTopLeft()     => MouseNav.WarpToCorner("TL")
+MouseNav_CornerTopRight()    => MouseNav.WarpToCorner("TR")
+MouseNav_CornerBottomLeft()  => MouseNav.WarpToCorner("BL")
+MouseNav_CornerBottomRight() => MouseNav.WarpToCorner("BR")
 ; 強制停止
-MouseNav_Stop()        => MouseNav.Stop()
+MouseNav_Stop()              => MouseNav.Stop()
+
+
+;==============================================================================
+; その他のマウス関連関数（旧ファイルから移行。名前・動作は従来どおり）
+;==============================================================================
+
+; 右クリックメニュー（アプリケーションキー）を開く
+; ※ turn_on_roman_input_mode() は別ファイルで定義されている前提
+Right_click() {
+    turn_on_roman_input_mode()
+    SendInput("{vk5Dsc15D}")
+}
+
+; マウスカーソルの現在位置を表示する（座標確認用）
+Get_cursor_xy_pos() {
+    MouseGetPos(&xpos, &ypos)
+    MsgBox("マウスカーソルの位置: X" xpos " Y" ypos)
+}
+
+; マウスカーソル下のウィンドウをアクティブにする
+FocusUnderCursor() {
+    MouseGetPos(, , &winID)
+    if winID
+        try WinActivate("ahk_id " winID)
+}
+
+; 左ボタンの押しっぱなし／解除を切り替える（ドラッグ用）
+ToggleClick() {
+    if GetKeyState("LButton") {
+        Click("Up")
+        ToolTip("Released")
+    } else {
+        Click("Down")
+        ToolTip("Holding")
+    }
+    SetTimer(() => ToolTip(), -3000)    ; 3 秒後にヒントを消す（不要なら削除）
+}
