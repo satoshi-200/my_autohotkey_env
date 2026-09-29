@@ -41,6 +41,7 @@
 #Include Lib\os_operate_assist.ahk
 #Include Lib\test_scripts.ahk
 #Include Lib\multi_clipboard.ahk
+#Include Lib\MouseNav.ahk
 
 ; --- 待機中だけこれらのショートカットを「無効」にする ---
 #HotIf !isWaitingInput  ; 「待機中でない（!）」ときだけ有効
@@ -112,14 +113,12 @@ vk1C & sc070::  return                      ; カタカナひらがな (未割�
 vk1D & vk20::   ToggleClick()               ; 無変換 + Space -> クリック状態切替
 vk1D & LAlt::   SendInput("{Blind}{m}")     ; 無変換 + LAlt -> m
 vk1D & sc00F::  SendInput("#+{Right}")      ; 無変換 + Tab -> ウィンドウを右モニタへ
-vk1D & sc03A::  SendInput("{Space}")        ; 無変換 + CapsLock -> Space
-vk1D & sc070::  Jump_to_center_display4()   ; 無変換 + かな -> 第4画面中央へ移動
 vk1D & RAlt::   FocusUnderCursor()          ; 無変換 + RAlt -> カーソル下のウィンドウにフォーカス
 vk1D & 3::      AltTab                      ; 無変換 + 3 -> 次のアプリへ
 vk1D & 2::      ShiftAltTab                 ; 無変換 + 2 -> 前のアプリへ
 vk1D & 4::      SendInput("#{Down}")        ; 無変換 + 4 -> ウィンドウ最小化
 vk1D & 1::      SendInput("#{Up}")          ; 無変換 + 1 -> ウィンドウ最大化
-vk1D & LShift:: SendInput("#+{s}")
+
 
 ; --- マウスエミュレート ---
 vk1D & WheelUp::    Text_cursor_move_left_by_using_mouse_wheel()  ; ホイール上 -> カーソル左
@@ -135,16 +134,23 @@ vk1D & b::      MouseClick()
 vk1D & [::      SendInput("^{WheelUp}")
 vk1D & ]::      SendInput("^{WheelDown}")
 
-
-; --- カーソル移動 (fdsa / vcxc) ---
-vk1D & f::      MoveCursorToRight2()
-vk1D & d::      MoveCursorToDown2()
-vk1D & s::      MoveCursorToUp2()
-vk1D & a::      MoveCursorToLeft2()
-vk1D & 7::      MoveCursorToLeftMinimal2()
-vk1D & 8::      MoveCursorToUpMinimal2()
-vk1D & 9::      MoveCursorToDownMinimal2()
-vk1D & 0::      MoveCursorToRightMinimal2()
+; --- カーソル (fdsa / vcxc) ---
+;vk1D & f::      MoveCursorToRight2()
+;vk1D & d::      MoveCursorToDown2()
+;vk1D & s::      MoveCursorToUp2()
+;vk1D & a::      MoveCursorToLeft2()
+; test --- 2026/09/29
+vk1D & f::      MouseNav_Right()
+vk1D & d::      MouseNav_Down()
+vk1D & s::      MouseNav_Up()
+vk1D & a::      MouseNav_Left()
+vk1D & LShift:: MouseNav_WarpCenter()    ; 無変換 + LShift -> アクティブウィンドウの中央へ移動　
+vk1D & sc070::  MouseNav_WarpMonitor()   ; 無変換 + かな -> モニター切り替え
+vk1D & sc03A::  FocusUnderCursor()       ; 無変換 + CapsLock -> カーソル下のウィンドウにフォーカス
+vk1D & 7::      MouseNav_JumpLeft()
+vk1D & 8::      MouseNav_JumpUp()
+vk1D & 9::      MouseNav_JumpDown()
+vk1D & 0::      MouseNav_JumpRight()
 vk1D & v::      SendInput("{Right}")
 vk1D & z::      SendInput("{Left}")
 vk1D & x::      SendInput("{up}")

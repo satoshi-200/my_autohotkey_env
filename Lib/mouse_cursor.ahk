@@ -1,5 +1,11 @@
 ﻿#Requires AutoHotkey v2.0
 
+Right_click(){
+    turn_on_roman_input_mode()
+    SendInput("{vk5Dsc15D}")
+}
+
+
 ; ディスプレイの中心座標を設定
 global display1 := {x: 960, y: 540} ; ディスプレイ1の中心座標（例: 1920x1080の解像度）
 global display2 := {x: 960, y: 540} ; ディスプレイ2の中心座標（例: 1920x1080の解像度）
@@ -434,9 +440,13 @@ DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")
 ; --- 設定 ---
 amount_of_movement2 := 200
 amount_of_movement2_minimal := 30
-REPEAT_WINDOW := 10 ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
-MAX_ACCEL := 20.0 ; 加速の上限倍率
-ACCEL_STEP := 7.0 ; 1回あたりの加速量
+;REPEAT_WINDOW := 5 ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
+;MAX_ACCEL := 50.0 ; 加速の上限倍率
+;ACCEL_STEP := 10.0 ; 1回あたりの加速量
+REPEAT_WINDOW := 100 ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
+MAX_ACCEL := 4.0 ; 加速の上限倍率
+ACCEL_STEP := 0.35 ; 1回あたりの加速量
+
 
 ; --- API を起動時に一度だけ解決 ---
 _hUser32 := DllCall("GetModuleHandle", "Str", "user32", "Ptr")
@@ -476,7 +486,4 @@ MoveCursorToLeftMinimal2() => _MoveCursor(-amount_of_movement2_minimal, 0, false
 MoveCursorToUpMinimal2() => _MoveCursor( 0, -amount_of_movement2_minimal, false)
 MoveCursorToDownMinimal2() => _MoveCursor( 0, amount_of_movement2_minimal, false)
 
-Right_click(){
-    turn_on_roman_input_mode()
-    SendInput("{vk5Dsc15D}")
-}
+
