@@ -42,7 +42,7 @@
 #Include Lib\multi_clipboard.ahk
 #Include Lib\mouse_cursor.ahk
 #Include Lib\quick_menu.ahk
-
+#Include Lib\link_nav.ahk
 ; --- 待機中だけこれらのショートカットを「無効」にする ---
 #HotIf !isWaitingInput  ; 「待機中でない（!）」ときだけ有効
 

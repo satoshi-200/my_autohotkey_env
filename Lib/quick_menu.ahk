@@ -3,42 +3,50 @@
 ; quick_menu.ahk
 ; QuickPalette : 便利機能をまとめて呼び出すランチャー（AutoHotkey v2）
 ;------------------------------------------------------------------------------
-; 【2つの呼び出し方】
+; 【3つの呼び出し方】
 ; (1) コマンドパレット（QuickPalette_Show）… Caps → j を想定
 ;     機能の一覧と入力欄を表示する。各機能には英語の短い名前（英名）が付いており、
 ;     一覧の先頭の列に表示している。
 ;       ・半角英字を打つ … 英名がその文字で始まる機能へジャンプする
-;                          （エクスプローラーでファイル名の頭文字を打つのと同じ）
-;                          例：u → upper（大文字に）、cl → clipboard、ta → taskmgr
+;                          例：u → upper（大文字に）、cl → clipboard、sy → symbols
 ;                          続けて打つほど絞れる。BS で 1 文字戻す。
 ;       ・英名に当てはまらない入力 … 日本語名・キーワードで一覧を絞り込む
-;                          （例：大文字、hankaku、honyaku。スペース区切りで AND 検索）
-;       ・↑↓ または Ctrl+J / Ctrl+K … 選択を移動（端まで行くと反対側へ戻る）
-;       ・PgUp / PgDn                  … 10 件ずつ移動
+;       ・↑↓ または Ctrl+J / Ctrl+K … 選択を移動
 ;       ・Enter / ダブルクリック        … 実行
-;     IME は自動でオフになる。入力が空のときは、最近使った機能が上に並ぶ
-;     （スクリプト再起動でリセット）。
 ;
 ; (2) クイックメニュー（QuickMenu_Show）… Caps → k を想定
-;     文字カーソル（取れない場合はマウス）の位置に、カテゴリの一覧を表示する。
 ;     英字 1 文字でカテゴリを選び、もう 1 文字で機能を実行する（2 打鍵）。
 ;       例：T → U … 選択中の文字を大文字に
-;           W → T … 常に最前面を切り替え
+;           I → K … 記号メニューを開く
 ;       ・BS / ← … カテゴリ一覧に戻る
-;       ・↑↓ + Enter、マウスのクリックでも選べる
-;     コマンドパレットの右端の列に「T→U」のように同じキーを表示している。
 ;
-; 【閉じ方（パレット・メニュー共通）】
+; (3) 記号メニュー（QM_SymbolMenu_Show）（2026/09/30 追加）
+;     記号の一覧を表示し、英字 1 文字でその記号を入力する。
+;     キーは記号の英語名の頭文字（重なるものは英語名の中の目立つ文字）。
+;       E ! Exclamation     H # Hash           D $ Dollar        R % peRcent
+;       N & ampersaNd(and)  C ^ Caret          T ~ Tilde         B \ Backslash
+;       V | Vertical bar    A @ At sign        G ` Grave accent  Q ? Question
+;       P + Plus            M - Minus          X * asterisk(×)   S / Slash
+;     ・↑↓ + Enter、マウスのクリックでも選べる
+;     ・一覧の順番と割り当ては QM_SymbolMenu.Symbols で変更できる
+;     ・全角／半角の自動切り替え（2026/09/30 追加）
+;         開く直前に入力先の IME の状態を調べ、
+;           IME オフ・半角英数          → 半角で入力（!）
+;           ひらがな・カタカナ・全角英数 → 全角で入力（！）
+;         メニューのタイトルに「半角」「全角」を表示する。
+;         判定が外れたときは Space で切り替えられる。
+;         全角の文字を個別に変えたいときは QM_SymbolMenu.FULL_OVERRIDE に書く。
+;
+; 【閉じ方（共通）】
 ;   ・Esc                           … 閉じて元のウィンドウに戻る
 ;   ・ほかの場所をクリック / Alt+Tab … 閉じる
 ;   ・Caps をもう一度押す            … 閉じる（開いているときだけ有効）
 ;   ・一定時間操作しない             … メニューを閉じる（MENU_TIMEOUT_MS で設定。0 で無効）
-;   ・Caps → k をもう一度            … メニューを閉じる（開閉の切り替え）
+;   ・同じ呼び出しをもう一度         … メニューを閉じる（開閉の切り替え）
 ;
 ; 【機能を追加するには】
 ; QuickPalette._Init() の中に、次の形式で 1 行追加する。
 ;     this.Add("カテゴリの英字", "メニュー用の英字", "英名", "表示名", 実行する関数, "検索キーワード")
-;   例：this.Add("A", "X", "excel", "Excel を起動", (*) => Run("excel.exe"), "hyoukeisan")
 ;   ・英名は半角英小文字・数字・ハイフン。ほかの機能と頭文字がなるべく重ならないものにする。
 ;   ・表示名に " を含めるときは、全体を '...' で囲む（\" は使えない）。
 ;
@@ -47,6 +55,8 @@
 ;   実行後、クリップボードは元の内容に戻す。
 ; ・関数名・変数名はすべて QM_ / QuickPalette / QuickMenu で始めて、
 ;   既存のスクリプトと重複しないようにしている。
+; ・AutoHotkey v2 は変数名とメソッド名の大文字小文字を区別しないため、
+;   static 変数にはメソッドと重ならない名前を付けること。
 ;==============================================================================
 
 class QuickPalette {
@@ -68,7 +78,7 @@ class QuickPalette {
     static _view   := []        ; パレットの ListView の行番号 → 項目
     static _target := 0         ; パレット／メニューを開く前にアクティブだったウィンドウ
 
-    ; クイックメニューの状態（※メソッド名と大文字小文字違いで重ならない名前にすること）
+    ; クイックメニューの状態
     static _mOpen  := false     ; 表示中か
     static _mLevel := ""        ; "" = カテゴリ一覧、それ以外 = 表示中のカテゴリの英字
     static _mView  := []        ; メニューの行番号 → {type, key, it}
@@ -98,6 +108,7 @@ class QuickPalette {
         this.Add("T", "V", "plainpaste",   "書式なしで貼り付け",            (*) => QM_PastePlain(), "harituke")
 
         ;--- 挿入 ---------------------------------------------------------------
+        this.Add("I", "K", "symbols",      "記号メニュー（! # $ % & …）",   (*) => QM_SymbolMenu_Show(), "kigou symbol")
         this.Add("I", "D", "date",         "日付（yyyy/MM/dd）",            (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
         this.Add("I", "W", "dateweek",     "日付と曜日（yyyy/MM/dd(ddd)）", (*) => QM_InsertTime("yyyy/MM/dd(ddd)"), "hiduke youbi")
         this.Add("I", "N", "datenum",      "日付（yyyyMMdd）",              (*) => QM_InsertTime("yyyyMMdd"), "hiduke filename")
@@ -155,8 +166,10 @@ class QuickPalette {
 
     ;=== 共通 ===================================================================
 
-    ; パレットかメニューがアクティブか（Caps で閉じるホットキーの条件）
+    ; パレット・メニュー・記号メニューのどれかがアクティブか（Caps で閉じるホットキーの条件）
     static _IsOpen() {
+        if QM_SymbolMenu.IsActive()
+            return true
         if !this._inited
             return false
         return WinActive("ahk_id " this._gui.Hwnd)
@@ -165,6 +178,7 @@ class QuickPalette {
 
     ; すべて閉じて元のウィンドウに戻る
     static CloseAll() {
+        QM_SymbolMenu.Close()
         if !this._inited
             return
         if this._mOpen
@@ -259,9 +273,6 @@ class QuickPalette {
     }
 
     ; 入力に合わせて一覧を更新する
-    ;   ・空             … 全件表示
-    ;   ・英名の頭に一致 … 全件表示のまま、最初に一致した行へジャンプ
-    ;   ・それ以外       … 日本語名・キーワードで絞り込み
     static _Filter() {
         q := StrLower(Trim(RegExReplace(this._edit.Value, "[\s　]+", " ")))
         all := this._SortedItems()
@@ -404,16 +415,9 @@ class QuickPalette {
         this._mLevel := ""
         this._MenuRender()
 
-        ; 文字カーソルの下（取れなければマウスの位置）に表示し、画面からはみ出さないよう調整
-        CoordMode("Caret", "Screen"), CoordMode("Mouse", "Screen")
-        if CaretGetPos(&x, &y)
-            y += 24
-        else
-            MouseGetPos(&x, &y)
+        QM_PopupPos(&x, &y)
         this._mgui.Show("Hide AutoSize")
-        QM_GetWinSize(this._mgui.Hwnd, &gw, &gh)
-        MonitorGetWorkArea(QM_MonitorFromPoint(x, y), &l, &t, &r, &b)
-        x := Max(l, Min(x, r - gw)), y := Max(t, Min(y, b - gh))
+        QM_ClampToMonitor(this._mgui.Hwnd, &x, &y)
         this._mgui.Show("x" x " y" y)
 
         this._mOpen := true
@@ -447,14 +451,7 @@ class QuickPalette {
         lv.Opt("+Redraw")
         lv.Modify(1, "Select Focus")
 
-        ; 一覧の高さを行数に合わせる
-        rc := Buffer(16, 0)
-        DllCall("SendMessage", "Ptr", lv.Hwnd, "UInt", 0x100E, "Ptr", 0, "Ptr", rc, "Ptr")  ; LVM_GETITEMRECT
-        rowH := Max(NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int"), 16)
-        lv.GetPos(, &ly)
-        lvH := rowH * this._mView.Length + 4
-        lv.Move(, , , lvH)
-        this._mFoot.Move(, ly + lvH + 6)
+        QM_FitListView(lv, this._mView.Length, this._mFoot)
         if this._mOpen
             this._mgui.Show("AutoSize")                          ; 位置はそのままで大きさだけ合わせる
     }
@@ -500,9 +497,7 @@ class QuickPalette {
     static _OnMenuKey(wParam, lParam, msg, hwnd) {
         if !this._inited || !this._mOpen || hwnd != this._mlv.Hwnd
             return
-        vk := wParam
-        if (vk = 0xE5)                                           ; IME が処理中のキーは、実際のキーに戻す
-            vk := DllCall("MapVirtualKey", "UInt", (lParam >> 16) & 0xFF, "UInt", 1, "UInt")
+        vk := QM_RealVk(wParam, lParam)
         this._MenuResetTimeout()
 
         switch vk {
@@ -554,11 +549,189 @@ class QuickPalette {
     }
 }
 
+
+;==============================================================================
+; QM_SymbolMenu : 記号を一覧から選んで入力する
+;==============================================================================
+class QM_SymbolMenu {
+    ;--- 記号の一覧（表示順）----------------------------------------------------
+    ; key：押す英字 / sym：入力する記号（半角）/ en：英語名（key の文字を大文字で強調）/ ja：読み
+    static Symbols := [
+        {key: "E", sym: "!",  en: "Exclamation",          ja: "エクスクラメーション（感嘆符）"},
+        {key: "Q", sym: "?",  en: "Question",             ja: "クエスチョン（疑問符）"},
+        {key: "A", sym: "@",  en: "At sign",              ja: "アットマーク"},
+        {key: "H", sym: "#",  en: "Hash",                 ja: "ハッシュ（シャープ）"},
+        {key: "D", sym: "$",  en: "Dollar",               ja: "ドル"},
+        {key: "R", sym: "%",  en: "peRcent",              ja: "パーセント"},
+        {key: "N", sym: "&",  en: "ampersaNd（and）",     ja: "アンパサンド"},
+        {key: "C", sym: "^",  en: "Caret",                ja: "キャレット"},
+        {key: "T", sym: "~",  en: "Tilde",                ja: "チルダ"},
+        {key: "B", sym: "\",  en: "Backslash",            ja: "バックスラッシュ（円記号）"},
+        {key: "V", sym: "|",  en: "Vertical bar（pipe）", ja: "縦棒（パイプ）"},
+        {key: "G", sym: "``", en: "Grave accent",         ja: "バッククォート"},
+        {key: "P", sym: "+",  en: "Plus",                 ja: "プラス"},
+        {key: "M", sym: "-",  en: "Minus",                ja: "マイナス（ハイフン）"},
+        {key: "X", sym: "*",  en: "asterisk（×）",       ja: "アスタリスク"},
+        {key: "S", sym: "/",  en: "Slash",                ja: "スラッシュ"}]
+
+    ; 全角で入力するときに、標準の全角文字（！→！ のように +0xFEE0）以外を使いたい記号
+    ;   例：Map("\", "￥", "-", "ー")  … 円記号や長音記号にしたい場合
+    static FULL_OVERRIDE := Map()
+
+    ;--- 内部状態（※メソッド名と大文字小文字違いで重ならない名前にすること）--------
+    static _win := 0, _isOpen := false, _target := 0, _full := false
+
+    ; 表示する（開いていれば閉じる）
+    static Show() {
+        if this._isOpen {
+            this.Close()
+            return
+        }
+        this._target := WinExist("A")
+        this._full := QM_TargetImeIsFullWidth(this._target)     ; メニューが前面に出る前に調べる
+        this._Build()
+        this._Refresh()
+
+        QM_PopupPos(&x, &y)
+        this._win.Show("Hide AutoSize")
+        QM_ClampToMonitor(this._win.Hwnd, &x, &y)
+        this._win.Show("x" x " y" y)
+
+        this._isOpen := true
+        this._lv.Modify(0, "-Select -Focus")
+        this._lv.Modify(1, "Select Focus")
+        this._lv.Focus()
+        QM_ImeOff(this._lv.Hwnd)
+        this._ResetTimeout()
+    }
+
+    static IsActive() => (this._isOpen && this._win && WinActive("ahk_id " this._win.Hwnd))
+
+    ; 閉じる（restore = true なら元のウィンドウに戻る）
+    static Close(restore := true) {
+        if !this._isOpen
+            return
+        this._isOpen := false                                    ; 先に下ろす（非アクティブ化の通知で二重に閉じないように）
+        SetTimer(this._timeoutFn, 0)
+        this._win.Hide()
+        if (restore && this._target && WinExist("ahk_id " this._target))
+            try WinActivate("ahk_id " this._target)
+    }
+
+    ; 入力する文字（全角モードなら全角に変換）
+    static _Char(sym) {
+        if !this._full
+            return sym
+        if this.FULL_OVERRIDE.Has(sym)
+            return this.FULL_OVERRIDE[sym]
+        return QM_ToFullAscii(sym)
+    }
+
+    static _Build() {
+        if this._win
+            return
+        g := Gui("+AlwaysOnTop -Caption +Border +ToolWindow", "QuickSymbol")
+        g.MarginX := 8, g.MarginY := 6
+        g.SetFont("s9 c808080", "Yu Gothic UI")
+        this._title := g.AddText("w460", "記号メニュー")
+        g.SetFont("s11 cDefault")
+        this._lv := g.AddListView("w460 r16 -Multi -Hdr NoSortHdr +LV0x10000 -E0x200", ["キー", "記号", "英語名", "読み"])
+        this._lv.ModifyCol(1, 44), this._lv.ModifyCol(2, 44), this._lv.ModifyCol(3, 170), this._lv.ModifyCol(4, 196)
+        for s in this.Symbols
+            this._lv.Add(, s.key, s.sym, s.en, s.ja)
+        g.SetFont("s9 c808080")
+        foot := g.AddText("w460", "英字：入力　Space：全角／半角を切り替え　↑↓ + Enter：選んで入力　Esc / Caps：閉じる")
+        QM_FitListView(this._lv, this.Symbols.Length, foot)
+        this._win := g
+
+        this._lv.OnEvent("Click", (ctrl, row) => (row ? this._Pick(row) : 0))
+        g.OnEvent("Escape", (*) => this.Close())
+        g.OnEvent("Close",  (*) => this.Close())
+        this._timeoutFn := () => this.Close()
+
+        OnMessage(0x0100, ObjBindMethod(this, "_OnKeyDown"))   ; WM_KEYDOWN
+        OnMessage(0x0102, ObjBindMethod(this, "_OnChar"))      ; WM_CHAR
+        OnMessage(0x0006, ObjBindMethod(this, "_OnActivate"))  ; WM_ACTIVATE
+    }
+
+    ; タイトルと「記号」列を、全角／半角に合わせて書き換える
+    static _Refresh() {
+        this._title.Value := "記号メニュー　［" (this._full ? "全角" : "半角") "で入力］"
+        for i, s in this.Symbols
+            this._lv.Modify(i, , , this._Char(s.sym))
+    }
+
+    static _ResetTimeout() {
+        if (QuickPalette.MENU_TIMEOUT_MS > 0)
+            SetTimer(this._timeoutFn, -QuickPalette.MENU_TIMEOUT_MS)
+    }
+
+    ; 記号を入力する
+    static _Pick(row) {
+        if (row < 1 || row > this.Symbols.Length)
+            return
+        ch := this._Char(this.Symbols[row].sym)
+        this.Close(false)
+        SetTimer(() => this._Type(ch), -1)
+    }
+
+    static _Type(ch) {
+        if (this._target && WinExist("ahk_id " this._target)) {
+            try WinActivate("ahk_id " this._target)
+            try WinWaitActive("ahk_id " this._target, , 0.5)
+        }
+        Sleep(30)
+        SendText(ch)                                             ; 文字をそのまま入力（キー配列・Shift の影響を受けない）
+    }
+
+    static _OnKeyDown(wParam, lParam, msg, hwnd) {
+        if !this._isOpen || !this._win || hwnd != this._lv.Hwnd
+            return
+        vk := QM_RealVk(wParam, lParam)
+        this._ResetTimeout()
+        switch vk {
+            case 0x1B:                                           ; Esc
+                this.Close()
+                return 0
+            case 0x0D:                                           ; Enter
+                this._Pick(this._lv.GetNext(0))
+                return 0
+            case 0x20:                                           ; Space：全角／半角を切り替え
+                this._full := !this._full
+                this._Refresh()
+                return 0
+            case 0x26, 0x28:                                     ; ↑↓：通常の行移動
+                return
+        }
+        if (vk >= 0x41 && vk <= 0x5A) {                          ; 英字：該当する記号を入力
+            ch := Chr(vk)
+            for i, s in this.Symbols
+                if (s.key = ch) {
+                    this._Pick(i)
+                    break
+                }
+            return 0                                             ; 該当なしは無視
+        }
+    }
+
+    static _OnChar(wParam, lParam, msg, hwnd) {
+        if (this._win && hwnd = this._lv.Hwnd)
+            return 0                                             ; 一覧の頭文字検索とビープ音を止める
+    }
+
+    static _OnActivate(wParam, lParam, msg, hwnd) {
+        if (this._isOpen && this._win && hwnd = this._win.Hwnd && (wParam & 0xFFFF) = 0)
+            SetTimer(() => this.Close(false), -1)               ; ほかの場所をクリック／Alt+Tab で閉じる
+    }
+}
+
+
 ;==============================================================================
 ; 呼び出し用ラッパー
 ;==============================================================================
-QuickPalette_Show() => QuickPalette.Show()
-QuickMenu_Show()    => QuickPalette.ShowMenu()
+QuickPalette_Show()  => QuickPalette.Show()
+QuickMenu_Show()     => QuickPalette.ShowMenu()
+QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================
 ; 開いているときだけ有効なホットキー
@@ -584,6 +757,83 @@ QM_GetWinSize(hwnd, &w, &h) {
     DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
     w := NumGet(rc, 8, "Int") - NumGet(rc, 0, "Int")
     h := NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int")
+}
+
+; 小窓の表示位置：文字カーソルの下（取れなければマウスの位置）
+QM_PopupPos(&x, &y) {
+    CoordMode("Caret", "Screen"), CoordMode("Mouse", "Screen")
+    if CaretGetPos(&x, &y)
+        y += 24
+    else
+        MouseGetPos(&x, &y)
+}
+
+; 窓が画面からはみ出さないよう x, y を調整する
+QM_ClampToMonitor(hwnd, &x, &y) {
+    QM_GetWinSize(hwnd, &w, &h)
+    MonitorGetWorkArea(QM_MonitorFromPoint(x, y), &l, &t, &r, &b)
+    x := Max(l, Min(x, r - w)), y := Max(t, Min(y, b - h))
+}
+
+; 一覧の高さを行数に合わせ、その下の文字（foot）を詰める
+QM_FitListView(lv, rows, foot) {
+    if (lv.GetCount() = 0)
+        return
+    rc := Buffer(16, 0)
+    DllCall("SendMessage", "Ptr", lv.Hwnd, "UInt", 0x100E, "Ptr", 0, "Ptr", rc, "Ptr")  ; LVM_GETITEMRECT
+    rowH := Max(NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int"), 16)
+    lv.GetPos(, &ly)
+    lvH := rowH * rows + 4
+    lv.Move(, , , lvH)
+    foot.Move(, ly + lvH + 6)
+}
+
+; IME が処理中のキー（VK_PROCESSKEY）を、実際のキーに戻す
+QM_RealVk(wParam, lParam) {
+    if (wParam = 0xE5)
+        return DllCall("MapVirtualKey", "UInt", (lParam >> 16) & 0xFF, "UInt", 1, "UInt")
+    return wParam
+}
+
+; IME ウィンドウへ問い合わせる（相手が応答しなくても 200ms で打ち切る）
+QM_ImeQuery(hIme, cmd) {
+    r := 0
+    ok := DllCall("SendMessageTimeout", "Ptr", hIme, "UInt", 0x0283, "Ptr", cmd, "Ptr", 0
+        , "UInt", 0x2, "UInt", 200, "UPtr*", &r, "Ptr")          ; WM_IME_CONTROL, SMTO_ABORTIFHUNG
+    return ok ? r : 0
+}
+
+; 入力先の IME が「全角で入力する状態」か
+;   IME オン かつ 変換モードに NATIVE（かな）または FULLSHAPE（全角）が含まれる → true
+;   IME オフ、半角英数                                                          → false
+QM_TargetImeIsFullWidth(hwnd) {
+    if !hwnd
+        return false
+    ; フォーカスのある部品（エディタ本体など）を探す
+    focus := hwnd
+    tid := DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "Ptr", 0, "UInt")
+    size := (A_PtrSize = 8) ? 72 : 48
+    gti := Buffer(size, 0), NumPut("UInt", size, gti)
+    if DllCall("GetGUIThreadInfo", "UInt", tid, "Ptr", gti)
+        if (f := NumGet(gti, (A_PtrSize = 8) ? 16 : 12, "Ptr"))  ; hwndFocus
+            focus := f
+    hIme := DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", focus, "Ptr")
+    if !hIme
+        return false
+    if !QM_ImeQuery(hIme, 0x0005)                               ; IMC_GETOPENSTATUS
+        return false
+    mode := QM_ImeQuery(hIme, 0x0001)                           ; IMC_GETCONVERSIONMODE
+    return (mode & 0x9) != 0                                     ; IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE
+}
+
+; 半角の英数字・記号を全角に（! → ！、スペース → 全角スペース）
+QM_ToFullAscii(s) {
+    out := ""
+    loop parse s {
+        c := Ord(A_LoopField)
+        out .= (c >= 0x21 && c <= 0x7E) ? Chr(c + 0xFEE0) : (c = 0x20 ? "　" : A_LoopField)
+    }
+    return out
 }
 
 ; 選択中の文字を取得する（クリップボードは元に戻す）

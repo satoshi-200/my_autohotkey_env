@@ -131,9 +131,7 @@ WaitForKeyInput_for_Caps_1level() {
       ; Input_current_Date1() 
     }
     else if(ih.Input = "u") {
-      ; Input_current_Date2()
-      ; SendInput("{Ctrl}")
-      ; WaitForKeyInput_call_CtrlChar_keys()
+      QuickPalette_Show() ; コマンドパレット
     }
     else if(ih.Input = "i") {
       ; Input_current_Date3()
@@ -159,7 +157,7 @@ WaitForKeyInput_for_Caps_1level() {
     }
     else if (ih.Input = "j") {
       ; AlwaysOnTop_Set()
-      QuickPalette_Show() ; コマンドパレット
+      QM_SymbolMenu_Show()
     }
     else if (ih.Input = "k") {
       ; AlwaysOnTop_Release()
@@ -187,6 +185,15 @@ WaitForKeyInput_for_Caps_1level() {
     ; }
     else if (ih.Input = "\") {
       ResetAll()  ; multi_clipboard.ahk
+    }
+    else if (ih.Input = "m") {
+      LinkNav_Next()
+    }
+    else if (ih.Input = ",") {
+      LinkNav_Prev()
+    }
+    else if (ih.Input = ".") {
+      LinkNav_Rescan()
     }
     ih.Stop()
     return
