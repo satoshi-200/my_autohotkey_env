@@ -41,6 +41,7 @@
 #Include Lib\test_scripts.ahk
 #Include Lib\multi_clipboard.ahk
 #Include Lib\mouse_cursor.ahk
+#Include Lib\quick_menu.ahk
 
 ; --- 待機中だけこれらのショートカットを「無効」にする ---
 #HotIf !isWaitingInput  ; 「待機中でない（!）」ときだけ有効
@@ -139,11 +140,12 @@ vk1D & ]::      SendInput("^{WheelDown}")
 ;vk1D & s::      MoveCursorToUp2()
 ;vk1D & a::      MoveCursorToLeft2()
 ; test --- 2026/09/29
-vk1D & f::      MouseNav_Right()
-vk1D & d::      MouseNav_Down()
-vk1D & s::      MouseNav_Up()
-vk1D & a::      MouseNav_Left()
-vk1D & LShift:: MouseNav_WarpCenter()    ; 無変換 + LShift -> モニターの中央へ移動　
+vk1D & f::      MousePlain_Right()
+vk1D & d::      MousePlain_Down()
+vk1D & s::      MousePlain_Up()
+vk1D & a::      MousePlain_Left()
+vk1D & LShift:: MouseNav_WarpCenter()    ; 無変換 + LShift -> モニターの中央へ移動
+vk1D & vk1C:: MouseNav_WarpCenter()    ; 無変換 + 変換 -> モニターの中央へ移動　
 vk1D & sc070::  MouseNav_WarpMonitor()   ; 無変換 + かな -> モニター切り替え
 vk1D & sc03A::  FocusUnderCursor()       ; 無変換 + CapsLock -> カーソル下のウィンドウにフォーカス
 vk1D & 7::      MouseNav_JumpLeft()
@@ -229,8 +231,8 @@ vk20 & RButton::    MouseClick()
 vk20 & LButton::    SendInput("{WheelDown}")
 vk20 & n::      MouseClick()
 vk20 & b::      MouseClick()
-vk20 & i::      MouseNav_ScrollUp()
-vk20 & o::      MouseNav_ScrollDown()
+vk20 & i::      MousePlain_ScrollUp()
+vk20 & o::      MousePlain_ScrollDown()
 
 ; --- 編集・入力補助 ---
 vk20 & h::      SendInput("{Enter}")

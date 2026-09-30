@@ -1,5 +1,6 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
+; mouse_cursor.ahk
 ; MouseNav : ホームポジションのままマウスカーソルを操作する（AutoHotkey v2）
 ;------------------------------------------------------------------------------
 ; 【MoveCursorTo*2 系からの設計変更】
@@ -26,17 +27,43 @@
 ; (7) 従来版の高速化策は継承
 ;     API アドレスの事前解決、GetCursorPos/SetCursorPos による生ピクセル座標の統一、
 ;     per-monitor v2 DPI、Buffer の使い回し
-; (8) スムーズスクロール（2026/09/29 追加）
-;     カーソル移動と同じくタイマー駆動で、押している間だけ加速しながらスクロールする。
-;     ホイール 1 ノッチ（delta 120）より細かい単位で送るため、対応アプリでは滑らかに動く。
-;     押した瞬間に S_INITIAL 分を即時に送るので、短く押せば従来どおり 1 ノッチ分だけ動く。
+; (8) スムーズスクロール（2026/09/29 追加・改良）
+;     タイマー駆動で、押している間だけ加速しながらスクロールする。
+;     押した瞬間に「タップ量」（S_TAP、既定 1 ノッチ）を S_TAP_MS の間に
+;     減速カーブで一気に送り出すため、短押しでもキビキビ反応する。
+;     押し続けると、並行して連続スクロールが S_START から S_MAX まで加速する。
+;     離した後は S_GLIDE_MS の短い慣性で止まる。
+;     送信単位は S_STEP（既定 1）で、高解像度ホイール対応アプリでは連続的に動く。
 ;     上下と左右の同時押しで斜めスクロール。
+; (9) 押下キーの自動判定（2026/09/29 追加）
+;     「離したら止まる」の判定に使う物理キーを、呼び出し元のホットキー名
+;     （A_ThisHotkey）から自動で取得する。
+;     例：「vk20 & i」から呼ぶと、i と vk20 のどちらかを離した時点で止まる。
+;     これにより、同じ関数を複数のレイヤー（vk1D、vk20 など）から呼べる。
+;     ホットキー名から取得できない場合（InputHook 経由など）は Keys の設定を使う。
+; (10) スクロール中の誤入力防止（2026/09/30 作り直し）
+;     スクロールに使ったキーに「条件なし」の握りつぶし用ホットキー
+;     （例 "*i"、何もしない）を一時的に有効化する。
+;     解除は「スクロールが完全に停止」かつ「そのキーを離した」時点。
+; (11) プレーン版の追加（2026/09/30 追加）
+;     気分で使い分けられるよう、以前のシンプルな動作を MousePlain_* として復活させた。
+;     ・MousePlain_Scroll*     … 1 回押すごとにホイール 1 ノッチ（旧 SendInput("{WheelUp 1}") 相当）
+;     ・MousePlain_Left 等     … 1 回押すごとに固定量ジャンプ、キーリピート中は加速（旧 MoveCursorTo*2 相当）
+;     ・MousePlain_*Minimal    … 1 回押すごとに小さい固定量、加速なし（旧 MoveCursorTo*Minimal2 相当）
+;     どちらもキーリピート駆動（押しっぱなしで OS のリピートにより連続動作）。
+;     設定値は class MousePlain の冒頭で変更できる。
+; (12) MousePlain の移動量を解像度に連動（2026/09/30 追加）
+;     高精細なディスプレイ（Surface 等）では、同じ px 数でも体感の移動量が小さくなる。
+;     そこで、カーソルのあるモニターの画素数（対角線の長さ）に比例して移動量を拡大する。
+;       倍率 = √(幅² + 高さ²) ÷ √(BASE_W² + BASE_H²)
+;     基準は 1920×1080 で、このとき MOVE_PX（200px）そのまま。
+;     縦横に同じ倍率を掛けるため、上下と左右の移動量は常に等しい。
+;     SCALE_BY_MONITOR := false で固定値に戻せる。
 ;
 ; 【前提】
 ; ・方向キーの「押下時」に MouseNav_Left() 等を呼ぶ。キーリピートで何度呼ばれても問題ない。
 ;   停止は物理キーを離したことを検知して自動で行うので、キーを離したときの処理は不要。
-; ・MouseNav.Keys に、実際に割り当てている物理キー名を必ず設定すること。
-;   （離したことの検知に GetKeyState(key, "P") を使用するため）
+; ・通常のホットキー（例「vk1D & f::」）から呼ぶ場合、Keys の設定は不要。
 ;
 ; 【調整ポイント：カーソル移動】
 ; V_START   … 押し始めの速度。短く押したときの移動量に効く。
@@ -45,15 +72,22 @@
 ; CURVE     … 加速の立ち上がり方。大きいほど出だしが穏やかで、後半に一気に加速する。
 ; V_SLOW    … 精密モードの速度（加速なし）。
 ;
-; 【調整ポイント：スクロール】（速度の単位は「ノッチ/秒」。1 ノッチ = ホイール 1 段）
-; S_START   … 押し始めのスクロール速度。
-; S_MAX     … 押し続けたときの最高スクロール速度。
+; 【調整ポイント：スクロール】（1 ノッチ = ホイール 1 段 = 120）
+; S_TAP     … 押した瞬間に送り出す量。短押し 1 回の移動量の大部分を決める（0 で無効）。
+; S_TAP_MS  … S_TAP を送り切るまでの時間。短いほどキビキビ（0 で瞬時）。
+; S_START   … 連続スクロールの押し始めの速度 [ノッチ/s]。
+; S_MAX     … 押し続けたときの最高速度 [ノッチ/s]。
 ; S_RAMP_MS … 最高速度に達するまでの時間。
 ; S_CURVE   … 加速の立ち上がり方（CURVE と同じ考え方）。
-; S_INITIAL … 押した瞬間に送る量（120 = 1 ノッチ、0 で無効）。
+; S_EASE_MS … 連続スクロールの追従時間。大きいほどふわっと動き出す（0 で即時）。
+; S_GLIDE_MS… 離した後の慣性の長さ（0 で即停止）。
 ; S_STEP    … 1 回に送る最小単位。小さいほど滑らか。
-;             スクロールしない／動きがおかしいアプリがある場合は 120 にする。
 ; ※実際の移動量は Windows の設定「一度にスクロールする行数」にも比例する。
+;
+; 【スクロールのプリセット】
+;   キビキビ（既定）   : S_TAP 120 / S_TAP_MS 45 / S_EASE_MS 20 / S_GLIDE_MS 45  / S_STEP 1
+;   なめらか（旧既定） : S_TAP 0   / S_TAP_MS 0  / S_EASE_MS 60 / S_GLIDE_MS 100 / S_STEP 1
+;   ホイール再現       : S_TAP 120 / S_TAP_MS 0  / S_EASE_MS 0  / S_GLIDE_MS 0   / S_STEP 120
 ;------------------------------------------------------------------------------
 ; 【2026/09/29 旧マウス関連ファイルからの移行】
 ; 旧ファイルの関数のうち、MouseNav で代替できないものだけを本ファイルへ移した。
@@ -61,12 +95,10 @@
 ;     Right_click / Get_cursor_xy_pos / FocusUnderCursor / ToggleClick
 ;   置き換え
 ;     move_mouse_cursor_to_*、MoveCursorTo*、MoveCursorTo*2  → MouseNav_Left() 等
-;     MoveCursorTo*Minimal、MoveCursorTo*Minimal2            → 廃止（微調整はトラックポイント）
+;                                                              （旧動作は MousePlain_Left() 等で復活）
+;     MoveCursorTo*Minimal、MoveCursorTo*Minimal2            → MousePlain_*Minimal() で復活
 ;     Jump_to_upper_left_point 等（四隅）                     → MouseNav_Corner*()
 ;     Jump_to_center_display1～4（モニター巡回）              → MouseNav_WarpMonitorCenter()
-;   廃止に伴い削除した変数
-;     display1～3、currentDisplay、amount_of_movement*、REPEAT_WINDOW、MAX_ACCEL、ACCEL_STEP、
-;     _hUser32、_pSetCursor、_pGetCursor、_ptBuf
 ;==============================================================================
 
 ;--- スクリプト全体の設定（旧ファイルから継承）---------------------------------
@@ -80,9 +112,9 @@ DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")
 
 class MouseNav {
     ;--- 設定 -----------------------------------------------------------------
-    ; 各操作に割り当てている物理キー（※実際の割り当てに合わせて変更）
-    ; 精密／高速モード（MouseNav_Slow / MouseNav_Fast）を使う場合は
-    ; "Slow", "g" のように行を追加すること
+    ; 押下キーの予備設定。
+    ; 通常のホットキーから呼ぶ場合は自動判定されるため使われない。
+    ; InputHook 経由など、ホットキー名からキーを判定できない場合にだけ使う。
     static Keys := Map(
         "Left",        "a",
         "Down",        "d",
@@ -93,7 +125,6 @@ class MouseNav {
         "ScrollLeft",  "q",
         "ScrollRight", "r")
 
-    static LayerKey       := "" ; このキーを離したら即停止（不要なら ""）
     static TICK_MS        := 8     ; 更新周期 [ms]
 
     ; カーソル移動
@@ -107,19 +138,27 @@ class MouseNav {
     static BISECT_TIMEOUT := 1500  ; Bisect を連続操作とみなす間隔 [ms]
 
     ; スクロール
-    static S_START        := 8     ; 押し始めの速度 [ノッチ/s]
+    static S_TAP          := 120   ; 押した瞬間に送り出す量（120 = 1 ノッチ、0 で無効）
+    static S_TAP_MS       := 45    ; S_TAP を送り切るまでの時間 [ms]（0 で瞬時）
+    static S_START        := 12    ; 連続スクロールの押し始めの速度 [ノッチ/s]
     static S_MAX          := 40    ; 最高速度 [ノッチ/s]
-    static S_RAMP_MS      := 600   ; S_MAX に達するまでの時間 [ms]
+    static S_RAMP_MS      := 500   ; S_MAX に達するまでの時間 [ms]
     static S_CURVE        := 1.5   ; 加速カーブ（1 = 直線）
-    static S_INITIAL      := 120   ; 押した瞬間に送る量（120 = 1 ノッチ、0 で無効）
-    static S_STEP         := 30    ; 1 回に送る最小単位（120 = 従来のホイールと同じ）
+    static S_EASE_MS      := 20    ; 連続スクロールの追従時間 [ms]（0 で即時）
+    static S_GLIDE_MS     := 45    ; 離した後の慣性時間 [ms]（0 で即停止）
+    static S_STEP         := 1     ; 1 回に送る最小単位（120 = ホイール 1 ノッチ）
+    static S_BLOCK_KEYS   := true  ; スクロール中の誤入力防止（false で無効）
 
     ;--- 内部状態 -------------------------------------------------------------
-    static _held  := Map()  ; 押下中の移動方向 → 物理キー
-    static _mods  := Map()  ; 押下中のモード（Slow/Fast） → 物理キー
-    static _sHeld := Map()  ; 押下中のスクロール方向 → 物理キー
+    ; 各 Map の値は「押し続けているべき物理キーの配列」（例 ["i", "vk20"]）
+    static _held  := Map()  ; 押下中の移動方向
+    static _mods  := Map()  ; 押下中のモード（Slow/Fast）
+    static _sHeld := Map()  ; 押下中のスクロール方向
     static _startT := 0, _lastT := 0, _fx := 0.0, _fy := 0.0
-    static _sStartT := 0, _sLastT := 0, _sAccX := 0.0, _sAccY := 0.0
+    static _sRun := false, _sTimerOn := false, _sStartT := 0, _sLastT := 0
+    static _sVX := 0.0, _sVY := 0.0, _sAccX := 0.0, _sAccY := 0.0
+    static _sImpX := 0.0, _sImpY := 0.0     ; タップ量の未送信分
+    static _blocked := Map() ; 入力を握りつぶし中のキー（※メソッド _Block と別名にすること）
 
     ; AutoHotkey 自身が Send したイベントに付ける識別値（KEY_IGNORE）。
     ; これを付けて送ると、自分のスクロールで「vk1D & WheelUp」等のホットキーが誤発動しない。
@@ -154,21 +193,19 @@ class MouseNav {
         ; ※タイマー用の変数名はメソッド名と別にすること（大文字小文字を区別しないため衝突する）
         this._timerFn  := ObjBindMethod(this, "_Tick")
         this._scrollFn := ObjBindMethod(this, "_ScrollTick")
+        this._noop     := (*) => 0                              ; 誤入力防止ホットキーの処理（何もしない）
         InstallKeybdHook()                                      ; 物理キー状態の取得に必要
     }
 
     ;=== 公開メソッド ===========================================================
 
     ; 連続移動（dir: "Left"/"Right"/"Up"/"Down"）、モード（dir: "Slow"/"Fast"）
-    ; key を省略すると Keys の設定を使用
+    ; key を省略すると、呼び出し元のホットキーから自動判定する
     static Hold(dir, key := "") {
-        if (key = "") {
-            if !this.Keys.Has(dir)
-                return
-            key := this.Keys[dir]
-        }
+        if !(keys := this._ResolveKeys(dir, key))
+            return
         if (dir = "Slow" || dir = "Fast") {
-            this._mods[dir] := key
+            this._mods[dir] := keys
             return
         }
         if !this._held.Count {                                  ; 停止状態から開始
@@ -176,35 +213,46 @@ class MouseNav {
             this._fx := 0.0, this._fy := 0.0
             SetTimer(this._timerFn, this.TICK_MS)
         }
-        this._held[dir] := key
+        this._held[dir] := keys
     }
 
     ; スムーズスクロール（dir: "ScrollUp"/"ScrollDown"/"ScrollLeft"/"ScrollRight"）
-    ; key を省略すると Keys の設定を使用
+    ; key を省略すると、呼び出し元のホットキーから自動判定する
     static Scroll(dir, key := "") {
-        if (key = "") {
-            if !this.Keys.Has(dir)
-                return
-            key := this.Keys[dir]
-        }
         if this._sHeld.Has(dir)                                 ; キーリピートによる再呼び出し
             return
-        if !this._sHeld.Count {                                 ; 停止状態から開始
-            this._sStartT := this._sLastT := this._Now()
+        if !(keys := this._ResolveKeys(dir, key))
+            return
+
+        ; 最初にキー入力を止める（以降のキーリピートが文字として入力されないように）
+        if this.S_BLOCK_KEYS
+            this._Block(keys[1])
+
+        now := this._Now()
+        if !this._sHeld.Count                                   ; 押し始め（慣性中の再押下を含む）
+            this._sStartT := now
+        if !this._sRun {                                        ; 停止状態から開始
+            this._sRun := true
+            this._sLastT := now
+            this._sVX := 0.0, this._sVY := 0.0
             this._sAccX := 0.0, this._sAccY := 0.0
+            this._sImpX := 0.0, this._sImpY := 0.0
+        }
+        this._sHeld[dir] := keys
+
+        ; タップ量を追加（押した瞬間から送り出す）
+        switch dir {
+            case "ScrollUp":    this._sImpY += this.S_TAP
+            case "ScrollDown":  this._sImpY -= this.S_TAP
+            case "ScrollRight": this._sImpX += this.S_TAP
+            case "ScrollLeft":  this._sImpX -= this.S_TAP
+        }
+
+        if !this._sTimerOn {
+            this._sTimerOn := true
             SetTimer(this._scrollFn, this.TICK_MS)
         }
-        this._sHeld[dir] := key
-
-        ; 押した瞬間の即時スクロール（出だしの遅れをなくす）
-        if (this.S_INITIAL > 0) {
-            switch dir {
-                case "ScrollUp":    this._SendWheel( this.S_INITIAL, false)
-                case "ScrollDown":  this._SendWheel(-this.S_INITIAL, false)
-                case "ScrollRight": this._SendWheel( this.S_INITIAL, true)
-                case "ScrollLeft":  this._SendWheel(-this.S_INITIAL, true)
-            }
-        }
+        this._ScrollTick()                                      ; 次の周期を待たずに即反映
     }
 
     ; 強制停止（移動・スクロールとも）
@@ -213,6 +261,11 @@ class MouseNav {
         SetTimer(this._scrollFn, 0)
         this._held.Clear()
         this._sHeld.Clear()
+        for k in this._blocked.Clone()
+            this._Unblock(k)
+        this._sRun := false, this._sTimerOn := false
+        this._sVX := 0.0, this._sVY := 0.0
+        this._sImpX := 0.0, this._sImpY := 0.0
     }
 
     ; 固定量の微小移動（ピクセル単位の位置合わせ用）
@@ -303,16 +356,74 @@ class MouseNav {
 
     ;=== 内部処理 ===============================================================
 
+    ; 押し続けているべき物理キーの配列を決める
+    ; 優先順：引数 key → 呼び出し元ホットキー名 → Keys の予備設定
+    static _ResolveKeys(dir, key) {
+        if (key != "")
+            return [key]
+        if (keys := this._KeysFromHotkey())
+            return keys
+        if this.Keys.Has(dir)
+            return [this.Keys[dir]]
+        return ""
+    }
+
+    ; A_ThisHotkey（例 "vk20 & i"、"~*F13"）から物理キー名を取り出す
+    ; 取り出したキーが実際に押されていない場合（InputHook 経由など）は "" を返す
+    static _KeysFromHotkey() {
+        hk := RegExReplace(A_ThisHotkey, "i)\s+up$")
+        if RegExMatch(hk, "^(.+?)\s+&\s+(.+)$", &m)
+            keys := [m[2], m[1]]
+        else
+            keys := [hk]
+        for i, k in keys
+            keys[i] := RegExReplace(k, "^[~*$!^+#<>]+(?=.)")    ; 修飾記号を除去（"+" 単体は残す）
+        try {
+            for k in keys
+                if !GetKeyState(k, "P")
+                    return ""
+        } catch
+            return ""
+        return keys
+    }
+
+    ; 配列内のキーがすべて押されているか
+    static _AllDown(keys) {
+        for k in keys
+            if !GetKeyState(k, "P")
+                return false
+        return true
+    }
+
+    ;--- 誤入力防止 -------------------------------------------------------------
+    ; key の入力を止める：条件なし（HotIf なし）の "*key" ホットキーを有効化する。
+    static _Block(key) {
+        if this._blocked.Has(key)
+            return
+        try {
+            HotIf()                                             ; 条件なしで登録
+            Hotkey("*" key, this._noop, "On")
+            this._blocked[key] := true
+        }
+    }
+
+    ; key の入力停止を解除する
+    static _Unblock(key) {
+        try {
+            HotIf()
+            Hotkey("*" key, "Off")
+        }
+        this._blocked.Delete(key)
+    }
+
     ; カーソル移動のタイマー処理
     static _Tick() {
         Critical                                                ; 途中で割り込まれないようにする
 
         ; 離されたキーを除外
-        for dir, key in this._held.Clone()
-            if !GetKeyState(key, "P")
+        for dir, keys in this._held.Clone()
+            if !this._AllDown(keys)
                 this._held.Delete(dir)
-        if (this.LayerKey != "" && !GetKeyState(this.LayerKey, "P"))
-            this._held.Clear()
         if !this._held.Count {
             SetTimer(this._timerFn, 0)
             return
@@ -352,43 +463,84 @@ class MouseNav {
     }
 
     ; スクロールのタイマー処理
+    ; ・タップ量（_sImpX/_sImpY）を S_TAP_MS で送り出す（減速カーブ）
+    ; ・連続スクロールの速度（_sVX/_sVY）を目標速度へ追従させ、その積分量を送る
+    ; ・停止後も、入力を止めているキーが離されるまでタイマーを維持する
     static _ScrollTick() {
         Critical
 
-        for dir, key in this._sHeld.Clone()
-            if !GetKeyState(key, "P")
-                this._sHeld.Delete(dir)
-        if (this.LayerKey != "" && !GetKeyState(this.LayerKey, "P"))
-            this._sHeld.Clear()
-        if !this._sHeld.Count {
+        if this._sRun {
+            for dir, keys in this._sHeld.Clone()
+                if !this._AllDown(keys)
+                    this._sHeld.Delete(dir)
+
+            now := this._Now()
+            dt  := Min(now - this._sLastT, 50) / 1000
+            this._sLastT := now
+
+            ; 目標速度 [delta/s]（上・右が正。逆方向の同時押しは相殺）
+            sy := this._sHeld.Has("ScrollUp")    - this._sHeld.Has("ScrollDown")
+            sx := this._sHeld.Has("ScrollRight") - this._sHeld.Has("ScrollLeft")
+            vt := 0.0
+            if (sx || sy) {
+                p  := Min((now - this._sStartT) / this.S_RAMP_MS, 1.0)
+                vt := (this.S_START + (this.S_MAX - this.S_START) * p ** this.S_CURVE) * 120
+            }
+
+            ; 連続スクロール分
+            oy := this._sVY, ox := this._sVX
+            this._sVY := this._Follow(oy, sy * vt, dt)
+            this._sVX := this._Follow(ox, sx * vt, dt)
+            this._sAccY += (oy + this._sVY) / 2 * dt
+            this._sAccX += (ox + this._sVX) / 2 * dt
+
+            ; タップ分（残量の一定割合を送る → 最初に多く、だんだん少なく）
+            k := (this.S_TAP_MS <= 0) ? 1.0 : 1 - Exp(-dt * 1000 * 3 / this.S_TAP_MS)
+            for axis in ["Y", "X"] {
+                rem := this._sImp%axis%
+                out := (Abs(rem) < 2) ? rem : rem * k
+                this._sImp%axis% := rem - out
+                this._sAcc%axis% += out
+            }
+
+            ; S_STEP 単位で送る（端数は持ち越し）
+            step := Max(this.S_STEP, 1)
+            if (n := Integer(this._sAccY / step)) {
+                this._sAccY -= n * step
+                this._SendWheel(n * step, false)
+            }
+            if (n := Integer(this._sAccX / step)) {
+                this._sAccX -= n * step
+                this._SendWheel(n * step, true)
+            }
+
+            ; まだ動いているなら継続
+            if (this._sHeld.Count || Abs(this._sVX) >= 20 || Abs(this._sVY) >= 20
+                || this._sImpX != 0 || this._sImpY != 0)
+                return
+
+            ; 完全停止
+            this._sRun := false
+            this._sVX := 0.0, this._sVY := 0.0
+        }
+
+        ; 停止後：離されたキーから入力停止を解除し、全て解除されたらタイマー終了
+        for k in this._blocked.Clone()
+            if !GetKeyState(k, "P")
+                this._Unblock(k)
+        if !this._blocked.Count {
             SetTimer(this._scrollFn, 0)
-            return
+            this._sTimerOn := false
         }
+    }
 
-        now := this._Now()
-        dt  := Min(now - this._sLastT, 50) / 1000
-        this._sLastT := now
-
-        ; 方向（上・右が正。逆方向の同時押しは相殺）
-        sy := this._sHeld.Has("ScrollUp")    - this._sHeld.Has("ScrollDown")
-        sx := this._sHeld.Has("ScrollRight") - this._sHeld.Has("ScrollLeft")
-
-        ; 速度 [delta/s]（1 ノッチ = 120）
-        p := Min((now - this._sStartT) / this.S_RAMP_MS, 1.0)
-        v := (this.S_START + (this.S_MAX - this.S_START) * p ** this.S_CURVE) * 120
-
-        ; 蓄積量が S_STEP に達した分だけ送る（端数は持ち越し、押していない軸はリセット）
-        step := Max(this.S_STEP, 1)
-        this._sAccY := sy ? this._sAccY + sy * v * dt : 0.0
-        this._sAccX := sx ? this._sAccX + sx * v * dt : 0.0
-        if (n := Integer(this._sAccY / step)) {
-            this._sAccY -= n * step
-            this._SendWheel(n * step, false)
-        }
-        if (n := Integer(this._sAccX / step)) {
-            this._sAccX -= n * step
-            this._SendWheel(n * step, true)
-        }
+    ; 現在速度 v を目標 target へ 1 周期ぶん近づける
+    static _Follow(v, target, dt) {
+        ; 目標の絶対値が現在より大きい（加速）なら EASE、小さい（減速・反転）なら GLIDE
+        tau := (Abs(target) > Abs(v) && (target * v >= 0)) ? this.S_EASE_MS : this.S_GLIDE_MS
+        if (tau <= 0)
+            return target
+        return v + (target - v) * (1 - Exp(-dt * 1000 / tau))
     }
 
     ; ホイールイベントを送る（delta：正 = 上／右、horizontal：true で横スクロール）
@@ -401,7 +553,7 @@ class MouseNav {
     static _ModDown(name) {
         if !this._mods.Has(name)
             return false
-        if GetKeyState(this._mods[name], "P")
+        if this._AllDown(this._mods[name])
             return true
         this._mods.Delete(name)
         return false
@@ -464,15 +616,77 @@ class MouseNav {
     }
 }
 
+
+;==============================================================================
+; MousePlain : 以前のシンプルな動作（キーリピート駆動）
+;------------------------------------------------------------------------------
+; ・カーソル移動：1 回押すごとに MOVE_PX ジャンプ。押しっぱなし（キーリピート中）は
+;   同方向の連続呼び出しに加速倍率（最大 MAX_ACCEL 倍）を掛ける。（旧 MoveCursorTo*2）
+; ・Minimal     ：1 回押すごとに MOVE_MIN_PX、加速なし。（旧 MoveCursorTo*Minimal2）
+; ・スクロール  ：1 回押すごとにホイール SCROLL_NOTCH ノッチ。（旧 SendInput("{WheelUp 1}")）
+; ・移動量はカーソルのあるモニターの画素数に比例して拡大する（SCALE_BY_MONITOR）。
+;   MOVE_PX / MOVE_MIN_PX は「BASE_W×BASE_H のモニターでの移動量」として指定する。
+; ※ MouseNav と違い、キーを離したことの検知やタイマーは使わない。
+;==============================================================================
+class MousePlain {
+    ;--- 設定 -----------------------------------------------------------------
+    static MOVE_PX          := 200   ; 1 回の移動量 [px]（BASE_W×BASE_H での値）
+    static MOVE_MIN_PX      := 30    ; Minimal の移動量 [px]（BASE_W×BASE_H での値）
+    static REPEAT_WINDOW    := 100   ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
+    static MAX_ACCEL        := 4.0   ; 加速の上限倍率
+    static ACCEL_STEP       := 0.35  ; 1 回あたりの加速量
+    static SCROLL_NOTCH     := 1     ; 1 回のスクロール量 [ノッチ]
+
+    static SCALE_BY_MONITOR := true  ; 移動量をモニターの画素数に連動させる（false で固定値）
+    static BASE_W           := 1920  ; 基準モニターの幅 [px]
+    static BASE_H           := 1080  ; 基準モニターの高さ [px]
+
+    ;--- 内部状態 -------------------------------------------------------------
+    static _lastTick := 0, _lastDX := 0, _lastDY := 0, _accel := 1.0
+
+    ; 1 回分の移動（dx, dy は基準モニターでの px。accelerate = false で加速なし）
+    static Move(dx, dy, accelerate := true) {
+        if accelerate {
+            now := A_TickCount
+            if (now - this._lastTick <= this.REPEAT_WINDOW && dx = this._lastDX && dy = this._lastDY)
+                this._accel := Min(this._accel + this.ACCEL_STEP, this.MAX_ACCEL)
+            else
+                this._accel := 1.0
+            this._lastTick := now, this._lastDX := dx, this._lastDY := dy
+        } else {
+            this._accel := 1.0, this._lastTick := 0
+        }
+        k := this._accel * this._MonitorScale()
+        ; API アドレス・座標系は MouseNav と共通のものを使う
+        MouseNav._MoveBy(Round(dx * k), Round(dy * k))
+    }
+
+    ; 1 回分のスクロール（dir: "Up"/"Down"/"Left"/"Right"）
+    static Scroll(dir) => SendInput("{Wheel" dir " " this.SCROLL_NOTCH "}")
+
+    ; カーソルのあるモニターの拡大倍率（対角線の画素数 ÷ 基準モニターの対角線）
+    static _MonitorScale() {
+        if !this.SCALE_BY_MONITOR
+            return 1.0
+        MouseNav._GetPos(&x, &y)
+        r := MouseNav._MonitorRect(x, y)
+        w := r.R - r.L, h := r.B - r.T
+        if (w <= 0 || h <= 0)
+            return 1.0
+        return Sqrt(w * w + h * h) / Sqrt(this.BASE_W ** 2 + this.BASE_H ** 2)
+    }
+}
+
 ;==============================================================================
 ; 呼び出し用ラッパー（引数なしで呼べる）
 ;==============================================================================
+;--- MouseNav（タイマー駆動・なめらか）-----------------------------------------
 ; 連続移動（押している間だけ動く）
 MouseNav_Left()              => MouseNav.Hold("Left")
 MouseNav_Right()             => MouseNav.Hold("Right")
 MouseNav_Up()                => MouseNav.Hold("Up")
 MouseNav_Down()              => MouseNav.Hold("Down")
-; モード（移動中に押している間だけ有効。使う場合は Keys に "Slow"/"Fast" を追加）
+; モード（移動中に押している間だけ有効）
 MouseNav_Slow()              => MouseNav.Hold("Slow")
 MouseNav_Fast()              => MouseNav.Hold("Fast")
 ; スムーズスクロール（押している間だけ加速しながらスクロール）
@@ -502,6 +716,23 @@ MouseNav_CornerBottomLeft()  => MouseNav.WarpToCorner("BL")
 MouseNav_CornerBottomRight() => MouseNav.WarpToCorner("BR")
 ; 強制停止
 MouseNav_Stop()              => MouseNav.Stop()
+
+;--- MousePlain（キーリピート駆動・シンプル）-----------------------------------
+; カーソル移動（1 回押すごとに固定量、押しっぱなしで加速）
+MousePlain_Left()            => MousePlain.Move(-MousePlain.MOVE_PX, 0)
+MousePlain_Right()           => MousePlain.Move( MousePlain.MOVE_PX, 0)
+MousePlain_Up()              => MousePlain.Move(0, -MousePlain.MOVE_PX)
+MousePlain_Down()            => MousePlain.Move(0,  MousePlain.MOVE_PX)
+; カーソル移動・小（1 回押すごとに小さい固定量、加速なし）
+MousePlain_LeftMinimal()     => MousePlain.Move(-MousePlain.MOVE_MIN_PX, 0, false)
+MousePlain_RightMinimal()    => MousePlain.Move( MousePlain.MOVE_MIN_PX, 0, false)
+MousePlain_UpMinimal()       => MousePlain.Move(0, -MousePlain.MOVE_MIN_PX, false)
+MousePlain_DownMinimal()     => MousePlain.Move(0,  MousePlain.MOVE_MIN_PX, false)
+; スクロール（1 回押すごとにホイール SCROLL_NOTCH ノッチ）
+MousePlain_ScrollUp()        => MousePlain.Scroll("Up")
+MousePlain_ScrollDown()      => MousePlain.Scroll("Down")
+MousePlain_ScrollLeft()      => MousePlain.Scroll("Left")
+MousePlain_ScrollRight()     => MousePlain.Scroll("Right")
 
 
 ;==============================================================================

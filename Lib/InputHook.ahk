@@ -158,10 +158,12 @@ WaitForKeyInput_for_Caps_1level() {
       SendInput("{Enter}")
     }
     else if (ih.Input = "j") {
-      AlwaysOnTop_Set()
+      ; AlwaysOnTop_Set()
+      QuickPalette_Show() ; コマンドパレット
     }
     else if (ih.Input = "k") {
-      AlwaysOnTop_Release()
+      ; AlwaysOnTop_Release()
+      QuickMenu_Show() ; クイックメニュー
     }
     else if (ih.Input = "l") {
       ; WaitForKeyInput_call_AltChar_keys()
