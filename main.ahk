@@ -169,7 +169,7 @@ vk1D & @::      SendInput("{!}")
 vk1D & y::      SendInput("{~}")
 vk1D & _::      SendInput("{~}")
 vk1D & RShift:: SendInput("{|}")
-vk1D & sc00D::  SendInput(obsidian_folderlink_templete) ; Obsidianリンク
+vk1D & sc00D::  return
 vk1D & sc07D::  SendInput("{- 30}")         ; コメント用ライン (---)
 
 ; --- shift+矢印(powerpoint 図形編集) ---

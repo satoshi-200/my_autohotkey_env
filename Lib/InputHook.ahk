@@ -93,8 +93,7 @@ WaitForKeyInput_for_Caps_1level() {
           ToolTip("LShift検知")
         }
         else if (key = "Tab") {
-          ; MsgBox("Tab検知")
-          ToolTip("Tab検知")
+          WindowMonitor_Show()  ; ウィンドウを別のモニターへ（Tab：次、Shift+Tab：前）system_utils.ahk
         }
         else if (key = "Space") {
           turn_on_roman_input_mode() 
@@ -122,17 +121,17 @@ WaitForKeyInput_for_Caps_1level() {
       return
     }
     else if (ih.Input = "r") {
-      return
+      SendInput("#{Down}")
     }
     else if (ih.Input = "q")
     {
-      return                     ; vscode 再帰的折りたたみ
+      SendInput("#{Up}")
     }
     else if (ih.Input = "e") {
-      return
+      AppSwitcher_Show(false, "w")  ; アプリ切り替え（e：次、w：前）system_utils.ahk
     }
     else if (ih.Input = "w") {
-      return
+      AppSwitcher_Show(true, "e")   ; アプリ切り替え（w：前、e：次）system_utils.ahk
     }
     else if (ih.Input = "g") {
       ; SendInput("^{y}")
