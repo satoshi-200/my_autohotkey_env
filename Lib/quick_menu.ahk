@@ -70,7 +70,12 @@ class QuickPalette {
         {key: "W", name: "ウィンドウ"},
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
-        {key: "A", name: "アプリ・フォルダ"}]
+        {key: "A", name: "アプリ・フォルダ"},
+        {key: "V", name: "VS Code"},
+        {key: "F", name: "Fn キー"},
+        {key: "H", name: "Shift + Fn キー"},
+        {key: "C", name: "Ctrl + Fn キー"},
+        {key: "X", name: "Ctrl + Shift + Fn キー"}]
 
     static Items := []
     static _inited := false
@@ -143,6 +148,25 @@ class QuickPalette {
         this.Add("A", "N", "notepad",      "メモ帳",                        (*) => Run("notepad.exe"), "memo")
         this.Add("A", "K", "calc",         "電卓",                          (*) => Run("calc.exe"), "dentaku")
         this.Add("A", "E", "winsettings",  "Windows の設定",                (*) => Run("ms-settings:"), "settei")
+
+        ;--- VS Code（折りたたみ・展開）-----------------------------------------
+        this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")
+        this.Add("V", "Q", "fold-recursive",   "再帰的に折りたたむ",         (*) => QM_VSCodeChord("^[", 100), "vscode tatami")
+        this.Add("V", "R", "unfold-recursive", "再帰的に展開",               (*) => QM_VSCodeChord("^]", 100), "vscode tenkai expand")
+        this.Add("V", "W", "fold-all",         "すべて折りたたむ",           (*) => QM_VSCodeChord("^0"), "vscode tatami")
+        this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
+
+        ;--- Fn キー（F1〜F12）---------------------------------------------------
+        ; キーの配置は InputHook の旧 WaitForKeyInput_call_*Fnkeys() と同じ
+        fnKeys := ["X", "C", "V", "S", "D", "F", "W", "E", "R", "Z", "A", "Q"]
+        fnMods := [
+            {cat: "F", mod: "",   tag: "",            name: ""},
+            {cat: "H", mod: "+",  tag: "shift-",      name: "Shift + "},
+            {cat: "C", mod: "^",  tag: "ctrl-",       name: "Ctrl + "},
+            {cat: "X", mod: "^+", tag: "ctrl-shift-", name: "Ctrl + Shift + "}]
+        for fm in fnMods
+            for n, k in fnKeys
+                this.Add(fm.cat, k, fm.tag "f" n, fm.name "F" n, SendInput.Bind(fm.mod "{F" n "}"), "fn function")
 
         this._BuildGui()
         this._BuildMenuGui()
@@ -1066,4 +1090,12 @@ QM_OpenScriptInCode() {
     try Run('code "' A_ScriptDir '"', , "Hide")
     catch
         Run(A_ScriptDir)
+}
+
+;--- VS Code ------------------------------------------------------------------
+; Ctrl+K に続けて key を送る（VS Code の 2 段階ショートカット）
+QM_VSCodeChord(key, waitMs := 200) {
+    SendInput("^k")
+    Sleep(waitMs)
+    SendInput(key)
 }

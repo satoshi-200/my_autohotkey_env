@@ -4,6 +4,57 @@
 ih := InputHook("L1")
 isWaitingInput := false              ; InputHookで変換・無変換・スペースキーをつかえるようにするため
 tooltipDuration := 500
+IH_TIMEOUT_SEC := 5                  ; この秒数キー入力がなければ入力待ちをキャンセル
+IH_FN_HINT := "q:F12  w:F7  e:F8  r:F9`na:F11  s:F4  d:F5  f:F6`nz:F10  x:F1  c:F2  v:F3"
+
+; キャンセル用：Esc・Caps で終了、一定時間でタイムアウト（各モードの KeyOpt でも消えない）
+ih.Timeout := IH_TIMEOUT_SEC
+ih.KeyOpt("{Esc}{sc03A}", "ES")
+
+; いま何のキー待ちかをツールチップで表示する
+IH_TipWaiting(mode, hint := "") {
+  global isWaitingInput := true  ; 待機中はほかのホットキーを止める（下位のモードでも）
+  SetTimer(IH_TipClear, 0)  ; 前のモードの「消去タイマー」で待ち表示が消えないように
+  ToolTip("⌨️ [" mode "] 次のキー待ち..." (hint != "" ? "`n" hint : "")
+    "`nEsc / Caps / Space+Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
+}
+
+; 入力待ちの終了処理。受け付けたキーを表示し、キャンセルされたら true を返す
+IH_EndWait(mode) {
+  global ih, isWaitingInput
+  cancelled := ""
+  if (ih.EndReason = "Timeout")
+    cancelled := "タイムアウト"
+  else if (ih.EndKey = "Escape" || ih.EndKey = "CapsLock")
+    cancelled := "キャンセル"
+  else if (ih.EndKey = "Space" && IH_CapsWhileSpaceHeld())
+    cancelled := "キャンセル"
+  isWaitingInput := false
+
+  if (cancelled != "")
+    ToolTip("❌ [" mode "] " cancelled)
+  else
+    ToolTip("✅ [" mode "] accepted:[" ((ih.EndKey != "") ? ih.EndKey : ih.Input) "]")
+  SetTimer(IH_TipClear, -tooltipDuration)
+  return cancelled != ""
+}
+
+; Space で入力待ちが終わったとき、Space を離すまでに Caps が押されたか（Space+Caps でのキャンセル）
+IH_CapsWhileSpaceHeld() {
+  h := InputHook("L0 T" IH_TIMEOUT_SEC)
+  h.KeyOpt("{sc03A}", "ES")
+  h.KeyOpt("{vk20}", "NS")                    ; 押しっぱなしの Space の連打を止め、離したら終える
+  h.OnKeyUp := (hk, vk, sc) => (vk = 0x20 ? hk.Stop() : 0)
+  h.Start()
+  if !GetKeyState("vk20", "P") {
+    h.Stop()
+    return false
+  }
+  h.Wait()
+  return h.EndReason = "EndKey"
+}
+
+IH_TipClear() => ToolTip()
 
 ; 動作チェック用
 WaitForKeyInput_show_input(){
@@ -17,21 +68,15 @@ WaitForKeyInput_for_Caps_1level() {
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("Caps")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("Caps")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()
@@ -74,20 +119,20 @@ WaitForKeyInput_for_Caps_1level() {
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
-      Toggle_fold_and_expand_on_vscode()                ; vscode 折りたたみ／展開のトグル
+      return
     }
     else if (ih.Input = "r") {
-      Recursive_expand_on_vscode()                  ; vscode 再帰的展開
+      return
     }
     else if (ih.Input = "q")
     {
-      Recursive_fold_on_vscode()                    ; vscode 再帰的折りたたみ
+      return                     ; vscode 再帰的折りたたみ
     }
     else if (ih.Input = "e") {
-      Expand_all_on_vscode()                      ; vscode すべて展開
+      return
     }
     else if (ih.Input = "w") {
-      Fold_all_on_vscode()                      ; vscode すべて折りたたみ
+      return
     }
     else if (ih.Input = "g") {
       ; SendInput("^{y}")
@@ -99,15 +144,14 @@ WaitForKeyInput_for_Caps_1level() {
     }
     else if (ih.Input = "a") {
       ; SendInput("{LWin}")
-      WaitForKeyInput_call_Ctrl_Shift_Fnkeys()
+      ; WaitForKeyInput_call_Ctrl_Shift_Fnkeys()
       ; turn_on_roman_input_mode()
     }
     else if (ih.Input = "d") {
-      WaitForKeyInput_call_Shift_Fnkeys()
+      ; WaitForKeyInput_call_Shift_Fnkeys()
     }
     else if (ih.Input = "s") {
-      
-      WaitForKeyInput_call_Ctrl_Fnkeys()
+      ; WaitForKeyInput_call_Ctrl_Fnkeys()
     }
     else if (ih.Input = "b") {
       CheckContent()  ; multi_clipboard.ahk の関数
@@ -187,13 +231,13 @@ WaitForKeyInput_for_Caps_1level() {
       ResetAll()  ; multi_clipboard.ahk
     }
     else if (ih.Input = "m") {
-      LinkNav_Next()
+      return
     }
     else if (ih.Input = ",") {
-      LinkNav_Prev()
+      return
     }
     else if (ih.Input = ".") {
-      LinkNav_Rescan()
+      return
     }
     ih.Stop()
     return
@@ -204,21 +248,15 @@ WaitForKeyInput_for_Space_and_f_1level() {
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("Space + F")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("Space + F")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()
@@ -394,21 +432,15 @@ WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
   global ih, isWaitingInput
   isWaitingInput := true ; 他のスペース系スクリプトを一時停止
   ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-  ToolTip("⌨️_waiting_next_key...")
+  IH_TipWaiting("Space + A：左手で文字・記号")
 
   ; 特殊キーを「EndKey（終了キー）」として登録
   ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
   ih.Start() ; 入力を開始
   ih.Wait() ; 入力が完了するまで待機
 
-  ; --- ここで何が入力されたかツールチップに出す ---
-  ; ih.EndKey には最後に押された特殊キーの名前が入っています
-  ; もし普通の文字(tやrなど)なら ih.Input に入ります
-  pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-  ToolTip("✅_accepted:[" . pressedKey . "]")
-  
-  ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-  SetTimer () => ToolTip(), -tooltipDuration
+  if IH_EndWait("Space + A：左手で文字・記号")
+    return
 
   ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
   ; ToolTip()
@@ -556,8 +588,11 @@ WaitForKeyInput_Input_letter_only_lefthand_and_symbols() {
 
 WaitForKeyInput_call_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
     global ih
+    IH_TipWaiting("Fn キー", IH_FN_HINT)
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Fn キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -602,8 +637,11 @@ WaitForKeyInput_call_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
 
 WaitForKeyInput_call_Shift_Fnkeys() { ; キー入力を待つ関数 Fnキー関連
     global ih
+    IH_TipWaiting("Shift + Fn キー", IH_FN_HINT)
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Shift + Fn キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -648,8 +686,11 @@ WaitForKeyInput_call_Shift_Fnkeys() { ; キー入力を待つ関数 Fnキー関�
 
 WaitForKeyInput_call_Ctrl_Fnkeys() {  ; キー入力を待つ関数 Fnキー関連
     global ih
+    IH_TipWaiting("Ctrl + Fn キー", IH_FN_HINT)
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Ctrl + Fn キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -694,8 +735,11 @@ WaitForKeyInput_call_Ctrl_Fnkeys() {  ; キー入力を待つ関数 Fnキー関�
 
 WaitForKeyInput_call_Ctrl_Shift_Fnkeys() {  ; キー入力を待つ関数 Fnキー関連
     global ih
+    IH_TipWaiting("Ctrl + Shift + Fn キー", IH_FN_HINT)
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Ctrl + Shift + Fn キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "z") {
@@ -740,8 +784,11 @@ WaitForKeyInput_call_Ctrl_Shift_Fnkeys() {  ; キー入力を待つ関数 Fnキ�
 
 WaitForKeyInput_call_CtrlChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
   global ih
+  IH_TipWaiting("Ctrl + 文字キー")
   ih.Start() ; 入力を再開
   ih.Wait() ; 入力が完了するまで待機
+  if IH_EndWait("Ctrl + 文字キー")
+    return
 
   ; 入力されたキーに応じて処理を分岐
   if (ih.Input = "a") {
@@ -891,8 +938,11 @@ WaitForKeyInput_call_CtrlChar_keys() {  ; キー入力を待つ関数 Ctrlキー
 
 WaitForKeyInput_call_CtrlShiftChar_keys() { ; キー入力を待つ関数 Ctrlキー関連
     global ih
+    IH_TipWaiting("Ctrl + Shift + 文字キー")
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Ctrl + Shift + 文字キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "a") {
@@ -982,8 +1032,11 @@ WaitForKeyInput_call_CtrlShiftChar_keys() { ; キー入力を待つ関数 Ctrl�
 
 WaitForKeyInput_call_WinChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
     global ih
+    IH_TipWaiting("Win + 文字キー")
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Win + 文字キー")
+        return
 
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "a") {
@@ -1076,8 +1129,11 @@ WaitForKeyInput_call_WinChar_keys() {  ; キー入力を待つ関数 Ctrlキー�
 
 WaitForKeyInput_call_AltChar_keys() {  ; キー入力を待つ関数 Ctrlキー関連
     global ih
+    IH_TipWaiting("Alt + 文字キー")
     ih.Start() ; 入力を再開
     ih.Wait() ; 入力が完了するまで待機
+    if IH_EndWait("Alt + 文字キー")
+        return
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "a") {
         SendInput("!{a}")
@@ -1166,21 +1222,15 @@ WaitForKeyInput_kata_hira_romeji() {
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("カタカナひらがな")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("カタカナひらがな")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()
@@ -1312,21 +1362,15 @@ WaitForKeyInput_for_pressing_far_keys() {
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("遠いキー")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("遠いキー")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()
@@ -1458,21 +1502,15 @@ global ih, isWaitingInput
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("記号")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("記号")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()
@@ -1715,21 +1753,15 @@ WaitForKeyInput_templete_v2() {
     global ih, isWaitingInput
     isWaitingInput := true ; 他のスペース系スクリプトを一時停止
     ; 1. ツールチップを表示（マウスカーソルのそばに出現します）
-    ToolTip("⌨️_waiting_next_key...")
+    IH_TipWaiting("モード名")
 
     ; 特殊キーを「EndKey（終了キー）」として登録
     ih.KeyOpt("{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}", "ES")
     ih.Start() ; 入力を開始
     ih.Wait() ; 入力が完了するまで待機
 
-    ; --- ここで何が入力されたかツールチップに出す ---
-    ; ih.EndKey には最後に押された特殊キーの名前が入っています
-    ; もし普通の文字(tやrなど)なら ih.Input に入ります
-    pressedKey := (ih.EndKey != "") ? ih.EndKey : ih.Input
-    ToolTip("✅_accepted:[" . pressedKey . "]")
-    
-    ; 1秒後にツールチップを消す（これがないと一瞬で見えなくなります）
-    SetTimer () => ToolTip(), -tooltipDuration
+    if IH_EndWait("モード名")
+        return
 
     ; 2. 入力が終わったら、ツールチップを消す（空の文字を送ると消えます）
     ; ToolTip()

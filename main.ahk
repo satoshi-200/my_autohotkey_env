@@ -28,21 +28,14 @@
 ; ライブラリの読み込み (Imports)
 ; ------------------------------------------------------------------------------
 #Include Lib\IME.ahk
-#Include Lib\IME_wrapper.ahk
-#Include Lib\hotstring.ahk
-#Include Lib\char_input_assist.ahk
-#Include Lib\vscode.ahk
-#Include Lib\parameter.ahk
-#Include Lib\global_settings.ahk
+#Include Lib\text_input.ahk
+#Include Lib\config.ahk
 #Include Lib\InputHook.ahk
-#Include Lib\screen_saver.ahk
-#Include Lib\text_cursor.ahk
-#Include Lib\os_operate_assist.ahk
-#Include Lib\test_scripts.ahk
+#Include Lib\system_utils.ahk
 #Include Lib\multi_clipboard.ahk
 #Include Lib\mouse_cursor.ahk
 #Include Lib\quick_menu.ahk
-#Include Lib\link_nav.ahk
+
 ; --- 待機中だけこれらのショートカットを「無効」にする ---
 #HotIf !isWaitingInput  ; 「待機中でない（!）」ときだけ有効
 
