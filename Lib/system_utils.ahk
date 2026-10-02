@@ -35,15 +35,17 @@ execute_app(){
 ;   呼び出しに使ったキーは自動で調べ、そのキーで同じ方向へ続けて動かせる。
 ;     例：Caps → r で AppSwitcher_Show(false, "q") … r：次、q：前
 ;         "vk1D & 3" で AppSwitcher_Show(false, "2") … 3：次、2：前
-;   j / k / l / ;：一覧の中で ← / ↑ / ↓ / → に動かす
-;   変換など他のキー：決定　Delete / d：選択中のウィンドウを閉じる　Esc / Caps / Space：キャンセル
+;   j k l ; / a s d f：一覧の中で ← / ↑ / ↓ / → に動かす
+;   変換など他のキー：決定　Delete：選択中のウィンドウを閉じる　Esc / Caps / Space：キャンセル
 ;   APPSWITCH_IDLE_SEC 秒操作がなければ、そのとき選んでいるアプリに決定する。
 ;   決定後はマウスカーソルをそのウィンドウの中央へ移し、Ctrl を押して位置を表示する
 ;   （Windows の「Ctrl キーを押すとポインターの位置を表示する」をオンにしておくこと）。
 ;   ※ ih / isWaitingInput / IH_TipClear は key_wait.ahk、tooltipDuration は config.ahk で定義
 ;------------------------------------------------------------------------------
 APPSWITCH_IDLE_SEC := 3
-APPSWITCH_ARROWS := Map("j", "Left", "k", "Up", "l", "Down", ";", "Right")
+APPSWITCH_ARROWS := Map(
+    "j", "Left", "k", "Up", "l", "Down", ";", "Right",
+    "a", "Left", "s", "Up", "d", "Down", "f", "Right")
 
 AppSwitcher_Show(reverse := false, pairKey := "") {
   global ih, isWaitingInput := true
@@ -74,7 +76,7 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
   posUnknown := false                              ; 矢印で動かす・Delete で閉じると、steps では判断できなくなる
   result := "決定"
   loop {
-    ToolTip("🔀 [アプリ切り替え] " hint "j k l `;：←↑↓→`n変換 / Enter など：決定　Delete / d：閉じる　Esc / Caps / Space：キャンセル"
+    ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　Delete：閉じる　Esc / Caps / Space：キャンセル"
       . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
     h.Start()                                       ; 待ち時間は押すたびに数え直す
     h.Wait()
@@ -92,7 +94,7 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
       Send("{Blind}{" APPSWITCH_ARROWS[key] "}")
       posUnknown := true
     }
-    else if (key = "Delete" || key = "d") {        ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
+    else if (key = "Delete") {                      ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
       Send("{Blind}{Delete}")
       posUnknown := true
     }
@@ -164,62 +166,66 @@ _AppSwitcher_MoveCursorToCenter(hwnd) {
 }
 
 ;------------------------------------------------------------------------------
-; タブ・ページの連続切り替え（Caps → v / z：Ctrl+Tab、Caps → c / x：Ctrl+PgDn / PgUp）
-;   KeyCycler_Show(nextSend, prevSend, title, reverse, pairKey)
-;     nextSend / prevSend … 次へ／前へ動かすときに送るキー（例："^{Tab}" / "^+{Tab}"）
-;     reverse … true なら最初に「前へ」を送る
-;     pairKey … 逆方向に動かすキー
-;   呼び出しに使ったキーを続けて押すと同じ方向へ、pairKey で逆方向へ動く。
-;   ほかのキー：決定　Esc / Caps：元の位置に戻す
+; タブ・ページの連続切り替え（Caps → w から呼ぶ）
+;   モードの間、TABPAGE_ACTIONS のキーを押すたびにその場で切り替える（連打可）。
+;   ほかのキー：決定　Esc / Caps：動かした分を戻す
 ;   KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
 ;------------------------------------------------------------------------------
 KEYCYCLE_IDLE_SEC := 3
 
-KeyCycler_Show(nextSend, prevSend, title, reverse := false, pairKey := "") {
-  global ih, isWaitingInput := true
-  SetTimer(IH_TipClear, 0)                         ; 呼び出し元の「消去タイマー」で表示が消えないように
+; キー → [送るキー, 戻すときに送るキー, 表示名]（右手は左＝前・右＝次の向き）
+TABPAGE_ACTIONS := Map(
+    "f", ["^{Tab}",  "^+{Tab}", "次のタブ"],
+    "a", ["^+{Tab}", "^{Tab}",  "前のタブ"],
+    "d", ["^{PgDn}", "^{PgUp}", "次のページ"],
+    "s", ["^{PgUp}", "^{PgDn}", "前のページ"],
+    "e", ["^{PgDn}", "^{PgUp}", "次のページ"],
+    "w", ["^{PgUp}", "^{PgDn}", "前のページ"],
+    "j", ["^+{Tab}", "^{Tab}",  "前のタブ"],
+    ";", ["^{Tab}",  "^+{Tab}", "次のタブ"],
+    "k", ["^{PgUp}", "^{PgDn}", "前のページ"],
+    "l", ["^{PgDn}", "^{PgUp}", "次のページ"],
+    "i", ["^{PgUp}", "^{PgDn}", "前のページ"],
+    "o", ["^{PgDn}", "^{PgUp}", "次のページ"])
 
-  ; 呼び出しに使ったキー：「A & B」形式のホットキーなら B、それ以外は InputHook で受けたキー
-  prefix := ""
-  if RegExMatch(A_ThisHotkey, "^[~*$]*(\S+) & (\S+)$", &m)
-    prefix := m[1], triggerKey := m[2]
-  else
-    triggerKey := ih.Input
-  sameVK := (triggerKey != "") ? GetKeyVK(triggerKey) : 0
-  pairVK := (pairKey != "") ? GetKeyVK(pairKey) : 0
+TabPageSwitcher_Show() => KeyCycler_Show("タブ・ページ切り替え", TABPAGE_ACTIONS)
+
+; actions のキーを押すたびに対応するキーを送り、Esc では送った分を逆順に戻す
+KeyCycler_Show(title, actions) {
+  global isWaitingInput := true
+  SetTimer(IH_TipClear, 0)                         ; 呼び出し元の「消去タイマー」で表示が消えないように
 
   h := InputHook("L0 T" KEYCYCLE_IDLE_SEC)
   h.KeyOpt("{All}", "ES")                          ; 文字は入力させず、押されたキーで分岐する
   h.KeyOpt("{LCtrl}{RCtrl}{LShift}{RShift}{LAlt}{RAlt}{LWin}{RWin}", "-ES")
-  if (prefix != "")
-    h.KeyOpt("{" prefix "}", "-E")                ; 押したままのプレフィックスキーのリピートで決定しないように
 
-  nextName := reverse ? pairKey : triggerKey
-  prevName := reverse ? triggerKey : pairKey
-  hint := (nextName != "" ? nextName "：次　" : "") (prevName != "" ? prevName "：前　" : "")
+  ; 同じ動作のキーはまとめて表示する（例：次のタブ：f j）
+  keysOf := Map(), order := []
+  for k, a in actions {
+    if !keysOf.Has(a[3])
+      keysOf[a[3]] := "", order.Push(a[3])
+    keysOf[a[3]] .= " " k
+  }
+  hint := ""
+  for label in order
+    hint .= label "：" Trim(keysOf[label]) "　"
 
-  SendInput(reverse ? prevSend : nextSend)
-  steps := reverse ? -1 : 1                        ; 元の位置から動いた量（Esc で戻すときに使う）
+  undo := []                                        ; Esc で戻すための履歴
   result := "決定"
   loop {
-    ToolTip("📑 [" title "] " hint "ほかのキー：決定　Esc / Caps：元に戻す"
+    ToolTip("📑 [" title "] " hint "`nほかのキー：決定　Esc / Caps：元に戻す"
       . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
     h.Start()                                       ; 待ち時間は押すたびに数え直す
     h.Wait()
-    key := h.EndKey
-    vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
-    if (vk && vk = sameVK) {
-      SendInput(reverse ? prevSend : nextSend)
-      steps += reverse ? -1 : 1
-    }
-    else if (vk && vk = pairVK) {
-      SendInput(reverse ? nextSend : prevSend)
-      steps += reverse ? 1 : -1
+    key := StrLower(h.EndKey)
+    if (h.EndReason = "EndKey" && actions.Has(key)) {
+      SendInput(actions[key][1])
+      undo.Push(actions[key][2])
     }
     else {
-      if (key = "Escape" || key = "CapsLock") {
-        loop Abs(steps) {
-          SendInput((steps > 0) ? prevSend : nextSend)
+      if (key = "escape" || key = "capslock") {
+        while undo.Length {
+          SendInput(undo.Pop())
           Sleep(30)                                 ; 連続で送ると取りこぼすアプリがある
         }
         result := "元に戻しました"
@@ -234,7 +240,17 @@ KeyCycler_Show(nextSend, prevSend, title, reverse := false, pairKey := "") {
 }
 
 ;------------------------------------------------------------------------------
-; ウィンドウを別のモニターへ移す（Caps → Tab から呼ぶ）
+; ウィンドウの大きさ変更（Caps → q から呼ぶ）
+;   Win+↑ / Win+↓ を送る（連打可）。操作は KeyCycler_Show と同じ。
+;------------------------------------------------------------------------------
+WINSIZE_ACTIONS := Map(
+    "w", ["#{Up}",   "#{Down}", "大きく（Win+↑）"],
+    "e", ["#{Down}", "#{Up}",   "小さく（Win+↓）"])
+
+WindowResizer_Show() => KeyCycler_Show("ウィンドウの大きさ", WINSIZE_ACTIONS)
+
+;------------------------------------------------------------------------------
+; ウィンドウを別のモニターへ移す（Caps → r / Tab から呼ぶ）
 ;   Win+Shift+→ / ← でアクティブウィンドウを移し、カーソルも移した先のモニターの中央へ動かす。
 ;   WindowMonitor_Show(reverse)
 ;     reverse … false：次のモニターへ、true：前のモニターへ

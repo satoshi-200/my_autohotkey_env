@@ -85,20 +85,22 @@ WaitForKeyInput_for_Caps_1level() {
     ; MsgBox("入力されたキー: [" ih.Input "]")  ; 入力されたキーを表示（動作チェック用）
     ; 入力されたキーに応じて処理を分岐
     if (ih.Input = "t") {
-      WindowMonitor_Show()  ; ウィンドウを別のモニターへ（Tab：次、Shift+Tab：前）system_utils.ahk
+      return  ; 未割り当て（モニター移動は r へ移した）
     }
     else if (ih.Input = "r") {
-      SendInput("#{Down}")
+      ; SendInput("#{Down}")
+      WindowMonitor_Show()  ; ウィンドウを別のモニターへ（r：次、Shift+r：前）system_utils.ahk
     }
     else if (ih.Input = "q")
     {
-      SendInput("#{Up}")
+      ; SendInput("#{Up}")
+      WindowResizer_Show()  ; ウィンドウの大きさ変更（w：大きく、e：小さく）system_utils.ahk
     }
     else if (ih.Input = "e") {
       AppSwitcher_Show(false, "w")  ; アプリ切り替え（e：次、w：前）system_utils.ahk
     }
     else if (ih.Input = "w") {
-      AppSwitcher_Show(true, "e")   ; アプリ切り替え（w：前、e：次）system_utils.ahk
+      TabPageSwitcher_Show()  ; タブ・ページ切り替え（f/a：次/前のタブ、d/s：次/前のページ）system_utils.ahk
     }
     else if (ih.Input = "g") {
       ; SendInput("^{y}")
@@ -125,19 +127,19 @@ WaitForKeyInput_for_Caps_1level() {
     }
     else if (ih.Input = "v") {
       ; PasteText() ; multi_clipboard.ahk の関数
-      KeyCycler_Show("^{Tab}", "^+{Tab}", "タブ切り替え", false, "z")    ; v：次、z：前 system_utils.ahk
+      return
     }
     else if (ih.Input = "c") {
       ; SaveText() ; multi_clipboard.ahk の関数
-      KeyCycler_Show("^{PgDn}", "^{PgUp}", "ページ切り替え", false, "x")  ; c：次、x：前 system_utils.ahk
+      return
     }
     else if (ih.Input = "z") {
       ; ClearBox()  ; multi_clipboard.ahk の関数
-      KeyCycler_Show("^{Tab}", "^+{Tab}", "タブ切り替え", true, "v")     ; z：前、v：次
+      return
     }
     else if (ih.Input = "x") {
       ; CutAndSaveText()  ; multi_clipboard.ahk の関数
-      KeyCycler_Show("^{PgDn}", "^{PgUp}", "ページ切り替え", true, "c")   ; x：前、c：次
+      return
     }
     else if(ih.Input = "y") {
       ; Input_current_Date1() 
@@ -169,11 +171,11 @@ WaitForKeyInput_for_Caps_1level() {
     }
     else if (ih.Input = "j") {
       ; AlwaysOnTop_Set()
-      QM_SymbolMenu_Show()
+      QuickMenu_Show() ; クイックメニュー
     }
     else if (ih.Input = "k") {
       ; AlwaysOnTop_Release()
-      QuickMenu_Show() ; クイックメニュー
+      QM_SymbolMenu_Show()
     }
     else if (ih.Input = "l") {
       ; WaitForKeyInput_call_AltChar_keys()
