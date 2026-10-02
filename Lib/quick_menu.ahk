@@ -68,6 +68,7 @@ class QuickPalette {
         {key: "T", name: "テキスト変換"},
         {key: "I", name: "挿入"},
         {key: "W", name: "ウィンドウ"},
+        {key: "D", name: "仮想デスクトップ"},
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
         {key: "A", name: "アプリ・フォルダ"},
@@ -126,6 +127,20 @@ class QuickPalette {
         this.Add("W", "C", "center",       "画面の中央へ移動",              (*) => QM_CenterWindow(), "chuuou")
         this.Add("W", "I", "wininfo",      "ウィンドウ情報をコピー",        (*) => QM_CopyWindowInfo(), "ahk_exe class")
 
+        ;--- 仮想デスクトップ ---------------------------------------------------
+        this.Add("D", "C", "desk-new",     "新しいデスクトップを作成",      (*) => QM_DesktopNew(), "virtual desktop create sakusei")
+        this.Add("D", "X", "desk-close",   "今のデスクトップを閉じる",      (*) => QM_DesktopClose(), "virtual desktop delete sakujo")
+        this.Add("D", "N", "desk-next",    "次（右）のデスクトップへ",      (*) => QM_DesktopStep(1), "virtual desktop switch kirikae")
+        this.Add("D", "P", "desk-prev",    "前（左）のデスクトップへ",      (*) => QM_DesktopStep(-1), "virtual desktop switch kirikae")
+        this.Add("D", "W", "carry-next",   "ウィンドウを連れて次へ",        (*) => QM_DesktopStep(1, true), "virtual desktop move window idou")
+        this.Add("D", "Q", "carry-prev",   "ウィンドウを連れて前へ",        (*) => QM_DesktopStep(-1, true), "virtual desktop move window idou")
+        this.Add("D", "M", "carry-new",    "新しいデスクトップへウィンドウを移動", (*) => QM_DesktopNew(true), "virtual desktop move window idou")
+        this.Add("D", "T", "taskview",     "タスクビュー（Win+Tab）",       (*) => Send("#{Tab}"), "virtual desktop ichiran")
+        this.Add("D", "I", "desk-info",    "今のデスクトップ番号を表示",    (*) => QM_DesktopInfo(), "virtual desktop bangou")
+        ; 番号を指定して切り替え（今は使わないので非表示。使うときは次の 2 行を有効にする）
+        ; loop 9
+        ;     this.Add("D", String(A_Index), "desk-" A_Index, "デスクトップ " A_Index " へ", QM_DesktopGo.Bind(A_Index), "virtual desktop switch kirikae")
+
         ;--- 検索・翻訳 ---------------------------------------------------------
         this.Add("G", "G", "google",       "選択文字を Google 検索",        (*) => QM_WebSelection("https://www.google.com/search?q="), "search kensaku")
         this.Add("G", "J", "ja-translate", "選択文字を日本語に翻訳",        (*) => QM_WebSelection("https://translate.google.com/?sl=auto&tl=ja&text="), "honyaku japanese")
@@ -157,7 +172,7 @@ class QuickPalette {
         this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
 
         ;--- Fn キー（F1〜F12）---------------------------------------------------
-        ; キーの配置は InputHook の旧 WaitForKeyInput_call_*Fnkeys() と同じ
+        ; キーの配置は oneshot_modifiers.ahk の Fn キー入力モードと同じ
         fnKeys := ["X", "C", "V", "S", "D", "F", "W", "E", "R", "Z", "A", "Q"]
         fnMods := [
             {cat: "F", mod: "",   tag: "",            name: ""},
@@ -429,14 +444,15 @@ class QuickPalette {
         OnMessage(0x0006, ObjBindMethod(this, "_OnMenuActivate"))  ; WM_ACTIVATE
     }
 
-    static ShowMenu() {
+    ; level を指定すると、そのカテゴリを開いた状態で表示する
+    static ShowMenu(level := "") {
         this._Init()
         if this._mOpen {                                         ; 開いていれば閉じる（切り替え）
             this._MenuClose()
             return
         }
         this._target := WinExist("A")
-        this._mLevel := ""
+        this._mLevel := (this._CatName(level) != "") ? level : ""
         this._MenuRender()
 
         QM_PopupPos(&x, &y)
@@ -755,6 +771,7 @@ class QM_SymbolMenu {
 ;==============================================================================
 QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
+QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================
@@ -1098,4 +1115,114 @@ QM_VSCodeChord(key, waitMs := 200) {
     SendInput("^k")
     Sleep(waitMs)
     SendInput(key)
+}
+
+;--- 仮想デスクトップ ---------------------------------------------------------
+; 現在の番号と総数をレジストリから読む（現在の番号が分からなければ false）
+QM_DesktopState(&cur, &count) {
+    key := "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer"
+    cur := 1, count := 1
+    ids := ""
+    try ids := RegRead(key "\VirtualDesktops", "VirtualDesktopIDs")
+    if (StrLen(ids) < 32)                                        ; 一度も追加していないときは値がない
+        return true
+    count := StrLen(ids) // 32                                   ; GUID 1 個 = 16 バイト = 16 進 32 文字
+
+    curId := ""
+    try curId := RegRead(key "\VirtualDesktops", "CurrentVirtualDesktop")          ; Windows 11
+    if (curId = "") {                                            ; Windows 10
+        sid := 0
+        DllCall("ProcessIdToSessionId", "UInt", DllCall("GetCurrentProcessId", "UInt"), "UInt*", &sid)
+        try curId := RegRead(key "\SessionInfo\" sid "\VirtualDesktops", "CurrentVirtualDesktop")
+    }
+    loop count
+        if (SubStr(ids, (A_Index - 1) * 32 + 1, 32) = curId) {
+            cur := A_Index
+            return true
+        }
+    return false
+}
+
+QM_DesktopMoveBy(d) {
+    keys := (d > 0) ? "^#{Right}" : "^#{Left}"
+    loop Abs(d) {
+        SendInput(keys)
+        Sleep(100)
+    }
+}
+
+; 隣のデスクトップへ（carry = true ならアクティブなウィンドウも一緒に移動）
+QM_DesktopStep(d, carry := false) {
+    known := QM_DesktopState(&cur, &count)
+    n := cur + d
+    if (known && (n < 1 || n > count)) {
+        QM_Tip((d > 0) ? "右側にデスクトップはありません" : "左側にデスクトップはありません")
+        return
+    }
+    if carry
+        QM_CarryWindow(() => QM_DesktopMoveBy(d))
+    else
+        QM_DesktopMoveBy(d)
+    if known
+        QM_Tip("デスクトップ " n " / " count)
+}
+
+; 番号を指定して切り替える
+QM_DesktopGo(n) {
+    if !QM_DesktopState(&cur, &count) {
+        QM_Tip("仮想デスクトップの状態を取得できませんでした")
+        return
+    }
+    if (n > count) {
+        QM_Tip("デスクトップ " n " はありません（全 " count " 個）")
+        return
+    }
+    if (n != cur)
+        QM_DesktopMoveBy(n - cur)
+    QM_Tip("デスクトップ " n " / " count)
+}
+
+; 新しいデスクトップを右端に作って切り替える（carry = true ならウィンドウも移動）
+QM_DesktopNew(carry := false) {
+    QM_DesktopState(&cur, &count)
+    if carry
+        QM_CarryWindow(() => SendInput("^#d"))
+    else
+        SendInput("^#d")
+    QM_Tip("デスクトップを作成しました（" count + 1 " / " count + 1 "）")
+}
+
+; 今のデスクトップを閉じる（開いていたウィンドウは隣のデスクトップへ移る）
+QM_DesktopClose() {
+    if (QM_DesktopState(&cur, &count) && count <= 1) {
+        QM_Tip("デスクトップが 1 つしかないため閉じられません")
+        return
+    }
+    SendInput("^#{F4}")
+    QM_Tip("デスクトップ " cur " を閉じました（残り " count - 1 " 個）")
+}
+
+QM_DesktopInfo() {
+    if QM_DesktopState(&cur, &count)
+        QM_Tip("現在のデスクトップ：" cur " / " count, 2500)
+    else
+        QM_Tip("仮想デスクトップの状態を取得できませんでした")
+}
+
+; アクティブなウィンドウを隠してから切り替え、切り替え先で表示し直す（表示した側のデスクトップに移る）
+QM_CarryWindow(switchFn) {
+    hwnd := WinExist("A")
+    if (!hwnd || RegExMatch(WinGetClass(hwnd), "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$")) {
+        QM_Tip("移動できるウィンドウがありません")
+        return
+    }
+    WinHide(hwnd)
+    try {
+        Sleep(50)
+        switchFn()
+        Sleep(250)
+    } finally {
+        WinShow(hwnd)
+        try WinActivate(hwnd)
+    }
 }

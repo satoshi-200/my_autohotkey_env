@@ -6,6 +6,10 @@
 ;   （launch_execute.ahk は os_operate_assist.ahk と重複していたため削除）
 ;==============================================================================
 
+; 使う部品（単体で開いたときもエディタが変数を見つけられるように。同じファイルは 1 度しか読まれない）
+#Include %A_LineFile%\..\config.ahk
+#Include %A_LineFile%\..\key_wait.ahk
+
 ;------------------------------------------------------------------------------
 ; アプリ・フォルダの起動
 ;------------------------------------------------------------------------------
@@ -31,13 +35,15 @@ execute_app(){
 ;   呼び出しに使ったキーは自動で調べ、そのキーで同じ方向へ続けて動かせる。
 ;     例：Caps → r で AppSwitcher_Show(false, "q") … r：次、q：前
 ;         "vk1D & 3" で AppSwitcher_Show(false, "2") … 3：次、2：前
-;   Space など他のキー：決定　Esc / Caps：キャンセル
+;   j / k / l / ;：一覧の中で ← / ↑ / ↓ / → に動かす
+;   変換など他のキー：決定　Delete / d：選択中のウィンドウを閉じる　Esc / Caps / Space：キャンセル
 ;   APPSWITCH_IDLE_SEC 秒操作がなければ、そのとき選んでいるアプリに決定する。
 ;   決定後はマウスカーソルをそのウィンドウの中央へ移し、Ctrl を押して位置を表示する
 ;   （Windows の「Ctrl キーを押すとポインターの位置を表示する」をオンにしておくこと）。
-;   ※ ih / isWaitingInput / IH_TipClear / tooltipDuration は InputHook.ahk で定義
+;   ※ ih / isWaitingInput / IH_TipClear は key_wait.ahk、tooltipDuration は config.ahk で定義
 ;------------------------------------------------------------------------------
 APPSWITCH_IDLE_SEC := 3
+APPSWITCH_ARROWS := Map("j", "Left", "k", "Up", "l", "Down", ";", "Right")
 
 AppSwitcher_Show(reverse := false, pairKey := "") {
   global ih, isWaitingInput := true
@@ -64,20 +70,34 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
 
   startHwnd := WinExist("A")
   Send("{Alt down}" (reverse ? "+{Tab}" : "{Tab}"))
+  steps := reverse ? -1 : 1                        ; 一覧で動かした量（0 なら元のウィンドウに戻る）
+  posUnknown := false                              ; 矢印で動かす・Delete で閉じると、steps では判断できなくなる
   result := "決定"
   loop {
-    ToolTip("🔀 [アプリ切り替え] " hint "Space：決定　Esc：キャンセル"
+    ToolTip("🔀 [アプリ切り替え] " hint "j k l `;：←↑↓→`n変換 / Enter など：決定　Delete / d：閉じる　Esc / Caps / Space：キャンセル"
       . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
     h.Start()                                       ; 待ち時間は押すたびに数え直す
     h.Wait()
     key := h.EndKey
     vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
-    if (vk && vk = sameVK)
+    if (vk && vk = sameVK) {
       Send(reverse ? "{Blind}+{Tab}" : "{Blind}{Tab}")
-    else if (vk && vk = pairVK)
+      steps += reverse ? -1 : 1
+    }
+    else if (vk && vk = pairVK) {
       Send(reverse ? "{Blind}{Tab}" : "{Blind}+{Tab}")
+      steps += reverse ? 1 : -1
+    }
+    else if APPSWITCH_ARROWS.Has(key) {
+      Send("{Blind}{" APPSWITCH_ARROWS[key] "}")
+      posUnknown := true
+    }
+    else if (key = "Delete" || key = "d") {        ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
+      Send("{Blind}{Delete}")
+      posUnknown := true
+    }
     else {
-      if (key = "Escape" || key = "CapsLock") {
+      if (key = "Escape" || key = "CapsLock" || vk = 0x20) {  ; Esc / Caps / Space
         Send("{Blind}{Esc}")
         result := "キャンセル"
       }
@@ -89,7 +109,7 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
 
   if (result = "決定") {
     ; 切り替わったウィンドウの中央へカーソルを移し、Ctrl で位置を知らせる波紋を出す
-    _AppSwitcher_MoveCursorToCenter(_AppSwitcher_WaitTarget(startHwnd))
+    _AppSwitcher_MoveCursorToCenter(_AppSwitcher_WaitTarget(startHwnd, steps != 0 || posUnknown))
     Send("{LCtrl}")
   }
 
@@ -98,18 +118,21 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
 }
 
 ; 切り替え先のウィンドウが前面に来るのを待つ（Alt+Tab の一覧画面自体は除く）
-_AppSwitcher_WaitTarget(startHwnd, timeoutMs := 1000, sameWinMs := 200) {
+; expectOther = true なら、元と違うウィンドウに替わるまで timeoutMs まで待つ
+_AppSwitcher_WaitTarget(startHwnd, expectOther := true, timeoutMs := 1500, sameWinMs := 200) {
   t0 := A_TickCount
+  last := 0
   loop {
     hwnd := DllCall("GetForegroundWindow", "Ptr")
     if (hwnd && !_AppSwitcher_IsSwitcherUI(hwnd)) {
+      last := hwnd
       if (hwnd != startHwnd)
         return hwnd
-      if (A_TickCount - t0 >= sameWinMs)            ; 元と同じウィンドウを選んだときは長く待たない
+      if (!expectOther && A_TickCount - t0 >= sameWinMs)
         return hwnd
     }
     if (A_TickCount - t0 >= timeoutMs)
-      return hwnd
+      return last                                   ; 一覧画面そのものは返さない
     Sleep(1)                                        ; タイマー分解能は mouse_cursor.ahk で 1ms にしてある
   }
 }
@@ -124,14 +147,90 @@ _AppSwitcher_IsSwitcherUI(hwnd) {
 
 ; ウィンドウの見えている範囲（影を除く）の中央へカーソルを移す
 _AppSwitcher_MoveCursorToCenter(hwnd) {
-  if (!hwnd || !WinExist(hwnd) || WinGetMinMax(hwnd) = -1)
+  if (!hwnd || !WinExist(hwnd))
     return
+  t0 := A_TickCount
+  while (WinGetMinMax(hwnd) = -1) {                 ; 最小化から復元中は位置が確定しないので待つ
+    if (A_TickCount - t0 >= 1000)
+      return
+    Sleep(10)
+  }
   rc := Buffer(16, 0)
   if DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", 9, "Ptr", rc, "UInt", 16)  ; DWMWA_EXTENDED_FRAME_BOUNDS
     DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
   cx := (NumGet(rc, 0, "Int") + NumGet(rc, 8, "Int")) // 2
   cy := (NumGet(rc, 4, "Int") + NumGet(rc, 12, "Int")) // 2
   DllCall("SetCursorPos", "Int", cx, "Int", cy)
+}
+
+;------------------------------------------------------------------------------
+; タブ・ページの連続切り替え（Caps → v / z：Ctrl+Tab、Caps → c / x：Ctrl+PgDn / PgUp）
+;   KeyCycler_Show(nextSend, prevSend, title, reverse, pairKey)
+;     nextSend / prevSend … 次へ／前へ動かすときに送るキー（例："^{Tab}" / "^+{Tab}"）
+;     reverse … true なら最初に「前へ」を送る
+;     pairKey … 逆方向に動かすキー
+;   呼び出しに使ったキーを続けて押すと同じ方向へ、pairKey で逆方向へ動く。
+;   ほかのキー：決定　Esc / Caps：元の位置に戻す
+;   KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
+;------------------------------------------------------------------------------
+KEYCYCLE_IDLE_SEC := 3
+
+KeyCycler_Show(nextSend, prevSend, title, reverse := false, pairKey := "") {
+  global ih, isWaitingInput := true
+  SetTimer(IH_TipClear, 0)                         ; 呼び出し元の「消去タイマー」で表示が消えないように
+
+  ; 呼び出しに使ったキー：「A & B」形式のホットキーなら B、それ以外は InputHook で受けたキー
+  prefix := ""
+  if RegExMatch(A_ThisHotkey, "^[~*$]*(\S+) & (\S+)$", &m)
+    prefix := m[1], triggerKey := m[2]
+  else
+    triggerKey := ih.Input
+  sameVK := (triggerKey != "") ? GetKeyVK(triggerKey) : 0
+  pairVK := (pairKey != "") ? GetKeyVK(pairKey) : 0
+
+  h := InputHook("L0 T" KEYCYCLE_IDLE_SEC)
+  h.KeyOpt("{All}", "ES")                          ; 文字は入力させず、押されたキーで分岐する
+  h.KeyOpt("{LCtrl}{RCtrl}{LShift}{RShift}{LAlt}{RAlt}{LWin}{RWin}", "-ES")
+  if (prefix != "")
+    h.KeyOpt("{" prefix "}", "-E")                ; 押したままのプレフィックスキーのリピートで決定しないように
+
+  nextName := reverse ? pairKey : triggerKey
+  prevName := reverse ? triggerKey : pairKey
+  hint := (nextName != "" ? nextName "：次　" : "") (prevName != "" ? prevName "：前　" : "")
+
+  SendInput(reverse ? prevSend : nextSend)
+  steps := reverse ? -1 : 1                        ; 元の位置から動いた量（Esc で戻すときに使う）
+  result := "決定"
+  loop {
+    ToolTip("📑 [" title "] " hint "ほかのキー：決定　Esc / Caps：元に戻す"
+      . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
+    h.Start()                                       ; 待ち時間は押すたびに数え直す
+    h.Wait()
+    key := h.EndKey
+    vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
+    if (vk && vk = sameVK) {
+      SendInput(reverse ? prevSend : nextSend)
+      steps += reverse ? -1 : 1
+    }
+    else if (vk && vk = pairVK) {
+      SendInput(reverse ? nextSend : prevSend)
+      steps += reverse ? 1 : -1
+    }
+    else {
+      if (key = "Escape" || key = "CapsLock") {
+        loop Abs(steps) {
+          SendInput((steps > 0) ? prevSend : nextSend)
+          Sleep(30)                                 ; 連続で送ると取りこぼすアプリがある
+        }
+        result := "元に戻しました"
+      }
+      break
+    }
+  }
+  isWaitingInput := false
+
+  ToolTip((result = "決定" ? "✅" : "↩️") " [" title "] " result)
+  SetTimer(IH_TipClear, -tooltipDuration)
 }
 
 ;------------------------------------------------------------------------------
@@ -287,48 +386,53 @@ AlwaysOnTop_Release() {
 }
 
 ;------------------------------------------------------------------------------
-; スクリーンセーバー回避：ポップアップ表示中はマウスを小刻みに動かす
+; スクリーンセーバー回避：オンの間、マウスを小刻みに動かす
+;   Popup_Screen_saver() を呼ぶたびにオン／オフを切り替える（Space + F1）。Esc でも解除。
+;   状態はトレイアイコン・トレイのツールチップ・トレイメニューのチェックで表示する。
 ;------------------------------------------------------------------------------
-; init
-SetTimer(CheckPopup,1000)
-
-; gloval variables
 global MouseVibrate := false
-global MoveRight := false
+SCREENSAVER_MENU := "スクリーンセーバー回避"
+A_TrayMenu.Add(SCREENSAVER_MENU, (*) => Popup_Screen_saver())
 
-; method
-Popup_Screen_saver(){
-    global myGui := Gui()
-    myGui.OnEvent("Close", GuiClose)
-    myGui.OnEvent("Escape", GuiClose)
-    myGui.Add("Text", , "screen saver execute")
-    myGui.Add("Button", , "quit").OnEvent("Click", GuiClose)
-    myGui.Title := ""
-    myGui.Show("w200 h100")
-    global MouseVibrate := true
-    return
+Popup_Screen_saver() {
+    global MouseVibrate := !MouseVibrate
+    if MouseVibrate {
+        SetTimer(_ScreenSaver_Jiggle, 1000)
+        _ScreenSaver_EscWatcher().Start()
+        TraySetIcon("imageres.dll", 102)              ; 目のアイコン
+        A_IconTip := A_ScriptName "`n☕ スクリーンセーバー回避：ON"
+        A_TrayMenu.Check(SCREENSAVER_MENU)
+    } else {
+        SetTimer(_ScreenSaver_Jiggle, 0)
+        _ScreenSaver_EscWatcher().Stop()
+        TraySetIcon("*")
+        A_IconTip := ""
+        A_TrayMenu.Uncheck(SCREENSAVER_MENU)
+    }
+    ToolTip("☕ スクリーンセーバー回避：" (MouseVibrate ? "ON" : "OFF"))
+    SetTimer(() => ToolTip(), -tooltipDuration)
 }
 
-GuiClose(*) ; ポップアップを閉じるとき
-{
-    myGui.Destroy()
-    global MouseVibrate := false
-    return
+; オンのときだけ解除する（ホットキーから Esc を送るときに併用）
+ScreenSaver_Off() {
+    if MouseVibrate
+        Popup_Screen_saver()
 }
 
-CheckPopup(){
-    if (MouseVibrate)
-        {
-            MouseGetPos(&xpos, &ypos)
-            if (MoveRight)
-            {
-                MouseMove(xpos + 3, ypos, 0)
-                global MoveRight := false
-            }
-            else
-            {
-                MouseMove(xpos - 3, ypos, 0)
-                global MoveRight := true
-            }
-        }
+; Esc で解除するための監視。ホットキーと違い InputHook はこのスクリプト自身が送った Esc も拾える（V：Esc はそのまま通す）
+_ScreenSaver_EscWatcher() {
+    static h := 0
+    if !h {
+        h := InputHook("L0 V")
+        h.KeyOpt("{Esc}", "N")
+        h.OnKeyDown := (*) => (MouseVibrate ? SetTimer(Popup_Screen_saver, -1) : 0)
+    }
+    return h
+}
+
+; 相対移動で左右に 1 往復させる（絶対座標を使わないのでどのモニター上でも位置がずれない）
+_ScreenSaver_Jiggle() {
+    static right := false
+    right := !right
+    DllCall("mouse_event", "UInt", 0x0001, "Int", right ? 2 : -2, "Int", 0, "UInt", 0, "UPtr", 0)  ; MOUSEEVENTF_MOVE
 }

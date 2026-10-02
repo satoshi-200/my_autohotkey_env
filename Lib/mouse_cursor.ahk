@@ -300,7 +300,9 @@ class MouseNav {
         hwnd := DllCall("GetForegroundWindow", "Ptr")
         if this._IsWarpTarget(hwnd) {
             rc := Buffer(16, 0)
-            DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
+            ; 見えない枠（影）を除いた実際の見た目の範囲を使う（DWMWA_EXTENDED_FRAME_BOUNDS）
+            if DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", 9, "Ptr", rc, "UInt", 16)
+                DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
             cx := (NumGet(rc, 0, "Int") + NumGet(rc, 8, "Int")) // 2
             cy := (NumGet(rc, 4, "Int") + NumGet(rc, 12, "Int")) // 2
             ; ウィンドウの中央がどのモニター上にもない場合は採用しない
