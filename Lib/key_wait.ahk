@@ -13,6 +13,7 @@
 ih := InputHook("L1")
 isWaitingInput := false              ; 待機中は main.ahk の #HotIf でほかのホットキーを止める
 IH_TIMEOUT_SEC := 5                  ; この秒数キー入力がなければ入力待ちをキャンセル
+IH_forcedKey := ""                   ; InputHook に届かないキー（「A & B」の A）をホットキーから渡す
 
 ; キャンセル用：Esc・Caps で終了、一定時間でタイムアウト（各モードの KeyOpt でも消えない）
 ih.Timeout := IH_TIMEOUT_SEC
@@ -21,27 +22,38 @@ ih.KeyOpt("{Esc}{sc03A}", "ES")
 ; いま何のキー待ちかをツールチップで表示する
 IH_TipWaiting(mode, hint := "") {
   global isWaitingInput := true  ; 待機中はほかのホットキーを止める（下位のモードでも）
+  global IH_forcedKey := ""
   SetTimer(IH_TipClear, 0)  ; 前のモードの「消去タイマー」で待ち表示が消えないように
   ToolTip("⌨️ [" mode "] 次のキー待ち..." (hint != "" ? "`n" hint : "")
     "`nEsc / Caps / Space+Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
 }
 
+; 入力待ちを終えた特殊キー（ホットキーから渡されたキーも含む）。文字入力なら ""
+IH_EndKeyOf() => (ih.EndReason = "Stopped" && IH_forcedKey != "") ? IH_forcedKey : ih.EndKey
+
+; ih を「特殊キー key で終わった」ことにして止める
+IH_StopWithKey(key) {
+  global IH_forcedKey := key
+  ih.Stop()
+}
+
 ; 入力待ちの終了処理。受け付けたキーを表示し、キャンセルされたら true を返す
 IH_EndWait(mode) {
   global ih, isWaitingInput
+  endKey := IH_EndKeyOf()
   cancelled := ""
   if (ih.EndReason = "Timeout")
     cancelled := "タイムアウト"
-  else if (ih.EndKey = "Escape" || ih.EndKey = "CapsLock")
+  else if (endKey = "Escape" || endKey = "CapsLock")
     cancelled := "キャンセル"
-  else if (ih.EndKey = "Space" && IH_CapsWhileSpaceHeld())
+  else if (endKey = "Space" && IH_CapsWhileSpaceHeld())
     cancelled := "キャンセル"
   isWaitingInput := false
 
   if (cancelled != "")
     ToolTip("❌ [" mode "] " cancelled)
   else
-    ToolTip("✅ [" mode "] accepted:[" ((ih.EndKey != "") ? ih.EndKey : ih.Input) "]")
+    ToolTip("✅ [" mode "] accepted:[" ((endKey != "") ? endKey : ih.Input) "]")
   SetTimer(IH_TipClear, -tooltipDuration)
   return cancelled != ""
 }

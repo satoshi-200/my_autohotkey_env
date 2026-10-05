@@ -36,7 +36,7 @@ execute_app(){
 ;     例：Caps → r で AppSwitcher_Show(false, "q") … r：次、q：前
 ;         "vk1D & 3" で AppSwitcher_Show(false, "2") … 3：次、2：前
 ;   j k l ; / a s d f：一覧の中で ← / ↑ / ↓ / → に動かす
-;   変換など他のキー：決定　Delete：選択中のウィンドウを閉じる　Esc / Caps / Space：キャンセル
+;   変換など他のキー：決定　Delete / x / c / v：選択中のウィンドウを閉じる（APPSWITCH_CLOSE_KEYS）　Esc / Caps / Space / :：キャンセル
 ;   APPSWITCH_IDLE_SEC 秒操作がなければ、そのとき選んでいるアプリに決定する。
 ;   決定後はマウスカーソルをそのウィンドウの中央へ移し、Ctrl を押して位置を表示する
 ;   （Windows の「Ctrl キーを押すとポインターの位置を表示する」をオンにしておくこと）。
@@ -46,6 +46,8 @@ APPSWITCH_IDLE_SEC := 3
 APPSWITCH_ARROWS := Map(
     "j", "Left", "k", "Up", "l", "Down", ";", "Right",
     "a", "Left", "s", "Up", "d", "Down", "f", "Right")
+; 選択中のウィンドウを閉じるキー（不要なものは消す）
+APPSWITCH_CLOSE_KEYS := ["Delete", "x", "c", "v"]
 
 AppSwitcher_Show(reverse := false, pairKey := "") {
   global ih, isWaitingInput := true
@@ -73,10 +75,13 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
   startHwnd := WinExist("A")
   Send("{Alt down}" (reverse ? "+{Tab}" : "{Tab}"))
   steps := reverse ? -1 : 1                        ; 一覧で動かした量（0 なら元のウィンドウに戻る）
-  posUnknown := false                              ; 矢印で動かす・Delete で閉じると、steps では判断できなくなる
+  posUnknown := false                              ; 矢印で動かす・閉じると、steps では判断できなくなる
+  closeHint := ""
+  for k in APPSWITCH_CLOSE_KEYS
+    closeHint .= (closeHint = "" ? "" : " / ") k
   result := "決定"
   loop {
-    ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　Delete：閉じる　Esc / Caps / Space：キャンセル"
+    ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / Space / :：キャンセル"
       . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
     h.Start()                                       ; 待ち時間は押すたびに数え直す
     h.Wait()
@@ -94,12 +99,13 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
       Send("{Blind}{" APPSWITCH_ARROWS[key] "}")
       posUnknown := true
     }
-    else if (key = "Delete") {                      ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
+    else if _AppSwitcher_IsCloseKey(key) {          ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
       Send("{Blind}{Delete}")
       posUnknown := true
     }
     else {
-      if (key = "Escape" || key = "CapsLock" || vk = 0x20) {  ; Esc / Caps / Space
+      if (key = "Escape" || key = "CapsLock" || vk = 0x20  ; Esc / Caps / Space / :（JIS）
+          || (vk && DllCall("MapVirtualKey", "UInt", vk, "UInt", 2, "UInt") = Ord(":"))) {
         Send("{Blind}{Esc}")
         result := "キャンセル"
       }
@@ -117,6 +123,13 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
 
   ToolTip((result = "決定" ? "✅" : "❌") " [アプリ切り替え] " result)
   SetTimer(IH_TipClear, -tooltipDuration)
+}
+
+_AppSwitcher_IsCloseKey(key) {
+  for k in APPSWITCH_CLOSE_KEYS
+    if (key = k)
+      return true
+  return false
 }
 
 ; 切り替え先のウィンドウが前面に来るのを待つ（Alt+Tab の一覧画面自体は除く）
@@ -219,13 +232,19 @@ KeyCycler_Show(title, actions) {
     h.Wait()
     key := StrLower(h.EndKey)
     if (h.EndReason = "EndKey" && actions.Has(key)) {
-      SendInput(actions[key][1])
-      undo.Push(actions[key][2])
+      a := actions[key]
+      if (a[1] is Func)
+        undo.Push(a[1]())                           ; 関数は戻す処理（関数）を返す
+      else {
+        SendInput(a[1])
+        undo.Push(a[2])
+      }
     }
     else {
       if (key = "escape" || key = "capslock") {
         while undo.Length {
-          SendInput(undo.Pop())
+          u := undo.Pop()
+          (u is Func) ? u() : SendInput(u)
           Sleep(30)                                 ; 連続で送ると取りこぼすアプリがある
         }
         result := "元に戻しました"
@@ -241,11 +260,38 @@ KeyCycler_Show(title, actions) {
 
 ;------------------------------------------------------------------------------
 ; ウィンドウの大きさ変更（Caps → q から呼ぶ）
-;   Win+↑ / Win+↓ を送る（連打可）。操作は KeyCycler_Show と同じ。
+;   Win+↑ / Win+↓ を送る（連打可）。q：最大化、r：最小化。操作は KeyCycler_Show と同じ。
 ;------------------------------------------------------------------------------
 WINSIZE_ACTIONS := Map(
+    "q", [WinSize_Set.Bind(1),  "", "最大化"],
     "w", ["#{Up}",   "#{Down}", "大きく（Win+↑）"],
-    "e", ["#{Down}", "#{Up}",   "小さく（Win+↓）"])
+    "e", ["#{Down}", "#{Up}",   "小さく（Win+↓）"],
+    "r", [WinSize_Set.Bind(-1), "", "最小化"])
+
+; state 1：最大化、-1：最小化。元の状態に戻す関数を返す
+WinSize_Set(state) {
+  if !(hwnd := WinExist("A"))
+    return () => 0
+  prev := WinGetMinMax(hwnd)
+  (state = 1) ? WinMaximize(hwnd) : WinMinimize(hwnd)
+  return WinSize_Restore.Bind(hwnd, prev)
+}
+
+WinSize_Restore(hwnd, prev) {
+  if !WinExist(hwnd)
+    return
+  if (prev = 1)
+    WinMaximize(hwnd)
+  else if (prev = -1)
+    WinMinimize(hwnd)
+  else {
+    WinRestore(hwnd)
+    if (WinGetMinMax(hwnd) = 1)                     ; 最小化前が最大化だと 1 回では戻らない
+      WinRestore(hwnd)
+  }
+  if (prev != -1)
+    WinActivate(hwnd)
+}
 
 WindowResizer_Show() => KeyCycler_Show("ウィンドウの大きさ", WINSIZE_ACTIONS)
 
@@ -255,6 +301,7 @@ WindowResizer_Show() => KeyCycler_Show("ウィンドウの大きさ", WINSIZE_AC
 ;   WindowMonitor_Show(reverse)
 ;     reverse … false：次のモニターへ、true：前のモニターへ
 ;   呼び出しに使ったキー（Caps → Tab なら Tab）で次へ、Shift 付きで前へ。
+;   w：Win+↑、e：Win+↓ で大きさを変える。
 ;   ほかのキー：決定　Esc / Caps：元のモニターに戻す
 ;   WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
 ;------------------------------------------------------------------------------
@@ -290,12 +337,14 @@ WindowMonitor_Show(reverse := false) {
   startPt := Buffer(8, 0)
   DllCall("GetCursorPos", "Ptr", startPt)
   steps := 0                                        ; 次へ +1、前へ -1（元に戻すときに使う）
+  sizeUndo := []                                    ; w / e で変えた大きさを戻すための履歴
   mon := _WinMonitor_Step(hwnd, reverse)
   steps += reverse ? -1 : 1
   result := "決定"
   loop {
     ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
-      . "`n" triggerKey "：次　Shift+" triggerKey "：前　ほかのキー：決定　Esc：元に戻す"
+      . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
+      . "`nほかのキー：決定　Esc：元に戻す"
       . "`n（" WINMONITOR_IDLE_SEC " 秒操作しなければ決定）")
     h.Start()                                       ; 待ち時間は押すたびに数え直す
     h.Wait()
@@ -306,8 +355,31 @@ WindowMonitor_Show(reverse := false) {
       mon := _WinMonitor_Step(hwnd, back)
       steps += back ? -1 : 1
     }
+    else if (key = "w" || key = "e") {
+      if (WinGetMinMax(hwnd) = -1) {                ; 最小化中は Win+↑ が効かないので元に戻すだけ
+        if (key = "w") {
+          WinRestore(hwnd), WinActivate(hwnd)
+          sizeUndo.Push("#{Down}")
+        }
+      }
+      else {
+        try WinActivate(hwnd)
+        Send(key = "w" ? "#{Up}" : "#{Down}")
+        sizeUndo.Push(key = "w" ? "#{Down}" : "#{Up}")
+      }
+    }
     else {
       if (key = "Escape" || key = "CapsLock") {
+        while sizeUndo.Length {
+          u := sizeUndo.Pop()
+          if (WinGetMinMax(hwnd) = -1)
+            WinActivate(hwnd)                       ; 最小化からの復帰 = Win+↑ 1 回分
+          else {
+            try WinActivate(hwnd)
+            Send(u)
+          }
+          Sleep(30)
+        }
         n := Mod(Mod(steps, count) + count, count)  ; 元のモニターまで「前へ」を何回押すか
         loop n
           _WinMonitor_Step(hwnd, true)

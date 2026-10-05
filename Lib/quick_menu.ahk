@@ -130,8 +130,8 @@ class QuickPalette {
         ;--- 仮想デスクトップ ---------------------------------------------------
         this.Add("D", "C", "desk-new",     "新しいデスクトップを作成",      (*) => QM_DesktopNew(), "virtual desktop create sakusei")
         this.Add("D", "X", "desk-close",   "今のデスクトップを閉じる",      (*) => QM_DesktopClose(), "virtual desktop delete sakujo")
-        this.Add("D", "N", "desk-next",    "次（右）のデスクトップへ",      (*) => QM_DesktopStep(1), "virtual desktop switch kirikae")
-        this.Add("D", "P", "desk-prev",    "前（左）のデスクトップへ",      (*) => QM_DesktopStep(-1), "virtual desktop switch kirikae")
+        this.Add("D", "N F `;", "desk-next",  "次（右）のデスクトップへ",      (*) => QM_DesktopStep(1), "virtual desktop switch kirikae")
+        this.Add("D", "P J A", "desk-prev",  "前（左）のデスクトップへ",      (*) => QM_DesktopStep(-1), "virtual desktop switch kirikae")
         this.Add("D", "W", "carry-next",   "ウィンドウを連れて次へ",        (*) => QM_DesktopStep(1, true), "virtual desktop move window idou")
         this.Add("D", "Q", "carry-prev",   "ウィンドウを連れて前へ",        (*) => QM_DesktopStep(-1, true), "virtual desktop move window idou")
         this.Add("D", "M", "carry-new",    "新しいデスクトップへウィンドウを移動", (*) => QM_DesktopNew(true), "virtual desktop move window idou")
@@ -562,15 +562,17 @@ class QuickPalette {
                 return
         }
 
-        ; 英数字・/ ：該当する行を実行
+        ; 英数字・/ ・; ：該当する行を実行（key は空白区切りで複数指定できる）
         ch := ""
         if ((vk >= 0x41 && vk <= 0x5A) || (vk >= 0x30 && vk <= 0x39))
             ch := Chr(vk)
         else if (vk = 0xBF)
             ch := "/"
+        else if (vk >= 0xBA && vk <= 0xBB && DllCall("MapVirtualKey", "UInt", vk, "UInt", 2, "UInt") = Ord(";"))
+            ch := ";"                                         ; JIS は 0xBB、US は 0xBA
         if (ch != "") {
             for i, v in this._mView
-                if (v.key = ch) {
+                if (InStr(" " v.key " ", " " ch " ")) {
                     this._MenuPick(i)
                     break
                 }

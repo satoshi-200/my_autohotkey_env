@@ -28,6 +28,20 @@ sc03A:: WaitForKeyInput_for_Caps_1level()        ; CapsLock
 sc070:: WaitForKeyInput_kata_hira_romeji()       ; カタカナひらがな
 #HotIf
 
+; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
+#HotIf isWaitingInput && ih.InProgress
+vk1D:: IH_StopWithKey("sc07B")
+#HotIf
+
+; 大文字入力モードの終了（これらもプレフィックスなので InputHook に届かない）
+#HotIf UpperMode_IsOn()
+vk1D:: UpperMode_Stop()
+vk1C:: UpperMode_Stop()
+vk20:: UpperMode_Stop(), SendInput("{Space}")
+vk1C & b:: UpperMode_Stop(), SendInput("{F8}")   ; 組み合わせが発動すると上の vk1C:: は発動しない
+vk1C & n:: UpperMode_Stop(), SendInput("{F9}")
+#HotIf
+
 ;------------------------------------------------------------------------------
 ; 割り当て表
 ;------------------------------------------------------------------------------
@@ -49,8 +63,8 @@ WaitForKeyInput_for_Caps_1level() {
     ; ToolTip()
     isWaitingInput := false
     ; --- 1. 特殊キー（EndKey）が押された場合の処理 ---
-    if (ih.EndReason = "EndKey") {
-        key := ih.EndKey
+    key := IH_EndKeyOf()
+    if (key != "") {
         if (key = "RAlt") {   ; 右Alt
           ; MsgBox("右Alt検知")
           ToolTip("右Alt検知")
@@ -70,14 +84,16 @@ WaitForKeyInput_for_Caps_1level() {
           turn_on_hiragana_input_mode()
           ; MsgBox("{変換キー検知}")
         }
-        else if (key = "sc07B") {
+        else if (GetKeySC(key) = 0x07B) {         ; 無変換は名前がなく EndKey が "sc07B" とは限らないので SC で判定
           ; Capitalize_next_character_you_type()
-          ; 🤮　これだけ機能しない。
-          MsgBox("無変換キー検知")
+          UpperMode_Start()  ; 大文字入力モード text_input.ahk
         }
         else if (key = "sc070") {
           Capitalize_next_character_you_type()
           ; MsgBox("カタカナひらがなローマ字キー検知")
+        }
+        else {
+          MsgBox("未割り当ての EndKey：" key "（SC " Format("{:03X}", GetKeySC(key)) "）")  ; 動作チェック用
         }
         ih.Stop()
         return
@@ -94,7 +110,7 @@ WaitForKeyInput_for_Caps_1level() {
     else if (ih.Input = "q")
     {
       ; SendInput("#{Up}")
-      WindowResizer_Show()  ; ウィンドウの大きさ変更（w：大きく、e：小さく）system_utils.ahk
+      WindowResizer_Show()  ; ウィンドウの大きさ変更（q：最大化、w：大きく、e：小さく、r：最小化）system_utils.ahk
     }
     else if (ih.Input = "e") {
       AppSwitcher_Show(false, "w")  ; アプリ切り替え（e：次、w：前）system_utils.ahk
