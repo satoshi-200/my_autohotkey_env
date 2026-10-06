@@ -1130,8 +1130,8 @@ QM_OpenScriptInCode() {
 }
 
 ;--- Web ページ ---------------------------------------------------------------
-; 社内 URL などを公開しないよう、URL は機密用フォルダ !private に置く（アップロードしない）
-QM_BookmarksFile() => A_ScriptDir "\!private\bookmarks.txt"
+; 社内 URL などを公開しないよう、URL は機密用フォルダに置く（無い環境では一覧が空になるだけ）
+QM_BookmarksFile() => A_ScriptDir "\!DO_NOT_UPLOAD\bookmarks.txt"
 
 ; 1 行 1 件「キー | 表示名 | URL」。空行と ; で始まる行は無視、http(s) 以外も無視
 QM_ReadBookmarks() {
@@ -1152,11 +1152,12 @@ QM_ReadBookmarks() {
 QM_EditBookmarks() {
     file := QM_BookmarksFile()
     if !FileExist(file) {
-        DirCreate(A_ScriptDir "\!private")
+        SplitPath(file, , &dir)
+        DirCreate(dir)
         FileAppend("
         (
         ; よく使う Web ページの一覧（Caps → y で表示）
-        ; 機密ファイル（!private フォルダごとアップロードしない）
+        ; 機密ファイル（!DO_NOT_UPLOAD フォルダごとアップロードしない）
         ; 書き方：キー | 表示名 | URL
         ;   ・キーは英字 1 文字（空白区切りで複数可。例：K A）
         ;   ・URL は http:// か https:// で始まるもののみ
