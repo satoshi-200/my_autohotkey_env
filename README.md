@@ -104,7 +104,7 @@ z:F10  x:F1  c:F2  v:F3
 | G 検索・翻訳 | Google 検索、日本語・英語への翻訳 |
 | S システム | クリップボード履歴、画面キャプチャ、PC のロック、画面を消す、再読み込み など |
 | A アプリ・フォルダ | ダウンロード、スクリプトのフォルダ、VS Code、メモ帳、電卓、Windows の設定 |
-| B Web ページ | よく使う Web ページを開く（Caps → y で直接開く）。URL は `bookmarks.txt` に書く（git には含めない。書き方は `bookmarks.sample.txt` を参照） |
+| B Web ページ | よく使う Web ページを開く（Caps → y で直接開く）。URL は `!private/bookmarks.txt` に書く（`!private` フォルダは機密用。アップロードしない。メニューの `/` で編集。ファイルがなければ書き方入りで作られる） |
 | V VS Code | 折りたたみ・展開（切り替え / 再帰的 / すべて） |
 | F / H / C / X | F1〜F12 ／ Shift ／ Ctrl ／ Ctrl+Shift 付き |
 

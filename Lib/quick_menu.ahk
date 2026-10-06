@@ -1130,8 +1130,8 @@ QM_OpenScriptInCode() {
 }
 
 ;--- Web ページ ---------------------------------------------------------------
-; 社内 URL などを公開しないよう、URL は .gitignore 済みの bookmarks.txt に置く
-QM_BookmarksFile() => A_ScriptDir "\bookmarks.txt"
+; 社内 URL などを公開しないよう、URL は機密用フォルダ !private に置く（アップロードしない）
+QM_BookmarksFile() => A_ScriptDir "\!private\bookmarks.txt"
 
 ; 1 行 1 件「キー | 表示名 | URL」。空行と ; で始まる行は無視、http(s) 以外も無視
 QM_ReadBookmarks() {
@@ -1151,8 +1151,21 @@ QM_ReadBookmarks() {
 
 QM_EditBookmarks() {
     file := QM_BookmarksFile()
-    if !FileExist(file)
-        FileCopy(A_ScriptDir "\bookmarks.sample.txt", file)
+    if !FileExist(file) {
+        DirCreate(A_ScriptDir "\!private")
+        FileAppend("
+        (
+        ; よく使う Web ページの一覧（Caps → y で表示）
+        ; 機密ファイル（!private フォルダごとアップロードしない）
+        ; 書き方：キー | 表示名 | URL
+        ;   ・キーは英字 1 文字（空白区切りで複数可。例：K A）
+        ;   ・URL は http:// か https:// で始まるもののみ
+        ;   ・; で始まる行はコメント
+        ;   ・同じキーが複数あるときは、押すたびに候補を移動して Enter で開く
+        ; K | 勤怠 | https://example.com/attendance
+
+        )", file, "UTF-8")
+    }
     Run('notepad.exe "' file '"')
     QM_Tip("保存したらスクリプトを再読み込みすると反映されます", 3000)
 }
