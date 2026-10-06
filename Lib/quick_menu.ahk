@@ -72,6 +72,7 @@ class QuickPalette {
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
         {key: "A", name: "アプリ・フォルダ"},
+        {key: "B", name: "Web ページ"},
         {key: "V", name: "VS Code"},
         {key: "F", name: "Fn キー"},
         {key: "H", name: "Shift + Fn キー"},
@@ -163,6 +164,11 @@ class QuickPalette {
         this.Add("A", "N", "notepad",      "メモ帳",                        (*) => Run("notepad.exe"), "memo")
         this.Add("A", "K", "calc",         "電卓",                          (*) => Run("calc.exe"), "dentaku")
         this.Add("A", "E", "winsettings",  "Windows の設定",                (*) => Run("ms-settings:"), "settei")
+
+        ;--- Web ページ（URL は公開しない bookmarks.txt から読み込む）-----------------
+        for bm in QM_ReadBookmarks()
+            this.Add("B", bm.key, "web-" StrLower(StrReplace(bm.key, " ")), bm.name, Run.Bind(bm.url), "web bookmark " bm.url)
+        this.Add("B", "/", "web-edit",      "一覧を編集（bookmarks.txt）",   (*) => QM_EditBookmarks(), "web bookmark")
 
         ;--- VS Code（折りたたみ・展開）-----------------------------------------
         this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")
@@ -571,11 +577,22 @@ class QuickPalette {
         else if (vk >= 0xBA && vk <= 0xBB && DllCall("MapVirtualKey", "UInt", vk, "UInt", 2, "UInt") = Ord(";"))
             ch := ";"                                         ; JIS は 0xBB、US は 0xBA
         if (ch != "") {
+            hits := []
             for i, v in this._mView
-                if (InStr(" " v.key " ", " " ch " ")) {
-                    this._MenuPick(i)
-                    break
-                }
+                if (InStr(" " v.key " ", " " ch " "))
+                    hits.Push(i)
+            if (hits.Length = 1)
+                this._MenuPick(hits[1])
+            else if (hits.Length > 1) {                          ; 同じキーが複数：押すたびに次の候補を選択（Enter で実行）
+                cur := this._mlv.GetNext(0), next := hits[1]
+                for i in hits
+                    if (i > cur) {
+                        next := i
+                        break
+                    }
+                this._mlv.Modify(0, "-Select -Focus")
+                this._mlv.Modify(next, "Select Focus Vis")
+            }
             return 0                                             ; 該当なしは無視
         }
     }
@@ -774,6 +791,7 @@ class QM_SymbolMenu {
 QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
+QM_BookmarkMenu_Show() => QuickPalette.ShowMenu("B")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================
@@ -1109,6 +1127,34 @@ QM_OpenScriptInCode() {
     try Run('code "' A_ScriptDir '"', , "Hide")
     catch
         Run(A_ScriptDir)
+}
+
+;--- Web ページ ---------------------------------------------------------------
+; 社内 URL などを公開しないよう、URL は .gitignore 済みの bookmarks.txt に置く
+QM_BookmarksFile() => A_ScriptDir "\bookmarks.txt"
+
+; 1 行 1 件「キー | 表示名 | URL」。空行と ; で始まる行は無視、http(s) 以外も無視
+QM_ReadBookmarks() {
+    list := []
+    if !FileExist(QM_BookmarksFile())
+        return list
+    loop parse FileRead(QM_BookmarksFile(), "UTF-8"), "`n", "`r" {
+        line := Trim(A_LoopField)
+        if (line = "" || SubStr(line, 1, 1) = ";")
+            continue
+        f := StrSplit(line, "|", " `t", 3)
+        if (f.Length = 3 && f[1] != "" && RegExMatch(f[3], "i)^https?://\S+$"))
+            list.Push({key: StrUpper(f[1]), name: f[2], url: f[3]})
+    }
+    return list
+}
+
+QM_EditBookmarks() {
+    file := QM_BookmarksFile()
+    if !FileExist(file)
+        FileCopy(A_ScriptDir "\bookmarks.sample.txt", file)
+    Run('notepad.exe "' file '"')
+    QM_Tip("保存したらスクリプトを再読み込みすると反映されます", 3000)
 }
 
 ;--- VS Code ------------------------------------------------------------------

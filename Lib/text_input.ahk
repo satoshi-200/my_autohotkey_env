@@ -3,24 +3,20 @@
 ; text_input.ahk
 ; 文字入力の補助（IME の切り替え・大文字化・定型文や日付の入力・テキストカーソル移動）
 ;   旧 IME_wrapper.ahk / char_input_assist.ahk / hotstring.ahk / text_cursor.ahk を統合
-;   ※ IME_SET / IME_GET は IME.ahk で定義（main.ahk で先に読み込む）
+;   ※ IME_SET / IME_GET は IME.ahk で定義
 ;==============================================================================
+#Include %A_LineFile%\..\IME.ahk
 
 ;------------------------------------------------------------------------------
 ; IME の入力モード切り替え（旧 IME_wrapper.ahk）
 ;------------------------------------------------------------------------------
+; VK_IME_ON / VK_IME_OFF：現在の状態に関係なく IME を ON / OFF にする（Microsoft IME など対応 IME のみ）
 turn_on_hiragana_input_mode(){
-    SendInput("{vkF3sc029}")
-    ; Sleep(1)
-    IME_SET(0)
-    ; Sleep(10)
+    SendInput("{vk16}")
 }
 
 turn_on_roman_input_mode(){
-    SendInput("{vkF3sc029}")
-    ; Sleep(1)
-    IME_SET(1)
-    ; Sleep(10)
+    SendInput("{vk1A}")
 }
 
 toggle_input_mode(){

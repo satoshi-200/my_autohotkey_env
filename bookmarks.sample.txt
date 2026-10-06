@@ -1,0 +1,10 @@
+; よく使う Web ページの一覧（Caps → y で表示）
+; このファイルを bookmarks.txt という名前でコピーして編集する（bookmarks.txt は git に含めない）
+; 書き方：キー | 表示名 | URL
+;   ・キーは英字 1 文字（空白区切りで複数可。例：K A）
+;   ・URL は http:// か https:// で始まるもののみ
+;   ・; で始まる行はコメント
+;   ・同じキーが複数あるときは、押すたびに候補を移動して Enter で開く
+K | 勤怠        | https://example.com/attendance
+M | メール      | https://outlook.office.com/mail/
+C | カレンダー  | https://outlook.office.com/calendar/

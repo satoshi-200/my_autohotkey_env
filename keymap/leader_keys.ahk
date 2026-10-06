@@ -116,7 +116,8 @@ WaitForKeyInput_for_Caps_1level() {
       AppSwitcher_Show(false, "w")  ; アプリ切り替え（e：次、w：前）system_utils.ahk
     }
     else if (ih.Input = "w") {
-      TabPageSwitcher_Show()  ; タブ・ページ切り替え（f/a：次/前のタブ、d/s：次/前のページ）system_utils.ahk
+      ; WaitForKeyInput_call_Shift_Fnkeys()
+      QM_DesktopMenu_Show() ; 仮想デスクトップメニュー quick_menu.ahk
     }
     else if (ih.Input = "g") {
       ; SendInput("^{y}")
@@ -132,8 +133,7 @@ WaitForKeyInput_for_Caps_1level() {
       ; turn_on_roman_input_mode()
     }
     else if (ih.Input = "d") {
-      ; WaitForKeyInput_call_Shift_Fnkeys()
-      QM_DesktopMenu_Show() ; 仮想デスクトップメニュー quick_menu.ahk
+      TabPageSwitcher_Show()  ; タブ・ページ切り替え（f/a：次/前のタブ、d/s：次/前のページ）system_utils.ahk
     }
     else if (ih.Input = "s") {
       ; WaitForKeyInput_call_Ctrl_Fnkeys()
@@ -158,7 +158,7 @@ WaitForKeyInput_for_Caps_1level() {
       return
     }
     else if(ih.Input = "y") {
-      ; Input_current_Date1() 
+      QM_BookmarkMenu_Show() ; よく使う Web ページ quick_menu.ahk
     }
     else if(ih.Input = "u") {
       QuickPalette_Show() ; コマンドパレット
@@ -219,10 +219,7 @@ WaitForKeyInput_for_Caps_1level() {
     else if (ih.Input = "m") {
       return
     }
-    else if (ih.Input = ",") {
-      return
-    }
-    else if (ih.Input = ".") {
+    else if (ih.Input = "," || ih.Input = ".") {
       WaitForKeyInput_call_CtrlNum_keys()  ; Ctrl + 数字（左手で入力）oneshot_modifiers.ahk
     }
     ih.Stop()
