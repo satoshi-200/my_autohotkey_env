@@ -20,6 +20,7 @@
 #Include %A_LineFile%\..\..\Lib\multi_clipboard.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
+#Include %A_LineFile%\..\..\Lib\hint_mode.ahk
 
 ;------------------------------------------------------------------------------
 ; 起点キー（Space+F / Space+A は hold_keys.ahk から呼ぶ）
@@ -86,7 +87,7 @@ Leader_Caps() {
         "k",  QM_SymbolMenu_Show,                   ; 記号メニュー
         "l",  Oneshot_CtrlChar,                     ; Ctrl + 文字キー
         ";",  Oneshot_WinChar,                      ; Win + 文字キー
-        ":",  "",
+        ":",  Hint_Show,                            ; ヒントモード（部品に英字を重ねて、打ったところをクリック）
         "]",  "",
         ; --- 下段 ---
         "z",  "",
@@ -219,6 +220,7 @@ Leader_SpaceA() {
         ".",  "",
         "/",  "")
     static specials := Map(
+        0x39, Hint_Show,                            ; Space：ヒントモード
         0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
     Leader_Run("Space + A：左手で文字・記号", keys, specials)
 }

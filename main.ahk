@@ -32,6 +32,7 @@
 #Include Lib\multi_clipboard.ahk
 #Include Lib\mouse_cursor.ahk
 #Include Lib\quick_menu.ahk
+#Include Lib\hint_mode.ahk
 
 ; ------------------------------------------------------------------------------
 ; キーの割り当て
