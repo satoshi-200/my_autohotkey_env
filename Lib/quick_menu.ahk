@@ -59,6 +59,9 @@
 ;   static 変数にはメソッドと重ならない名前を付けること。
 ;==============================================================================
 
+#Include %A_LineFile%\..\oneshot_modifiers.ahk
+#Include %A_LineFile%\..\multi_clipboard.ahk
+
 class QuickPalette {
     ;--- 設定 -----------------------------------------------------------------
     static MENU_TIMEOUT_MS := 15000  ; 操作がないとき自動で閉じるまでの時間 [ms]（0 で無効）
@@ -71,8 +74,8 @@ class QuickPalette {
         {key: "D", name: "仮想デスクトップ"},
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
+        {key: "M", name: "マルチクリップボード"},
         {key: "A", name: "アプリ・フォルダ"},
-        {key: "B", name: "Web ページ"},
         {key: "V", name: "VS Code"},
         {key: "F", name: "Fn キー"},
         {key: "H", name: "Shift + Fn キー"},
@@ -157,6 +160,13 @@ class QuickPalette {
         this.Add("S", "O", "monitoroff",   "画面を消す",                    (*) => QM_DisplayOff(), "display off")
         this.Add("S", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
 
+        ;--- マルチクリップボード -----------------------------------------------
+        this.Add("M", "S", "clip-save",    "選択文字を箱にコピー保存",      (*) => Clip_Copy(), "clipboard box save copy")
+        this.Add("M", "X", "clip-cut",     "選択文字を箱に切り取り保存",    (*) => Clip_Cut(), "clipboard box cut")
+        this.Add("M", "P", "clip-paste",   "箱から貼り付け",                (*) => Clip_Paste(), "clipboard box paste")
+        this.Add("M", "C", "clip-content", "箱の中身を見る",              (*) => Clip_Show(), "clipboard box content list")
+        this.Add("M", "D", "clip-clear",   "箱を空にする",                  (*) => Clip_Clear(), "clipboard box clear delete")
+
         ;--- アプリ・フォルダ ---------------------------------------------------
         this.Add("A", "D", "downloads",    "ダウンロードフォルダ",          (*) => Run("shell:Downloads"), "folder")
         this.Add("A", "S", "scriptdir",    "スクリプトのフォルダ",          (*) => Run(A_ScriptDir), "folder ahk")
@@ -164,11 +174,6 @@ class QuickPalette {
         this.Add("A", "N", "notepad",      "メモ帳",                        (*) => Run("notepad.exe"), "memo")
         this.Add("A", "K", "calc",         "電卓",                          (*) => Run("calc.exe"), "dentaku")
         this.Add("A", "E", "winsettings",  "Windows の設定",                (*) => Run("ms-settings:"), "settei")
-
-        ;--- Web ページ（URL は公開しない bookmarks.txt から読み込む）-----------------
-        for bm in QM_ReadBookmarks()
-            this.Add("B", bm.key, "web-" StrLower(StrReplace(bm.key, " ")), bm.name, Run.Bind(bm.url), "web bookmark " bm.url)
-        this.Add("B", "/", "web-edit",      "一覧を編集（bookmarks.txt）",   (*) => QM_EditBookmarks(), "web bookmark")
 
         ;--- VS Code（折りたたみ・展開）-----------------------------------------
         this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")
@@ -179,7 +184,10 @@ class QuickPalette {
 
         ;--- Fn キー（F1〜F12）---------------------------------------------------
         ; キーの配置は oneshot_modifiers.ahk の Fn キー入力モードと同じ
-        fnKeys := ["X", "C", "V", "S", "D", "F", "W", "E", "R", "Z", "A", "Q"]
+        fnKeys := []
+        fnKeys.Length := 12
+        for k, n in ONESHOT_FN_KEYS
+            fnKeys[n] := StrUpper(k)
         fnMods := [
             {cat: "F", mod: "",   tag: "",            name: ""},
             {cat: "H", mod: "+",  tag: "shift-",      name: "Shift + "},
@@ -791,7 +799,6 @@ class QM_SymbolMenu {
 QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
-QM_BookmarkMenu_Show() => QuickPalette.ShowMenu("B")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================
@@ -1127,48 +1134,6 @@ QM_OpenScriptInCode() {
     try Run('code "' A_ScriptDir '"', , "Hide")
     catch
         Run(A_ScriptDir)
-}
-
-;--- Web ページ ---------------------------------------------------------------
-; 社内 URL などを公開しないよう、URL は機密用フォルダに置く（無い環境では一覧が空になるだけ）
-QM_BookmarksFile() => A_ScriptDir "\!DO_NOT_UPLOAD\bookmarks.txt"
-
-; 1 行 1 件「キー | 表示名 | URL」。空行と ; で始まる行は無視、http(s) 以外も無視
-QM_ReadBookmarks() {
-    list := []
-    if !FileExist(QM_BookmarksFile())
-        return list
-    loop parse FileRead(QM_BookmarksFile(), "UTF-8"), "`n", "`r" {
-        line := Trim(A_LoopField)
-        if (line = "" || SubStr(line, 1, 1) = ";")
-            continue
-        f := StrSplit(line, "|", " `t", 3)
-        if (f.Length = 3 && f[1] != "" && RegExMatch(f[3], "i)^https?://\S+$"))
-            list.Push({key: StrUpper(f[1]), name: f[2], url: f[3]})
-    }
-    return list
-}
-
-QM_EditBookmarks() {
-    file := QM_BookmarksFile()
-    if !FileExist(file) {
-        SplitPath(file, , &dir)
-        DirCreate(dir)
-        FileAppend("
-        (
-        ; よく使う Web ページの一覧（Caps → y で表示）
-        ; 機密ファイル（!DO_NOT_UPLOAD フォルダごとアップロードしない）
-        ; 書き方：キー | 表示名 | URL
-        ;   ・キーは英字 1 文字（空白区切りで複数可。例：K A）
-        ;   ・URL は http:// か https:// で始まるもののみ
-        ;   ・; で始まる行はコメント
-        ;   ・同じキーが複数あるときは、押すたびに候補を移動して Enter で開く
-        ; K | 勤怠 | https://example.com/attendance
-
-        )", file, "UTF-8")
-    }
-    Run('notepad.exe "' file '"')
-    QM_Tip("保存したらスクリプトを再読み込みすると反映されます", 3000)
 }
 
 ;--- VS Code ------------------------------------------------------------------

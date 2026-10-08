@@ -1,178 +1,204 @@
 #Requires AutoHotkey v2.0
+;==============================================================================
+; multi_clipboard.ahk
+; マルチクリップボード：英数字キーごとの「箱」に文字列を保存・貼り付けする
+;   Clip_Copy()      選択範囲をコピーして箱に保存
+;   Clip_Cut()       選択範囲を切り取って箱に保存
+;   Clip_Paste()     箱の中身を貼り付け
+;   Clip_Show()      箱の中身を全文表示
+;   Clip_Clear()     箱を 1 つ空にする
+;   Clip_ClearAll()  すべての箱を空にする（確認あり）
+;   箱は一覧（キーと中身の先頭、複数列）から、キー / 矢印+Enter / クリックで選ぶ。Esc でキャンセル
+;==============================================================================
+Clip_boxes := Map()
 
-; =========================================================
-; 【マルチクリップボード・ライブラリ】
-;
-; ●概要
-;   キーボードの各キーを「保存用の箱」として扱うための関数群です。
-;   このファイル自体にはショートカットキー（ホットキー）の割り当ては含まれません。
-;   メインのスクリプトから各関数を呼び出して使用してください。
-;
-; ●利用可能な主要関数（Functions）
-;   1. SaveText()       : 選択範囲をコピーして、指定した箱に保存します。
-;   2. CutAndSaveText() : 選択範囲を切り取って、指定した箱に保存します。
-;   3. PasteText()      : 指定した箱の中身を取り出し、貼り付けます。
-;   4. CheckContent()   : 指定した箱の中身をポップアップで確認します。
-;   5. ClearBox()       : 指定した一つの箱の中身を空にします。
-;   6. ResetAll()       : すべての箱の中身を一括で空にします（確認ダイアログ付き）。
-;
-; ●共通仕様
-;   ・箱を指定する際の入力待機時間は 10秒 です。
-;   ・[Escape] キーで操作をキャンセルできます。
-;
-; ●作成日: 2026-02-18
-; ●環境: AutoHotkey v2.0
-; ========================================================
+Clip_Copy() => _Clip_Store("save")
+Clip_Cut()  => _Clip_Store("cut")
 
-; ========================================================
-; 変数の箱（ロッカー）を用意
-; ========================================================
-global MyClipBoxes := Map()
-
-; ========================================================
-; ホットキー設定エリア
-; ========================================================
-
-; #s::SaveText()          ; Windows + S -> コピーして保存
-; #x::CutAndSaveText()    ; Windows + X -> 切り取って保存
-; #v::PasteText()         ; Windows + V -> 貼り付け
-; #d::CheckContent()      ; Windows + D -> 中身を確認
-; #Del::ClearBox()        ; Windows + Delete -> 箱を一つ空にする
-; #^Del::ResetAll()       ; Windows + Ctrl + Delete -> 全て空にする
-
-; ========================================================
-; 関数定義エリア
-; ========================================================
-
-; --- 1. 文字列をコピーして保存 ---
-SaveText()
-{
-    targetKey := AskKeyInput("【保存】箱のキーを押してね (Escでキャンセル)")
-    if (targetKey == "")
+Clip_Paste() {
+    key := _Clip_Pick("paste")
+    if (key = "")
         return
+    if !Clip_boxes.Has(key) {
+        _Clip_Tip("箱 [" key "] は空っぽです。")
+        return
+    }
+    backup := A_Clipboard
+    A_Clipboard := Clip_boxes[key]
+    Send("^v")
+    Sleep(100)
+    A_Clipboard := backup
+}
 
+Clip_Show() {
+    static win := 0, content := 0
+    key := _Clip_Pick("check")
+    if (key = "")
+        return
+    if !win {
+        win := Gui("+AlwaysOnTop")
+        win.SetFont("s10", "Yu Gothic UI")
+        content := win.Add("Edit", "ReadOnly +VScroll w640 h400")
+        win.OnEvent("Escape", (g) => g.Hide())
+    }
+    win.Title := "箱 [" key "] の中身（Esc で閉じる）"
+    content.Value := Clip_boxes[key]
+    win.Show()
+}
+
+Clip_Clear() {
+    key := _Clip_Pick("clear")
+    if (key = "" || !Clip_boxes.Has(key))
+        return
+    Clip_boxes.Delete(key)
+    _Clip_Tip("箱 [" key "] を空にしました。")
+}
+
+Clip_ClearAll() {
+    if (MsgBox("すべての箱を空にしますか？", "全消去の確認", "YesNo Icon!") = "Yes") {
+        Clip_boxes.Clear()
+        _Clip_Tip("すべて空にしました！")
+    }
+}
+
+;------------------------------------------------------------------------------
+; 内部処理
+;------------------------------------------------------------------------------
+; 選択範囲をコピー（mode = "save"）または切り取り（"cut"）して、選んだ箱に入れる
+_Clip_Store(mode) {
+    key := _Clip_Pick(mode)
+    if (key = "")
+        return
+    cut := (mode = "cut")
     A_Clipboard := ""
-    Send "^c"
+    Send(cut ? "^x" : "^c")
     if ClipWait(0.5) {
-        MyClipBoxes[targetKey] := A_Clipboard
-        ShowMessage("箱 [" . targetKey . "] にコピーしました！")
-    } else {
-        ShowMessage("コピー失敗。文字を選択してる？")
-    }
+        Clip_boxes[key] := A_Clipboard
+        _Clip_Tip("箱 [" key "] に" (cut ? "切り取って保存" : "コピー") "しました！")
+    } else
+        _Clip_Tip((cut ? "切り取り" : "コピー") "失敗。文字を選択してる？")
 }
 
-; --- 2. 文字列を切り取って保存 ---
-CutAndSaveText()
-{
-    targetKey := AskKeyInput("【切取】箱のキーを押してね (Escでキャンセル)")
-    if (targetKey == "")
-        return
-
-    A_Clipboard := ""
-    Send "^x"
-    if ClipWait(0.5) {
-        MyClipBoxes[targetKey] := A_Clipboard
-        ShowMessage("箱 [" . targetKey . "] に切り取って保存しました！")
-    } else {
-        ShowMessage("切り取り失敗。文字を選択してる？")
-    }
+; 一覧に出す箱のキー。"save" / "cut" は空き箱も、それ以外は中身のある箱だけ
+_Clip_Keys(mode) {
+    static BASE_KEYS := "abcdefghijklmnopqrstuvwxyz0123456789"
+    showEmpty := (mode = "save" || mode = "cut")
+    keys := []
+    loop parse BASE_KEYS
+        if (showEmpty || Clip_boxes.Has(A_LoopField))
+            keys.Push(A_LoopField)
+    for key in Clip_boxes                           ; 英数字以外のキーに保存された箱
+        if !InStr(BASE_KEYS, key)
+            keys.Push(key)
+    return keys
 }
 
-; --- 3. 文字列をペースト ---
-PasteText()
-{
-    targetKey := AskKeyInput("【貼付】箱のキーを押してね (Escでキャンセル)")
-    if (targetKey == "")
-        return
+; 箱の一覧を複数列で表示し、キー入力・矢印+Enter・クリックで選ばせる。戻り値は箱のキー（キャンセルは ""）
+_Clip_Pick(mode) {
+    static ROWS := 12, KEY_W := 30, ROW_H := 26, GAP := 14
+    static C_SEL := "CCE4F7", C_BG := "FFFFFF"
+    static TITLES := Map(
+        "save",  "【保存】コピーして入れる箱",
+        "cut",   "【切取】切り取って入れる箱",
+        "paste", "【貼付】取り出す箱",
+        "check", "【確認】中身を見る箱",
+        "clear", "【消去】空にする箱")
 
-    if MyClipBoxes.Has(targetKey) {
-        BackupClip := A_Clipboard
-        A_Clipboard := MyClipBoxes[targetKey]
-        Send "^v"
-        Sleep 100
-        A_Clipboard := BackupClip
-    } else {
-        ShowMessage("箱 [" . targetKey . "] は空っぽです。")
-    }
-}
-
-; --- 4. 箱の中身を確認 ---
-CheckContent()
-{
-    targetKey := AskKeyInput("【確認】箱のキーを押してね (Escでキャンセル)")
-    if (targetKey == "")
-        return
-
-    if MyClipBoxes.Has(targetKey) {
-        MsgBox("箱 [" . targetKey . "] の中身:`n`n" . MyClipBoxes[targetKey], "中身の確認")
-    } else {
-        ShowMessage("箱 [" . targetKey . "] は空っぽです。")
-    }
-}
-
-; --- 5. 特定の箱を空にする ---
-ClearBox()
-{
-    targetKey := AskKeyInput("【消去】箱のキーを押してね (Escでキャンセル)")
-    if (targetKey == "")
-        return
-
-    if MyClipBoxes.Has(targetKey) {
-        MyClipBoxes.Delete(targetKey)
-        ShowMessage("箱 [" . targetKey . "] を空にしました。")
-    }
-}
-
-; --- 6. すべての箱をリセット ---
-ResetAll()
-{
-    ; "Icon!" と書くことで、ビックリマークのアイコンが表示されます
-    result := MsgBox("すべての箱を空にしますか？", "全消去の確認", "YesNo Icon!")
-    if (result == "Yes") {
-        MyClipBoxes.Clear()
-        ShowMessage("すべて空にしました！")
-    }
-}
-
-; ========================================================
-; 共通ツール（ヘルパー関数）
-; ========================================================
-
-; キー入力を待ち、キャンセル（Esc）も受け付ける関数
-AskKeyInput(message)
-{
-    ToolTip(message)
-    
-    ; L1: 1文字入力で終了
-    ; T10: 10秒でタイムアウト
-    ih := InputHook("L1 T10")
-    
-    ; {Esc} を終了キー（EndKey）として登録します
-    ih.KeyOpt("{Esc}", "E") 
-    
-    ih.Start()
-    ih.Wait()
-    
-    ToolTip() ; ヒントを消す
-
-    ; もしEscが押されて終わった（EndReasonが'EndKey'）なら、空を返す
-    if (ih.EndReason == "EndKey") {
-        ShowMessage("キャンセルしました")
+    keys := _Clip_Keys(mode)
+    if !keys.Length {
+        _Clip_Tip("中身のある箱はありません")
         return ""
     }
-    
-    ; タイムアウトした時もメッセージを出す
-    if (ih.EndReason == "Timeout") {
-        ShowMessage("時間切れです")
-        return ""
+    target := WinExist("A")
+
+    cols := Ceil(keys.Length / ROWS)
+    nRows := Min(keys.Length, ROWS)                 ; ※ rows だと static の ROWS と同じ変数になる
+    cellW := cols = 1 ? 520 : 260
+    totalW := cols * (KEY_W + cellW) + (cols - 1) * GAP
+
+    g := Gui("+AlwaysOnTop -Caption +Border +ToolWindow", "ClipBoxPicker")
+    g.BackColor := C_BG
+    g.MarginX := 10, g.MarginY := 8
+    g.SetFont("s10", "Yu Gothic UI")
+    g.Add("Text", "x10 y8 w" totalW, "マルチクリップボード ▸ " TITLES[mode])
+
+    picked := "", cancelled := false, hook := 0, sel := 1
+    cells := []
+    for i, key in keys {
+        x := 10 + ((i - 1) // ROWS) * (KEY_W + cellW + GAP)
+        y := 36 + Mod(i - 1, ROWS) * ROW_H
+        has := Clip_boxes.Has(key)
+        g.SetFont("s10 bold c" (has ? "1F4E99" : "A0A0A0"))
+        kc := g.Add("Text", "x" x " y" y " w" KEY_W " h" (ROW_H - 2) " Center +0x200 Background" C_BG, key)
+        g.SetFont("s10 norm c" (has ? "000000" : "A0A0A0"))
+        ; 0x200 = 縦中央・1 行、0x4000 = はみ出したら末尾を…に
+        tc := g.Add("Text", "x" (x + KEY_W) " y" y " w" cellW " h" (ROW_H - 2) " +0x4200 Background" C_BG
+            , has ? _Clip_Preview(Clip_boxes[key]) : "（空き）")
+        onClick := ((k, *) => (picked := k, hook ? hook.Stop() : 0)).Bind(key)
+        kc.OnEvent("Click", onClick), tc.OnEvent("Click", onClick)
+        cells.Push([kc, tc])
+    }
+    g.SetFont("s9 norm cGray")
+    g.Add("Text", "x10 y" (36 + nRows * ROW_H + 6) " w" totalW
+        , "キーを押すと決定　矢印 + Enter / クリックでも可　Esc：キャンセル")
+    g.OnEvent("Escape", (*) => (cancelled := true, hook ? hook.Stop() : 0))
+    g.OnEvent("Close", (*) => (cancelled := true, hook ? hook.Stop() : 0))
+
+    paint(i, color) {
+        for c in cells[i] {
+            c.Opt("Background" color)
+            c.Redraw()
+        }
     }
 
-    return ih.Input
+    move(vk) {
+        next := sel + (vk = 0x26 ? -1 : vk = 0x28 ? 1 : vk = 0x25 ? -ROWS : ROWS)   ; ↑ ↓ ← →
+        if (next >= 1 && next <= keys.Length) {
+            paint(sel, C_BG)
+            paint(sel := next, C_SEL)
+        }
+    }
+
+    g.Show("AutoSize Center")
+    paint(sel, C_SEL)
+    ; 矢印は終了キーにせず通知だけ受ける（入力待ちを張り直す間にキーを取りこぼさないため）
+    hook := InputHook("L1")
+    hook.KeyOpt("{Esc}{Enter}{NumpadEnter}", "E")
+    hook.KeyOpt("{Up}{Down}{Left}{Right}", "N")
+    hook.OnKeyDown := (h, vk, sc) => move(vk)
+    hook.Start()
+    hook.Wait()
+    if (picked = "" && !cancelled) {
+        if (hook.EndReason = "Max") {
+            if ((picked := _Clip_FindKey(keys, hook.Input)) = "")
+                _Clip_Tip("[" hook.Input "] は選べません")
+        } else if (hook.EndReason = "EndKey" && InStr(hook.EndKey, "Enter"))
+            picked := keys[sel]
+    }
+    g.Destroy()
+
+    ; コピー・貼り付けが元のウィンドウに届くように戻す
+    if target {
+        try WinActivate("ahk_id " target)
+        try WinWaitActive("ahk_id " target, , 1)
+    }
+    return picked
 }
 
-ShowMessage(text)
-{
-    ToolTip("✨ " . text)
-    SetTimer () => ToolTip(), -2000
+; 一覧に出す中身の先頭（改行は ↵ にして 1 行に）
+_Clip_Preview(text) {
+    text := StrReplace(StrReplace(StrReplace(text, "`r`n", " ↵ "), "`n", " ↵ "), "`t", " ")
+    return StrLen(text) > 200 ? SubStr(text, 1, 200) : text
 }
 
+_Clip_FindKey(keys, target) {
+    for key in keys
+        if (StrLower(key) = StrLower(target))
+            return key
+    return ""
+}
+
+_Clip_Tip(text) {
+    ToolTip("✨ " text)
+    SetTimer(() => ToolTip(), -2000)
+}

@@ -88,26 +88,9 @@
 ;   キビキビ（既定）   : S_TAP 120 / S_TAP_MS 45 / S_EASE_MS 20 / S_GLIDE_MS 45  / S_STEP 1
 ;   なめらか（旧既定） : S_TAP 0   / S_TAP_MS 0  / S_EASE_MS 60 / S_GLIDE_MS 100 / S_STEP 1
 ;   ホイール再現       : S_TAP 120 / S_TAP_MS 0  / S_EASE_MS 0  / S_GLIDE_MS 0   / S_STEP 120
-;------------------------------------------------------------------------------
-; 【2026/09/29 旧マウス関連ファイルからの移行】
-; 旧ファイルの関数のうち、MouseNav で代替できないものだけを本ファイルへ移した。
-;   継続（名前・呼び出し方はそのまま）
-;     Right_click / Get_cursor_xy_pos / FocusUnderCursor / ToggleClick
-;   置き換え
-;     move_mouse_cursor_to_*、MoveCursorTo*、MoveCursorTo*2  → MouseNav_Left() 等
-;                                                              （旧動作は MousePlain_Left() 等で復活）
-;     MoveCursorTo*Minimal、MoveCursorTo*Minimal2            → MousePlain_*Minimal() で復活
-;     Jump_to_upper_left_point 等（四隅）                     → MouseNav_Corner*()
-;     Jump_to_center_display1～4（モニター巡回）              → MouseNav_WarpMonitorCenter()
 ;==============================================================================
-
-;--- スクリプト全体の設定（旧ファイルから継承）---------------------------------
-#SingleInstance Force
-ListLines False
-KeyHistory 0
-ProcessSetPriority "High"
-CoordMode("Mouse", "Screen")
-DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")
+#Include %A_LineFile%\..\config.ahk
+#Include %A_LineFile%\..\text_input.ahk
 
 
 class MouseNav {
@@ -354,6 +337,23 @@ class MouseNav {
             ny := b.T + Round((y - a.T) / (a.B - a.T) * (b.B - b.T))
         }
         DllCall(this._pSet, "Int", nx, "Int", ny, "Int")
+    }
+
+    ; 外付けモニターの中央へ移動（外付けの間を左から右へ巡回。外付け以外からは最も左の外付けへ）
+    static WarpToExternalCenter() {
+        mons := this._ExternalMonitors()
+        if !mons.Length
+            return
+        this._GetPos(&x, &y)
+        next := 1
+        for i, m in mons {
+            if (x >= m.L && x < m.R && y >= m.T && y < m.B) {
+                next := Mod(i, mons.Length) + 1
+                break
+            }
+        }
+        b := mons[next]
+        DllCall(this._pSet, "Int", (b.L + b.R) // 2, "Int", (b.T + b.B) // 2, "Int")
     }
 
     ;=== 内部処理 ===============================================================
@@ -604,10 +604,12 @@ class MouseNav {
               , R: NumGet(mi, 12, "Int"), B: NumGet(mi, 16, "Int")}
     }
 
-    ; 全モニターの矩形を「左端の小さい順、同じなら上端の小さい順」で返す
-    static _Monitors() {
+    ; 全モニターの矩形を「左端の小さい順、同じなら上端の小さい順」で返す。excluded にあるデバイス名（小文字）は除く
+    static _Monitors(excluded := 0) {
         mons := []
         loop MonitorGetCount() {
+            if (excluded && excluded.Has(StrLower(MonitorGetName(A_Index))))
+                continue
             MonitorGet(A_Index, &l, &t, &r, &b)
             i := mons.Length + 1
             while (i > 1 && (mons[i - 1].L > l || (mons[i - 1].L = l && mons[i - 1].T > t)))
@@ -615,6 +617,35 @@ class MouseNav {
             mons.InsertAt(i, {L: l, T: t, R: r, B: b})
         }
         return mons
+    }
+
+    ; 内蔵ディスプレイ（ノート PC 本体）を除いたモニター。内蔵が判別できなければ全モニター
+    static _ExternalMonitors() {
+        mons := this._Monitors(this._InternalDeviceNames())
+        return mons.Length ? mons : this._Monitors()
+    }
+
+    ; 内蔵接続（eDP 等）のモニターの GDI デバイス名（\\.\DISPLAYn、小文字）の集合
+    static _InternalDeviceNames() {
+        names := Map()
+        if DllCall("GetDisplayConfigBufferSizes", "UInt", 2, "UInt*", &nP := 0, "UInt*", &nM := 0)   ; QDC_ONLY_ACTIVE_PATHS
+            return names
+        paths := Buffer(72 * nP, 0), modes := Buffer(64 * nM, 0)
+        if DllCall("QueryDisplayConfig", "UInt", 2, "UInt*", &nP, "Ptr", paths, "UInt*", &nM, "Ptr", modes, "Ptr", 0)
+            return names
+        req := Buffer(84, 0)                                    ; DISPLAYCONFIG_SOURCE_DEVICE_NAME
+        loop nP {
+            p := paths.Ptr + 72 * (A_Index - 1)
+            tech := NumGet(p, 36, "UInt")                       ; targetInfo.outputTechnology
+            if (tech != 0x80000000 && tech != 11 && tech != 13) ; INTERNAL / DISPLAYPORT_EMBEDDED / UDI_EMBEDDED
+                continue
+            NumPut("UInt", 1, req, 0), NumPut("UInt", 84, req, 4)
+            DllCall("RtlMoveMemory", "Ptr", req.Ptr + 8, "Ptr", p, "UPtr", 8)   ; sourceInfo.adapterId
+            NumPut("UInt", NumGet(p, 8, "UInt"), req, 16)                       ; sourceInfo.id
+            if !DllCall("DisplayConfigGetDeviceInfo", "Ptr", req)
+                names[StrLower(StrGet(req.Ptr + 20, 32, "UTF-16"))] := true
+        }
+        return names
     }
 }
 
@@ -711,6 +742,10 @@ MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
 MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()
 MouseNav_WarpMonitor()       => MouseNav.WarpToNextMonitor()
 MouseNav_WarpMonitorCenter() => MouseNav.WarpToNextMonitor(true)
+MouseNav_WarpExternalCenter() {
+    MouseNav.WarpToExternalCenter()
+    Mouse_FocusUnderCursor()
+}
 ; 四隅（カーソルのあるモニター）
 MouseNav_CornerTopLeft()     => MouseNav.WarpToCorner("TL")
 MouseNav_CornerTopRight()    => MouseNav.WarpToCorner("TR")
@@ -738,37 +773,55 @@ MousePlain_ScrollRight()     => MousePlain.Scroll("Right")
 
 
 ;==============================================================================
-; その他のマウス関連関数（旧ファイルから移行。名前・動作は従来どおり）
+; そのほかのマウス操作
 ;==============================================================================
 
 ; 右クリックメニュー（アプリケーションキー）を開く
-; ※ turn_on_roman_input_mode() は別ファイルで定義されている前提
-Right_click() {
-    turn_on_roman_input_mode()
+Mouse_ContextMenu() {
+    Ime_Alnum()
     SendInput("{vk5Dsc15D}")
 }
 
-; マウスカーソルの現在位置を表示する（座標確認用）
-Get_cursor_xy_pos() {
-    MouseGetPos(&xpos, &ypos)
-    MsgBox("マウスカーソルの位置: X" xpos " Y" ypos)
-}
-
 ; マウスカーソル下のウィンドウをアクティブにする
-FocusUnderCursor() {
+Mouse_FocusUnderCursor() {
     MouseGetPos(, , &winID)
-    if winID
+    if (!winID || WinActive("ahk_id " winID))
+        return
+    ; 前面化は「最後に入力を受けたプロセス」にしか許されないので、空のマウス入力を送って権利を得る
+    mi := Buffer(A_PtrSize = 8 ? 40 : 28, 0)                    ; INPUT_MOUSE、移動量 0
+    DllCall("SendInput", "UInt", 1, "Ptr", mi, "Int", mi.Size)
+    DllCall("SetForegroundWindow", "Ptr", winID)
+    if !WinActive("ahk_id " winID)
         try WinActivate("ahk_id " winID)
 }
 
-; 左ボタンの押しっぱなし／解除を切り替える（ドラッグ用）
-ToggleClick() {
-    if GetKeyState("LButton") {
+; 左ボタンの押しっぱなし／解除を切り替える（ドラッグ用）。ドラッグ中は Esc でキャンセル
+Mouse_dragging := false
+
+Mouse_ToggleDrag() {
+    global Mouse_dragging
+    if Mouse_dragging {
         Click("Up")
+        Mouse_dragging := false
         ToolTip("Released")
     } else {
         Click("Down")
+        Mouse_dragging := true
         ToolTip("Holding")
     }
-    SetTimer(() => ToolTip(), -3000)    ; 3 秒後にヒントを消す（不要なら削除）
+    SetTimer(() => ToolTip(), -3000)
 }
+
+Mouse_IsDragging() => Mouse_dragging
+
+Mouse_CancelDrag() {
+    global Mouse_dragging
+    Click("Up")
+    Mouse_dragging := false
+    ToolTip("Canceled")
+    SetTimer(() => ToolTip(), -2000)
+}
+
+#HotIf Mouse_IsDragging() && !isWaitingInput
+Esc:: Mouse_CancelDrag()
+#HotIf
