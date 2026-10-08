@@ -89,8 +89,9 @@ z:F10  x:F1  c:F2  v:F3
 
 **入力待ちの共通の動き**
 - 待っている間は、マウスカーソルのそばにモードの名前をツールチップで表示する。
+- 1 秒間何も押さないと、そのモードの割り当て一覧を表示する（`keymap/leader_keys.ahk` の `LEADER_HELP_DELAY_MS` で変更可）。説明には割り当て表の行末コメントを使い、コメントがなければ処理をそのまま表示する。
 - **Esc**、**CapsLock**、**Space+CapsLock** でキャンセルできる。
-- 5 秒間何も押さないと自動でキャンセルする（`Lib/key_wait.ahk` の `IH_TIMEOUT_SEC` で変更可）。
+- 10 秒間何も押さないと自動でキャンセルする（`Lib/key_wait.ahk` の `IH_TIMEOUT_SEC` で変更可）。
 - 待っている間は、ほかのレイヤーのホットキーを無効にする。
 
 ## クイックメニュー / Quick Menu（`Lib/quick_menu.ahk`）

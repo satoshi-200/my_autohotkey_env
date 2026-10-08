@@ -11,6 +11,7 @@
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
 ;   specials … 特殊キーのスキャンコード → 処理（Tab 0x0F / Space 0x39 / 変換 0x79 / 無変換 0x7B / かな 0x70）
 ;   処理は「送るキーの文字列」か「呼び出す関数」。"" は未割り当て（空きが分かるように主要なキーはすべて書く）
+;   行末のコメントは、入力待ちで止まったときに出る割り当て一覧の説明になる（なければ処理をそのまま表示）
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
 #Include %A_LineFile%\..\..\Lib\oneshot_modifiers.ahk
@@ -282,6 +283,7 @@ Leader_Kana() {
 ;------------------------------------------------------------------------------
 ; 共通処理
 ;------------------------------------------------------------------------------
+LEADER_HELP_DELAY_MS := 1000              ; 入力待ちでこの時間キーを押さないと割り当て一覧を表示する
 LEADER_END_KEYS := "{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}"
 LEADER_KEY_NAMES := Map(0x138, "右Alt", 0x2A, "LShift", 0x0F, "Tab", 0x39, "Spaceキー"
     , 0x79, "変換キー", 0x7B, "無変換キー", 0x70, "カタカナひらがなキー")
@@ -297,7 +299,11 @@ Leader_Keys(pairs*) {
 ; 次のキーを待ち、表に従って処理する
 ;   forcedAsSpecial … ホットキーから渡された無変換も特殊キーとして扱う（Caps のみ）
 Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false) {
-    if !IH_WaitNext(mode, , LEADER_END_KEYS)
+    help := Leader_ShowHelp.Bind(mode, Error("", -2).What)   ; 呼び出し元（Leader_Caps など）の表を表示する
+    SetTimer(help, -LEADER_HELP_DELAY_MS)
+    accepted := IH_WaitNext(mode, , LEADER_END_KEYS)
+    SetTimer(help, 0)
+    if !accepted
         return
     endKey := forcedAsSpecial ? IH_EndKeyOf() : (ih.EndReason = "EndKey" ? ih.EndKey : "")
     if (endKey != "") {
@@ -315,4 +321,44 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false) {
             SendInput(action)
     }
     ih.Stop()
+}
+
+; 割り当て一覧をツールチップで表示する
+Leader_ShowHelp(mode, funcName) {
+    if ih.InProgress
+        ToolTip("⌨️ [" mode "] 次のキー待ち...（Esc / Caps：キャンセル）`n" Leader_HelpText(funcName))
+}
+
+; 割り当て表の関数（funcName）のソースを読み、割り当て済みの行から一覧の文字列を作る
+Leader_HelpText(funcName) {
+    static cache := Map()
+    if cache.Has(funcName)
+        return cache[funcName]
+    lines := "", specialLines := "", inFunc := false
+    Loop Parse, FileRead(A_LineFile, "UTF-8"), "`n", "`r" {
+        if !inFunc {
+            inFunc := RegExMatch(A_LoopField, "^" funcName "\(\)\s*\{")
+            continue
+        }
+        if RegExMatch(A_LoopField, "^\}")
+            break
+        ; 例：  "q",  WindowResizer_Show,   ; ウィンドウの大きさ  ／  0x0F, WindowMonitor_Show)  ; Tab：…
+        if !RegExMatch(A_LoopField, '^\s*(?:"(.)"|(0x\w+)),\s*(.+?),?(?:\s+;\s*(.*?))?\s*$', &m)
+            continue
+        action := m[3]
+        if (StrLen(StrReplace(action, ")")) < StrLen(StrReplace(action, "(")))   ; 表の最後の行の閉じ括弧を除く
+            action := SubStr(action, 1, -1)
+        if (action = '""')
+            continue
+        label := m[4] != "" ? m[4]
+            : RegExReplace(RegExReplace(action, '^"\{(.)\}"$|^"(.*)"$', "$1$2"), "^\(\) => ")
+        if (m[2] != "") {
+            sc := Integer(m[2])
+            label := RegExReplace(label, "^[^：]+：")      ; コメント先頭の「Tab：」などを除く
+            specialLines .= "`n" (LEADER_KEY_NAMES.Has(sc) ? LEADER_KEY_NAMES[sc] : m[2]) "：" label
+        }
+        else
+            lines .= "`n" StrUpper(m[1]) "：" label
+    }
+    return cache[funcName] := LTrim(lines specialLines, "`n")
 }

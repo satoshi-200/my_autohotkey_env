@@ -11,7 +11,7 @@
 
 ih := InputHook("L1")
 isWaitingInput := false
-IH_TIMEOUT_SEC := 5                       ; この秒数キー入力がなければ入力待ちをキャンセル
+IH_TIMEOUT_SEC := 10                      ; この秒数キー入力がなければ入力待ちをキャンセル
 IH_forcedKey := ""                        ; InputHook に届かないキー（「A & B」の A）をホットキーから渡す
 
 ; Esc・Caps で終了、一定時間でタイムアウト（各モードの KeyOpt でも消えない）
