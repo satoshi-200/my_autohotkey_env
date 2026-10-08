@@ -70,6 +70,7 @@ class QuickPalette {
     static Cats := [
         {key: "T", name: "テキスト変換"},
         {key: "I", name: "挿入"},
+        {key: "N", name: "日付・時刻"},
         {key: "W", name: "ウィンドウ"},
         {key: "D", name: "仮想デスクトップ"},
         {key: "G", name: "検索・翻訳"},
@@ -119,11 +120,22 @@ class QuickPalette {
 
         ;--- 挿入 ---------------------------------------------------------------
         this.Add("I", "K", "symbols",      "記号メニュー（! # $ % & …）",   (*) => QM_SymbolMenu_Show(), "kigou symbol")
-        this.Add("I", "D", "date",         "日付（yyyy/MM/dd）",            (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
-        this.Add("I", "W", "dateweek",     "日付と曜日（yyyy/MM/dd(ddd)）", (*) => QM_InsertTime("yyyy/MM/dd(ddd)"), "hiduke youbi")
-        this.Add("I", "N", "datenum",      "日付（yyyyMMdd）",              (*) => QM_InsertTime("yyyyMMdd"), "hiduke filename")
-        this.Add("I", "T", "time",         "時刻（HH:mm）",                 (*) => QM_InsertTime("HH:mm"), "jikoku")
-        this.Add("I", "S", "datetime",     "日時（yyyy/MM/dd HH:mm）",      (*) => QM_InsertTime("yyyy/MM/dd HH:mm"), "nichiji")
+
+        ;--- 日付・時刻（キー配置は Space+F の y u i o p と同じ書式をベースにしている）----------
+        ; 上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用
+        this.Add("N", "Y", "date-full",    "日時（yyyy/MM/dd HH:mm:ss）",      (*) => QM_InsertTime("yyyy/MM/dd HH:mm:ss"), "hiduke jikoku nichiji")
+        this.Add("N", "U", "date-ymd",     "日付（yyyy/MM/dd）",               (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
+        this.Add("N", "I", "date-short",   "日付（yy/MM/dd）",                 (*) => QM_InsertTime("yy/MM/dd"), "hiduke")
+        this.Add("N", "O", "date-num",     "日付（yyyyMMdd）",                 (*) => QM_InsertTime("yyyyMMdd"), "hiduke filename")
+        this.Add("N", "P", "date-page",    "日付（yyMMdd_）Obsidian のページ名用", (*) => QM_InsertTime("yyMMdd_"), "hiduke obsidian")
+        this.Add("N", "H", "time-hm",      "時刻（HH:mm）",                    (*) => QM_InsertTime("HH:mm"), "jikoku")
+        this.Add("N", "J", "time-hms",     "時刻（HH:mm:ss）",                 (*) => QM_InsertTime("HH:mm:ss"), "jikoku")
+        this.Add("N", "K", "time-hmsnum",  "時刻（HHmmss）",                   (*) => QM_InsertTime("HHmmss"), "jikoku filename")
+        this.Add("N", "L", "time-hmnum",   "時刻（HHmm）",                     (*) => QM_InsertTime("HHmm"), "jikoku filename")
+        this.Add("N", "M", "date-minute",  "日時（yyyy/MM/dd HH:mm）",         (*) => QM_InsertTime("yyyy/MM/dd HH:mm"), "hiduke jikoku nichiji")
+        this.Add("N", "W", "date-week",    "日付と曜日（yyyy/MM/dd(ddd)）",    (*) => QM_InsertTime("yyyy/MM/dd(ddd)"), "hiduke youbi")
+        this.Add("N", "D", "date-file",    "ファイル名用（yyyyMMdd_HHmmss）",   (*) => QM_InsertTime("yyyyMMdd_HHmmss"), "hiduke jikoku filename")
+        this.Add("N", "F", "date-filemin", "ファイル名用（yyyyMMdd_HHmm）",     (*) => QM_InsertTime("yyyyMMdd_HHmm"), "hiduke jikoku filename")
 
         ;--- ウィンドウ ---------------------------------------------------------
         this.Add("W", "T", "topmost",      "常に最前面を切り替え",          (*) => QM_ToggleTopmost(), "saizenmen")
@@ -799,6 +811,7 @@ class QM_SymbolMenu {
 QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
+QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================

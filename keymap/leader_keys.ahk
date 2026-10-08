@@ -10,7 +10,7 @@
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
 ;   specials … 特殊キーのスキャンコード → 処理（Tab 0x0F / Space 0x39 / 変換 0x79 / 無変換 0x7B / かな 0x70）
-;   処理は「送るキーの文字列」か「呼び出す関数」。表にないキーは何もしない
+;   処理は「送るキーの文字列」か「呼び出す関数」。"" は未割り当て（空きが分かるように主要なキーはすべて書く）
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
 #Include %A_LineFile%\..\..\Lib\oneshot_modifiers.ahk
@@ -47,26 +47,57 @@ vk1C & n:: UpperMode_Stop(), SendInput("{F9}")
 ;------------------------------------------------------------------------------
 Leader_Caps() {
     static keys := Leader_Keys(
-        "r",  WindowMonitor_Show,                   ; ウィンドウを別のモニターへ（r：次、Shift+r：前）
+        ; --- 数字列 ---
+        "1",  "",
+        "2",  "",
+        "3",  "",
+        "4",  "",
+        "5",  "",
+        "6",  "",
+        "7",  "",
+        "8",  "",
+        "9",  "",
+        "0",  "",
+        "-",  "",
+        "^",  "",
+        "\",  "",                        ; ￥ / ろ：マルチクリップボードを全消去
+        ; --- 上段 ---
         "q",  WindowResizer_Show,                   ; ウィンドウの大きさ
-        "e",  () => AppSwitcher_Show(false, "w"),   ; アプリ切り替え（e：次、w：前）
         "w",  QM_DesktopMenu_Show,                  ; 仮想デスクトップメニュー
+        "e",  () => AppSwitcher_Show(false, "w"),   ; アプリ切り替え（e：次、w：前）
+        "r",  WindowMonitor_Show,                   ; ウィンドウを別のモニターへ（r：次、Shift+r：前）
+        "t",  "",
+        "y",  "",
+        "u",  QuickPalette_Show,                    ; コマンドパレット
+        "i",  Oneshot_AltChar,                      ; Alt + 文字キー
+        "o",  Oneshot_CtrlShiftChar,                ; Ctrl + Shift + 文字キー
+        "p",  "",
+        "@",  "",
+        "[",  "",
+        ; --- 中段 ---
+        "a",  "",
+        "s",  "",
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
         "f",  Oneshot_Fn,                           ; Fn キー
-        "l",  Oneshot_CtrlChar,                     ; Ctrl + 文字キー
-        "o",  Oneshot_CtrlShiftChar,                ; Ctrl + Shift + 文字キー
-        "i",  Oneshot_AltChar,                      ; Alt + 文字キー
-        ";",  Oneshot_WinChar,                      ; Win + 文字キー
-        ",",  Oneshot_CtrlNum,                      ; Ctrl + 数字キー（左手で入力）
-        ".",  Oneshot_CtrlNum,
-        "u",  QuickPalette_Show,                    ; コマンドパレット
+        "g",  "{Enter}",
+        "h",  "{Enter}",
         "j",  QuickMenu_Show,                       ; クイックメニュー
         "k",  QM_SymbolMenu_Show,                   ; 記号メニュー
+        "l",  Oneshot_CtrlChar,                     ; Ctrl + 文字キー
+        ";",  Oneshot_WinChar,                      ; Win + 文字キー
+        ":",  "",
+        "]",  "",
+        ; --- 下段 ---
+        "z",  "",
+        "x",  "",
+        "c",  "",
+        "v",  "",
         "b",  Mouse_ToggleDrag,                     ; ドラッグ開始／解除
         "n",  Mouse_ToggleDrag,
-        "\",  Clip_ClearAll,                        ; マルチクリップボードを全消去
-        "g",  "{Enter}",
-        "h",  "{Enter}")
+        "m",  "",
+        ",",  Oneshot_CtrlNum,                      ; Ctrl + 数字キー（左手で入力）
+        ".",  Oneshot_CtrlNum,
+        "/",  "")
     static specials := Map(
         0x0F, WindowMonitor_Show,                   ; Tab：ウィンドウを別のモニターへ（Tab：次、Shift+Tab：前）
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
@@ -78,38 +109,114 @@ Leader_Caps() {
 
 Leader_SpaceF() {
     static keys := Leader_Keys(
-        "q",  "^{Home}",                            ; 文書の先頭 / 末尾
-        "r",  "^{End}",
-        "w",  "{Home}",                             ; 行頭 / 行末
-        "e",  "{End}",
-        "j",  "+{Enter}",
-        "k",  "^{Enter}",
-        "l",  "!{Enter}",
-        "a",  "{LWin}",
-        "s",  "{LCtrl}",
-        "d",  "{LAlt}",
-        "f",  Mouse_ContextMenu,                    ; 右クリックメニュー
+        ; --- 数字列 ---
+        "1",  "",
+        "2",  "",
+        "3",  "",
+        "4",  "!{F4}",
+        "5",  "",
+        "6",  "",
+        "7",  "",
+        "8",  "",
+        "9",  "",
+        "0",  "",
+        "-",  "",
+        "^",  "",
+        "\",  "",
+        ; --- 上段 ---
+        "q",  "^{Home}",                            ; 文書の先頭
+        "w",  "{Home}",                             ; 行頭
+        "e",  "{End}",                              ; 行末
+        "r",  "^{End}",                             ; 文書の末尾
+        "t",  "",
         "y",  () => Text_InsertDate("yyyy/MM/dd HH:mm:ss"),
         "u",  () => Text_InsertDate("yyyy/MM/dd"),
         "i",  () => Text_InsertDate("yy/MM/dd"),
         "o",  () => Text_InsertDate("yyyyMMdd"),
         "p",  () => Text_InsertDate("yyMMdd_"),     ; Obsidian のページ名用
+        "@",  "",
         "[",  Window_CloseAndFocus,                 ; ウィンドウを閉じてカーソル下にフォーカス
+        ; --- 中段 ---
+        "a",  "{LWin}",
+        "s",  "{LCtrl}",
+        "d",  "{LAlt}",
+        "f",  Mouse_ContextMenu,                    ; 右クリックメニュー
+        "g",  "",
+        "h",  QM_DateMenu_Show,                     ; 日付・時刻のメニュー（時刻の書式も選べる）
+        "j",  "+{Enter}",
+        "k",  "^{Enter}",
+        "l",  "!{Enter}",
+        ";",  "",
+        ":",  "",
         "]",  Window_CloseAndFocus,
-        "4",  "!{F4}")
+        ; --- 下段 ---
+        "z",  "",
+        "x",  "",
+        "c",  "",
+        "v",  "",
+        "b",  "",
+        "n",  "",
+        "m",  "",
+        ",",  "",
+        ".",  "",
+        "/",  "")
     Leader_Run("Space + F", keys)
 }
 
 ; 右手側の文字・記号を左手で入力する
 Leader_SpaceA() {
     static keys := Leader_Keys(
-        "t", "{y}",  "r", "{u}",  "e", "{i}",  "w", "{o}",  "q", "{p}",
-        "g", "{h}",  "f", "{j}",  "d", "{k}",  "s", "{l}",  "a", "{Space}",
-        "b", "{n}",  "v", "{m}",
-        "u", "{|}",  "i", "{~}",  "o", "{!}",  "p", "{^}",
-        "j", "{#}",  "k", "{$}",  "l", "{%}",  ";", "{&}",
-        "@", "{\}",  ":", "{~}",
-        "1", "{0}",  "2", "{9}",  "3", "{8}",  "4", "{7}",  "5", "{6}")
+        ; --- 数字列 ---
+        "1",  "{0}",
+        "2",  "{9}",
+        "3",  "{8}",
+        "4",  "{7}",
+        "5",  "{6}",
+        "6",  "",
+        "7",  "",
+        "8",  "",
+        "9",  "",
+        "0",  "",
+        "-",  "",
+        "^",  "",
+        "\",  "",
+        ; --- 上段 ---
+        "q",  "{p}",
+        "w",  "{o}",
+        "e",  "{i}",
+        "r",  "{u}",
+        "t",  "{y}",
+        "y",  "",
+        "u",  "{|}",
+        "i",  "{~}",
+        "o",  "{!}",
+        "p",  "{^}",
+        "@",  "{\}",
+        "[",  "",
+        ; --- 中段 ---
+        "a",  "{Space}",
+        "s",  "{l}",
+        "d",  "{k}",
+        "f",  "{j}",
+        "g",  "{h}",
+        "h",  "",
+        "j",  "{#}",
+        "k",  "{$}",
+        "l",  "{%}",
+        ";",  "{&}",
+        ":",  "{~}",
+        "]",  "",
+        ; --- 下段 ---
+        "z",  "",
+        "x",  "",
+        "c",  "",
+        "v",  "{m}",
+        "b",  "{n}",
+        "n",  "",
+        "m",  "",
+        ",",  "",
+        ".",  "",
+        "/",  "")
     static specials := Map(
         0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
     Leader_Run("Space + A：左手で文字・記号", keys, specials)
@@ -118,7 +225,57 @@ Leader_SpaceA() {
 ; 遠いキー（y / u / o / p）を近いキーで入力する
 Leader_Kana() {
     static keys := Leader_Keys(
-        "j", "{y}",  "k", "{u}",  "l", "{o}",  ";", "{p}")
+        ; --- 数字列 ---
+        "1",  "",
+        "2",  "",
+        "3",  "",
+        "4",  "",
+        "5",  "",
+        "6",  "",
+        "7",  "",
+        "8",  "",
+        "9",  "",
+        "0",  "",
+        "-",  "",
+        "^",  "",
+        "\",  "",
+        ; --- 上段 ---
+        "q",  "",
+        "w",  "",
+        "e",  "",
+        "r",  "",
+        "t",  "",
+        "y",  "",
+        "u",  "",
+        "i",  "",
+        "o",  "",
+        "p",  "",
+        "@",  "",
+        "[",  "",
+        ; --- 中段 ---
+        "a",  "",
+        "s",  "",
+        "d",  "",
+        "f",  "",
+        "g",  "",
+        "h",  "",
+        "j",  "{y}",
+        "k",  "{u}",
+        "l",  "{o}",
+        ";",  "{p}",
+        ":",  "",
+        "]",  "",
+        ; --- 下段 ---
+        "z",  "",
+        "x",  "",
+        "c",  "",
+        "v",  "",
+        "b",  "",
+        "n",  "",
+        "m",  "",
+        ",",  "",
+        ".",  "",
+        "/",  "")
     Leader_Run("カタカナひらがな", keys)
 }
 
@@ -152,10 +309,10 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false) {
     }
     else if keys.Has(ih.Input) {
         action := keys[ih.Input]
-        if (action is String)
-            SendInput(action)
-        else
+        if !(action is String)
             action()
+        else if (action != "")
+            SendInput(action)
     }
     ih.Stop()
 }
