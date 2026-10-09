@@ -3,12 +3,13 @@
 ; hint_mode.ahk
 ; ヒントモード：いまのウィンドウの操作できる部品（ボタン・タブ・入力欄・リスト項目など）に
 ; 英字のラベルを重ねて表示し、ラベルを打つとその部品をクリックする（Vimium のデスクトップ版）
-;   keymap\leader_keys.ahk（Caps → :）から呼ぶ
+;   keymap\leader_keys.ahk（Caps → s）から呼ぶ
 ;
 ; 操作
-;   ラベルの英字     … 1〜2 文字で決定（打つごとに候補が絞られる）
-;   変換 ＋ ラベル   … 右クリック（変換を押しながら、最後の 1 文字を打つ）
-;   Space ＋ ラベル  … ダブルクリック
+;   ラベルの英字     … 1〜2 文字で決定（打つごとに候補が絞られる）。そのままならクリック
+;   Space → ラベル  … ダブルクリック（親指キーは押して離してからラベルを打つ。同じキーをもう一度で取り消し）
+;   変換 → ラベル   … 右クリック
+;   無変換 → ラベル … マウスカーソルを移動するだけ（ホバー）
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
 ;   BackSpace        … 1 文字戻す
 ;   Esc / Caps       … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
@@ -29,6 +30,11 @@ HINT_LABEL_FG := "000000"                 ; ラベルの文字色
 HINT_LABEL_ALPHA := 140                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
 Hint_session := ""                        ; 実行中のモードの状態（動作確認用。実行していなければ ""）
 
+; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで受ける
+#HotIf IsObject(Hint_session)
+vk1D:: _Hint_Thumb(Hint_session, 0x1D)
+#HotIf
+
 ;------------------------------------------------------------------------------
 ; モード本体
 ;------------------------------------------------------------------------------
@@ -36,14 +42,14 @@ Hint_Show() {
     global Hint_session
     IH_ModeBegin()
     st := {scope: "window", items: [], ov: 0, typed: "", result: "", pick: 0, mode: "left", err: ""
-        , mods: Map(), skip: Map(), hook: InputHook("L0")}
+        , held: Map(), hook: InputHook("L0")}
     st.idle := _Hint_Finish.Bind(st, "timeout")
     st.hook.KeyOpt("{All}", "NS")                   ; すべてのキーを通知し、アプリには渡さない
     st.hook.OnKeyDown := _Hint_OnKey.Bind(st)
     st.hook.OnKeyUp := _Hint_OnKeyUp.Bind(st)
     for vk in [0x20, 0x1C]                          ; 起動時にすでに押している親指キーは、離すまで無視する
         if GetKeyState(Format("vk{:X}", vk), "P")
-            st.skip[vk] := true
+            st.held[vk] := true
     Hint_session := st
     try {
         if _Hint_Load(st) {
@@ -83,11 +89,13 @@ Hint_Show() {
 ; キーが押されたとき（InputHook の OnKeyDown）
 _Hint_OnKey(st, h, vk, sc) {
     SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)       ; 待ち時間は押すたびに数え直す
-    if (st.result != "")                            ; 決定後は、親指キーを離すのを待っているだけ
+    if (st.result != "")
         return
-    if (vk = 0x20 || vk = 0x1C) {                   ; Space / 変換
-        if !st.skip.Has(vk)
-            st.mods[vk] := true
+    if (vk = 0x20 || vk = 0x1C) {                   ; Space / 変換（押しっぱなしのリピートは無視）
+        if !st.held.Has(vk) {
+            st.held[vk] := true
+            _Hint_Thumb(st, vk)
+        }
         return
     }
     if (sc = 0x01 || sc = 0x3A) {                   ; Esc / Caps
@@ -131,32 +139,25 @@ _Hint_OnKey(st, h, vk, sc) {
     st.typed := typed
     if pick {
         st.pick := pick
-        st.mode := _Hint_Mode(st)
-        st.result := "pick"
-        _Hint_Close(st)
-        if !st.mods.Count                           ; 親指キーを押したままなら、離すまでフックを残す（リピートが漏れないように）
-            st.hook.Stop()
+        _Hint_Finish(st, "pick")
         return
     }
     _Hint_Refresh(st)
 }
 
 _Hint_OnKeyUp(st, h, vk, sc) {
-    if st.skip.Has(vk)
-        st.skip.Delete(vk)
-    if st.mods.Has(vk)
-        st.mods.Delete(vk)
-    if (st.result = "pick" && !st.mods.Count)
-        st.hook.Stop()
+    if st.held.Has(vk)
+        st.held.Delete(vk)
 }
 
-; 押している親指キーから、クリックの種類を決める
-_Hint_Mode(st) {
-    if st.mods.Has(0x20)
-        return "double"
-    if st.mods.Has(0x1C)
-        return "right"
-    return "left"
+; 親指キーでクリックの種類を切り替える（同じキーをもう一度で通常のクリックに戻す）
+_Hint_Thumb(st, vk) {
+    static modes := Map(0x20, "double", 0x1C, "right", 0x1D, "hover")
+    if (st.result != "")
+        return
+    SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)
+    st.mode := (st.mode = modes[vk]) ? "left" : modes[vk]
+    _Hint_Tip(st)
 }
 
 ; 結果を決めて待ちを終える（最初に決めた結果を残す）
@@ -204,8 +205,10 @@ _Hint_Tip(st) {
         return
     now := (st.scope = "window") ? "ウィンドウ" : "タスクバー"
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
-    ToolTip("🎯 [ヒント：" now "] " st.items.Length " 件" (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
-        . "`n変換＋ラベル：右クリック　Space＋ラベル：ダブルクリック　Tab：" other "へ"
+    static names := Map("left", "クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "カーソル移動")
+    ToolTip("🎯 [ヒント：" now "] " st.items.Length " 件　動作：" names[st.mode]
+        . (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
+        . "`nSpace：ダブルクリック　変換：右クリック　無変換：カーソル移動　Tab：" other "へ"
         . "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
 }
 
@@ -217,6 +220,9 @@ _Hint_Act(it, mode) {
         case "double":
             MouseClick("Left", it.x, it.y, 2, 0)
             tip := "ダブルクリック"
+        case "hover":
+            MouseMove(it.x, it.y, 0)
+            tip := "カーソル移動"
         default:
             MouseClick("Left", it.x, it.y, 1, 0)
             tip := "クリック"
