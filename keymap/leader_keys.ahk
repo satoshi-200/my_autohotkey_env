@@ -77,7 +77,7 @@ Leader_Caps() {
         "@",  "",
         "[",  "",
         ; --- 中段 ---
-        "a",  "",
+        "a",  QM_CaptureMenu_Show,                  ; 画面キャプチャメニュー
         "s",  Hint_Show,                            ; ヒントモード（部品に英字を重ねて、打ったところをクリック）
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
         "f",  Oneshot_Fn,                           ; Fn キー
@@ -150,7 +150,7 @@ Leader_SpaceF() {
         "l",  "!{Enter}",
         ";",  "",
         ":",  "",
-        "]",  Window_CloseAndFocus,
+        "]",  Window_CloseAndFocus,                 ; ウィンドウを閉じてカーソル下にフォーカス
         ; --- 下段 ---
         "z",  "",
         "x",  "",
@@ -219,12 +219,10 @@ Leader_SpaceA() {
         ",",  "",
         ".",  "",
         "/",  "")
-    static specials := Map(
-        0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
-    Leader_Run("Space + A：左手で文字・記号", keys, specials)
+    Leader_Run("Space + A：左手で文字・記号", keys)
 }
 
-; 遠いキー（y / u / o / p）を近いキーで入力する
+; カタカナひらがなの入力待ち（いまは割り当てなし）
 Leader_Kana() {
     static keys := Leader_Keys(
         ; --- 数字列 ---
@@ -261,10 +259,10 @@ Leader_Kana() {
         "f",  "",
         "g",  "",
         "h",  "",
-        "j",  "{y}",
-        "k",  "{u}",
-        "l",  "{o}",
-        ";",  "{p}",
+        "j",  "",
+        "k",  "",
+        "l",  "",
+        ";",  "",
         ":",  "",
         "]",  "",
         ; --- 下段 ---

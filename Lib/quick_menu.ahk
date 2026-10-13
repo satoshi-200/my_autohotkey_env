@@ -61,6 +61,8 @@
 
 #Include %A_LineFile%\..\oneshot_modifiers.ahk
 #Include %A_LineFile%\..\multi_clipboard.ahk
+#Include %A_LineFile%\..\screen_capture.ahk
+#Include %A_LineFile%\..\keymap_view.ahk
 
 class QuickPalette {
     ;--- 設定 -----------------------------------------------------------------
@@ -75,6 +77,7 @@ class QuickPalette {
         {key: "D", name: "仮想デスクトップ"},
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
+        {key: "P", name: "画面キャプチャ"},
         {key: "M", name: "マルチクリップボード"},
         {key: "A", name: "アプリ・フォルダ"},
         {key: "V", name: "VS Code"},
@@ -171,6 +174,16 @@ class QuickPalette {
         this.Add("S", "L", "lock",         "PC をロック",                   (*) => DllCall("LockWorkStation"), "")
         this.Add("S", "O", "monitoroff",   "画面を消す",                    (*) => QM_DisplayOff(), "display off")
         this.Add("S", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
+        this.Add("S", "K", "keymap",       "キー割り当て一覧（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate")
+
+        ;--- 画面キャプチャ（Lib\screen_capture.ahk）----------------------------
+        this.Add("P", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
+        this.Add("P", "W", "cap-window",  "ウィンドウを選んで全体",          (*) => Cap_Window(), "capture screenshot window")
+        this.Add("P", "C", "cap-area",    "ウィンドウ内のクリックした領域",  (*) => Cap_Area(), "capture screenshot element buhin ryouiki")
+        this.Add("P", "A", "cap-active",  "いまのウィンドウ全体",            (*) => Cap_Active(), "capture screenshot window active")
+        this.Add("P", "K", "cap-focus",   "フォーカス中の部品（F6 で移動）",  (*) => Cap_Focus(), "capture screenshot focus f6 buhin")
+        this.Add("P", "S", "cap-monitor", "いまのモニター全体",              (*) => Cap_Monitor(), "capture screenshot screen display")
+        this.Add("P", "F", "cap-all",     "すべてのモニター",                (*) => Cap_AllScreens(), "capture screenshot screen full zenmen")
 
         ;--- マルチクリップボード -----------------------------------------------
         this.Add("M", "S", "clip-save",    "選択文字を箱にコピー保存",      (*) => Clip_Copy(), "clipboard box save copy")
@@ -812,6 +825,7 @@ QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
+QM_CaptureMenu_Show() => QuickPalette.ShowMenu("P")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================

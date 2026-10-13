@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>キー割り当て（JIS 配列）</title>
+<style>
+  body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 16px 20px; background: #f4f5f7; color: #222; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  #tabs button { font: inherit; font-size: 13px; padding: 6px 12px; margin: 0 4px 4px 0; border: 1px solid #b8bcc4;
+                 border-radius: 6px; background: #fff; cursor: pointer; }
+  #tabs button.active { background: #1a56db; border-color: #1a56db; color: #fff; }
+  #note { margin: 8px 0 0; font-size: 13px; color: #444; min-height: 1.4em; }
+  #kb { position: relative; margin: 14px 0 6px; }
+  .key { position: absolute; box-sizing: border-box; border: 1px solid #b8bcc4; border-radius: 6px; background: #fff;
+         padding: 2px 4px; overflow: hidden; line-height: 1.2; }
+  .key .f { display: block; font-size: 10px; color: #8a8f99; }
+  .key .t { display: block; font-size: 10.5px; font-weight: 600; color: #0b3d91; word-break: break-all; line-height: 1.15; }
+  .key.on { background: #e8f0fe; border-color: #7aa2f7; }
+  .key.origin { background: #ffe066; border-color: #d4a800; }
+  .key.enter { clip-path: polygon(0 0, 100% 0, 100% 100%, 16.7% 100%, 16.7% 50%, 0 50%); border-radius: 6px 6px 6px 0; }
+  #extra { margin-top: 12px; font-size: 13px; }
+  #extra h2 { font-size: 14px; margin: 0 0 4px; }
+  #extra table { border-collapse: collapse; }
+  #extra td { padding: 2px 14px 2px 0; vertical-align: top; }
+  #extra td:first-child { color: #555; white-space: nowrap; }
+  #extra details { margin-top: 12px; }
+  #extra summary { cursor: pointer; font-size: 14px; }
+  #extra details td:last-child { color: #777; font-family: Consolas, monospace; font-size: 12px; }
+  #foot { margin-top: 14px; font-size: 12px; color: #666; }
+</style>
+</head>
+<body>
+<h1>キー割り当て（JIS 配列）</h1>
+<div id="tabs"></div>
+<div id="note"></div>
+<div id="kb"></div>
+<div id="extra"></div>
+<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜7 でレイヤーを切り替えられます。</div>
+<script>
+var DATA = __DATA__;
+
+var U = 62;
+var L = [];
+function row(y, x, items) {
+  items.forEach(function (it) {
+    var w = it[2] || 1;
+    L.push({ sc: it[0], f: it[1], x: x, y: y, w: w, h: it[3] || 1 });
+    x += w;
+  });
+}
+function seq(startSc, faces) {
+  return faces.split("").map(function (c, i) { return [("00" + (startSc + i).toString(16).toUpperCase()).slice(-3), c]; });
+}
+// ファンクション行
+L.push({ sc: "001", f: "Esc", x: 0, y: 0, w: 1, h: 1 });
+[[2, 0x3B], [6.5, 0x3F]].forEach(function (g) {
+  for (var i = 0; i < 4; i++) {
+    L.push({ sc: ("00" + (g[1] + i).toString(16).toUpperCase()).slice(-3), f: "F" + ((g[1] === 0x3B ? 1 : 5) + i), x: g[0] + i, y: 0, w: 1, h: 1 });
+  }
+});
+[["043", "F9", 11], ["044", "F10", 12], ["057", "F11", 13], ["058", "F12", 14]].forEach(function (k) {
+  L.push({ sc: k[0], f: k[1], x: k[2], y: 0, w: 1, h: 1 });
+});
+// 数字行
+row(1.4, 0, [["029", "半/全"]].concat(seq(2, "1234567890"), [["00C", "-"], ["00D", "^"], ["07D", "¥"], ["00E", "BS"]]));
+// 上段（Enter は 2 段分）
+row(2.4, 0, [["00F", "Tab", 1.5]].concat(seq(0x10, "QWERTYUIOP"), [["01A", "@"], ["01B", "["]]));
+L.push({ sc: "01C", f: "Enter", x: 13.5, y: 2.4, w: 1.5, h: 2, enter: true });
+// 中段
+row(3.4, 0, [["03A", "Caps", 1.75]].concat(seq(0x1E, "ASDFGHJKL"), [["027", ";"], ["028", ":"], ["02B", "]"]]));
+// 下段
+row(4.4, 0, [["02A", "Shift", 2.25]].concat(seq(0x2C, "ZXCVBNM"), [["033", ","], ["034", "."], ["035", "/"], ["073", "ろ"], ["136", "Shift", 1.75]]));
+// 最下段
+row(5.4, 0, [["01D", "Ctrl", 1.25], ["15B", "Win", 1.25], ["038", "Alt", 1.25], ["07B", "無変換", 1.25], ["039", "Space", 2.5],
+             ["079", "変換", 1.25], ["070", "かな", 1.25], ["138", "Alt", 1.25], ["15C", "Win", 1.25], ["15D", "App", 1.25], ["11D", "Ctrl", 1.25]]);
+// 矢印
+L.push({ sc: "148", f: "↑", x: 16.5, y: 4.4, w: 1, h: 1 });
+L.push({ sc: "14B", f: "←", x: 15.5, y: 5.4, w: 1, h: 1 });
+L.push({ sc: "150", f: "↓", x: 16.5, y: 5.4, w: 1, h: 1 });
+L.push({ sc: "14D", f: "→", x: 17.5, y: 5.4, w: 1, h: 1 });
+
+var placed = {};
+L.forEach(function (k) { placed[k.sc] = true; });
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+var kb = document.getElementById("kb");
+kb.style.width = (18.5 * U) + "px";
+kb.style.height = (6.4 * U) + "px";
+
+function render(i) {
+  var ly = DATA.layers[i];
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b, j) {
+    b.className = (j === i) ? "active" : "";
+  });
+  document.getElementById("note").textContent = ly.note;
+  kb.innerHTML = "";
+  L.forEach(function (k) {
+    var a = ly.keys[k.sc];
+    var d = document.createElement("div");
+    d.className = "key" + (ly.origin.indexOf(k.sc) >= 0 ? " origin" : (a ? " on" : "")) + (k.enter ? " enter" : "");
+    d.style.left = (k.x * U) + "px";
+    d.style.top = (k.y * U) + "px";
+    d.style.width = (k.w * U - 3) + "px";
+    d.style.height = (k.h * U - 3) + "px";
+    d.innerHTML = '<span class="f">' + esc(k.f) + "</span>" + (a ? '<span class="t">' + esc(a.t.split("（")[0]) + "</span>" : "");
+    if (a) d.title = a.n + " : " + a.t + "\n" + a.s;
+    kb.appendChild(d);
+  });
+
+  var rows = [];
+  Object.keys(ly.keys).forEach(function (sc) {
+    if (!placed[sc]) rows.push(ly.keys[sc]);
+  });
+  rows = rows.concat(ly.extra);
+  var ex = document.getElementById("extra");
+  var html = "";
+  if (rows.length > 0) {
+    html += "<h2>キー配列にない入力（マウス・ホイール・PgUp など）</h2><table>" + rows.map(function (r) {
+      return "<tr><td>" + esc(r.n) + "</td><td>" + esc(r.t) + "</td></tr>";
+    }).join("") + "</table>";
+  }
+  var all = Object.keys(ly.keys).map(function (sc) { return ly.keys[sc]; }).concat(ly.extra);
+  html += "<details><summary>このレイヤーの全割り当て（" + all.length + " 件）</summary><table>" + all.map(function (r) {
+    return "<tr><td>" + esc(r.n) + "</td><td>" + esc(r.t) + "</td><td>" + esc(r.s) + "</td></tr>";
+  }).join("") + "</table></details>";
+  ex.innerHTML = html;
+}
+
+var tabs = document.getElementById("tabs");
+DATA.layers.forEach(function (ly, i) {
+  var b = document.createElement("button");
+  b.textContent = (i + 1) + "  " + ly.name;
+  b.onclick = function () { render(i); };
+  tabs.appendChild(b);
+});
+document.addEventListener("keydown", function (e) {
+  var n = parseInt(e.key, 10);
+  if (n >= 1 && n <= DATA.layers.length) render(n - 1);
+});
+render(0);
+</script>
+</body>
+</html>

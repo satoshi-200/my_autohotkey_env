@@ -72,9 +72,9 @@ vk1C & 4::      SendInput("{+}")
 ; 無変換 (vk1D) ＋ 各種キー
 ;------------------------------------------------------------------------------
 ; --- ウィンドウ・アプリ ---
-vk1D & LAlt::   SendInput("{Blind}{m}")
+vk1D & LAlt::   return                              ; 左 Alt（未割り当て）
 vk1D & sc00F::  SendInput("#+{Right}")              ; Tab -> ウィンドウを右のモニターへ
-vk1D & RAlt::   Mouse_FocusUnderCursor()
+vk1D & RAlt::   return                              ; 右 Alt（未割り当て）
 vk1D & sc03A::  Mouse_FocusUnderCursor()            ; CapsLock
 vk1D & 1::      SendInput("#{Up}")                  ; 最大化
 vk1D & 2::      ShiftAltTab                         ; 前のアプリへ
@@ -90,8 +90,8 @@ vk1D & w::      MousePlain_ScrollUp()
 vk1D & e::      MousePlain_ScrollDown()
 vk1D & q::      MousePlain_ScrollLeft()
 vk1D & r::      MousePlain_ScrollRight()
-vk1D & n::      MouseClick()
-vk1D & b::      MouseClick()
+vk1D & n::      SendInput("^{LButton}")
+vk1D & b::      SendInput("^{LButton}")
 vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
 vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
 vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ移動し、カーソル下をアクティブに
@@ -100,8 +100,8 @@ vk1D & 7::      MouseNav_JumpLeft()
 vk1D & 8::      MouseNav_JumpUp()
 vk1D & 9::      MouseNav_JumpDown()
 vk1D & 0::      MouseNav_JumpRight()
-vk1D & [::      SendInput("^{WheelUp}")
-vk1D & ]::      SendInput("^{WheelDown}")
+vk1D & [::      return                              ; 未割り当て
+vk1D & ]::      return                              ; 未割り当て
 vk1D & RButton::    SendInput("^{LButton}")
 vk1D & WheelUp::    Text_WheelCursor("Left")
 vk1D & WheelDown::  Text_WheelCursor("Right")
@@ -148,11 +148,11 @@ vk1D & sc00D::  return
 ;------------------------------------------------------------------------------
 ; --- 特殊・システム ---
 vk20 & vk1C::   SendInput("{Space}")
-vk20 & vk1D::   Mouse_ToggleDrag()                  ; ドラッグ開始／解除
+vk20 & vk1D::   return                              ; 無変換（未割り当て）
 vk20 & sc03A::  SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（スクリーンセーバー回避も解除）
 vk20 & sc00F::  SendInput("^+{Tab}")                ; Tab -> 前のタブへ
 vk20 & F1::     ScreenSaver_Toggle()
-vk20 & sc070::  Text_CapitalizeNext()               ; かな -> 次の 1 文字を大文字に
+vk20 & sc070::  return                              ; かな（未割り当て）
 vk20 & f::      Leader_SpaceF()
 vk20 & a::      Leader_SpaceA()
 

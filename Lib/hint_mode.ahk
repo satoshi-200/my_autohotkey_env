@@ -197,6 +197,7 @@ _Hint_Refresh(st) {
         else
             it.ctrl.Visible := false
     }
+    _Hint_SetShape(st.ov, st.items)
     _Hint_Tip(st)
 }
 
@@ -311,25 +312,40 @@ _Hint_MakeLabels(n) {
 }
 
 ;------------------------------------------------------------------------------
-; ラベルの表示（クリックを通す透明なウィンドウに、ラベルを部品の位置へ並べる）
+; ラベルの表示（クリックを通すウィンドウを、ラベルの形だけに切り抜いて部品の位置へ並べる）
+; 全画面のウィンドウを色抜きで透かす方式は、表示の直後に画面全体が一瞬暗くなるので使わない
 ;------------------------------------------------------------------------------
 _Hint_Overlay(items) {
-    static TRANS := "010203"
     scale := A_ScreenDPI / 96
     vx := SysGet(76), vy := SysGet(77)
     ov := Gui("+AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x20 +E0x08000000")   ; クリックを通す・アクティブにならない
-    ov.BackColor := TRANS
     ov.MarginX := 0, ov.MarginY := 0
     ov.SetFont("s9 bold c" HINT_LABEL_FG, "Segoe UI")
     lh := Round(18 * scale)
     for it in items {
         lw := Round((StrLen(it.label) * 9 + 8) * scale)
+        it.rc := {l: it.x - vx - lw // 2, t: it.y - vy - lh // 2, w: lw, h: lh}
         it.ctrl := ov.AddText(Format("x{} y{} w{} h{} 0x201 Border Background{}"
-            , it.x - vx - lw // 2, it.y - vy - lh // 2, lw, lh, HINT_LABEL_BG), StrUpper(it.label))
+            , it.rc.l, it.rc.t, lw, lh, HINT_LABEL_BG), StrUpper(it.label))
     }
+    _Hint_SetShape(ov, items)
+    WinSetTransparent(HINT_LABEL_ALPHA, ov)
     ov.Show("NA x" vx " y" vy " w" SysGet(78) " h" SysGet(79))
-    WinSetTransColor(TRANS " " HINT_LABEL_ALPHA, ov)
     return ov
+}
+
+; 表示中のラベルの矩形だけを、ウィンドウの形にする
+_Hint_SetShape(ov, items) {
+    rgn := DllCall("CreateRectRgn", "Int", 0, "Int", 0, "Int", 0, "Int", 0, "Ptr")
+    for it in items {
+        if !it.ctrl.Visible
+            continue
+        r := it.rc
+        one := DllCall("CreateRectRgn", "Int", r.l, "Int", r.t, "Int", r.l + r.w, "Int", r.t + r.h, "Ptr")
+        DllCall("CombineRgn", "Ptr", rgn, "Ptr", rgn, "Ptr", one, "Int", 2)   ; RGN_OR
+        DllCall("DeleteObject", "Ptr", one)
+    }
+    DllCall("SetWindowRgn", "Ptr", ov.Hwnd, "Ptr", rgn, "Int", true)   ; 領域の所有権は窓に移る
 }
 
 ;------------------------------------------------------------------------------
