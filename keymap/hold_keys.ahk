@@ -95,7 +95,7 @@ vk1D & b::      SendInput("^{LButton}")
 vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
 vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
 vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ移動し、カーソル下をアクティブに
-vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターへ
+vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターへ移動し、カーソル下をアクティブに
 vk1D & 7::      MouseNav_JumpLeft()
 vk1D & 8::      MouseNav_JumpUp()
 vk1D & 9::      MouseNav_JumpDown()

@@ -20,7 +20,7 @@
 #Include %A_LineFile%\..\..\Lib\multi_clipboard.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
-#Include %A_LineFile%\..\..\Lib\hint_mode.ahk
+#Include %A_LineFile%\..\..\Lib\vimium_c_hints.ahk
 
 ;------------------------------------------------------------------------------
 ; 起点キー（Space+F / Space+A は hold_keys.ahk から呼ぶ）
@@ -78,7 +78,7 @@ Leader_Caps() {
         "[",  "",
         ; --- 中段 ---
         "a",  QM_CaptureMenu_Show,                  ; 画面キャプチャメニュー
-        "s",  Hint_Show,                            ; ヒントモード（部品に英字を重ねて、打ったところをクリック）
+        "s",  VimiumC_ShowHints,                    ; Vimium C 風ヒント（部品に英字を重ねて、打ったところをクリック）
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
         "f",  Oneshot_Fn,                           ; Fn キー
         "g",  "{Enter}",

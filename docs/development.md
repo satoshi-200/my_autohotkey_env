@@ -9,7 +9,7 @@
 - 使わなくなったものは `Lib\archive\` へ移す（読み込まれない）。
 
 ## 命名
-- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`Hint_`、`Mouse_`、`IH_`（入力待ち）など。
+- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち）など。
 - AutoHotkey v2 は変数名・関数名・メソッド名の大文字小文字を区別しない。ローカル変数が同名のクラス・関数・static 変数を隠さないよう、別の名前にする（例：`gui := Gui(...)` は不可、`log` は `Log()` と衝突）。
 - 設定値は部品の冒頭に大文字の変数で置く（例：`CAP_SAVE_DIR`）。
 
@@ -17,7 +17,7 @@
 - クイックメニューへの追加：`QuickPalette._Init()` に `this.Add(...)` を 1 行足す（書き方は `Lib/quick_menu.ahk` 冒頭）。カテゴリのキーを足すときは `Cats` にも書く。
 - 入力待ち（Caps → ○ など）への追加：`keymap/leader_keys.ahk` の表に書く。空き（`""`）を探して地価の高い順に置く（`principles.md`）。
 - キー割り当ての書き方は、`Lib/keymap_view.ahk`（キー割り当て一覧）が読めるように、既存の行と同じ形にする：`起点 & キー::  処理  ; コメント`、`"キー",  処理,  ; コメント`。新しい関数を割り当てたら、一覧に日本語で出るよう `KM_FUNC_NAMES` に足すか、行末にコメントを付ける。
-- 選択中だけ有効にするホットキーは `#HotIf IsObject(状態)` で囲み、最後に `#HotIf` で戻す（例：`Cap_session`、`Hint_session`）。
+- 選択中だけ有効にするホットキーは `#HotIf IsObject(状態)` で囲み、最後に `#HotIf` で戻す（例：`Cap_session`、`VimiumC_session`）。
 
 ## 検証
 - 構文：`AutoHotkey64.exe /ErrorStdOut /validate main.ahk`（終了コード 0 なら問題なし）。実行ファイルは `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`。
@@ -37,6 +37,6 @@
 - 自分の `SendInput` は、自分のホットキーに無視される。
 - IME のオン・オフは `SendInput("{vk16}")`（オン）/ `{vk1A}`（オフ）が確実。`WM_IME_CONTROL` は不安定。
 - クリックを通す透明ウィンドウ：`+E0x20 +E0x08000000` に加えて `WinSetTransparent(250)`（透過属性が必要）。
-- 全画面のウィンドウを `WinSetTransColor`（色抜き）で透かさない。`Show` の直後に画面全体が一瞬塗りつぶされて暗転する。透過・半透明の属性は `Show` の前に付け、見せたい部分だけを `SetWindowRgn` で切り抜く（`Lib/hint_mode.ahk`、`Lib/screen_capture.ahk`）。
+- 全画面のウィンドウを `WinSetTransColor`（色抜き）で透かさない。`Show` の直後に画面全体が一瞬塗りつぶされて暗転する。透過・半透明の属性は `Show` の前に付け、見せたい部分だけを `SetWindowRgn` で切り抜く（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
 - 画面の座標は `config.ahk` で Per-Monitor v2（物理ピクセル）にしてある。GUI は `-DPIScale` を付けて物理ピクセルで指定する。
-- UI Automation を使う部品は、仮想関数表の番号を部品の冒頭コメントに書いてある（`Lib/hint_mode.ahk`、`Lib/screen_capture.ahk`）。
+- UI Automation を使う部品は、仮想関数表の番号を部品の冒頭コメントに書いてある（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。

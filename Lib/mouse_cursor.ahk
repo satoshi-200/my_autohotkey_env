@@ -740,7 +740,10 @@ MouseNav_JumpDown()          => MouseNav.Bisect("Down")
 ; ワープ
 MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
 MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()
-MouseNav_WarpMonitor()       => MouseNav.WarpToNextMonitor()
+MouseNav_WarpMonitor() {
+    MouseNav.WarpToNextMonitor()
+    Mouse_FocusUnderCursor()
+}
 MouseNav_WarpMonitorCenter() => MouseNav.WarpToNextMonitor(true)
 MouseNav_WarpExternalCenter() {
     MouseNav.WarpToExternalCenter()

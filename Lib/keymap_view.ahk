@@ -32,7 +32,7 @@ KM_FUNC_NAMES := Km_Map(
     "AppSwitcher_Show", "アプリ切り替え", "TabPageSwitcher_Show", "タブ・ページ切り替え",
     "QuickPalette_Show", "コマンドパレット", "QuickMenu_Show", "クイックメニュー", "QM_SymbolMenu_Show", "記号メニュー",
     "QM_DesktopMenu_Show", "仮想デスクトップメニュー", "QM_DateMenu_Show", "日付・時刻メニュー",
-    "QM_CaptureMenu_Show", "画面キャプチャメニュー", "Hint_Show", "ヒントモード",
+    "QM_CaptureMenu_Show", "画面キャプチャメニュー", "VimiumC_ShowHints", "Vimium C 風ヒント",
     "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "UpperMode_Start", "大文字入力モード",

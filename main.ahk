@@ -32,7 +32,7 @@
 #Include Lib\multi_clipboard.ahk
 #Include Lib\mouse_cursor.ahk
 #Include Lib\quick_menu.ahk
-#Include Lib\hint_mode.ahk
+#Include Lib\vimium_c_hints.ahk
 
 ; ------------------------------------------------------------------------------
 ; キーの割り当て
