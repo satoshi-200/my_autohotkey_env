@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; screen_capture.ahk
-; 画面キャプチャ（Snipping Tool 相当）。quick_menu.ahk の「P 画面キャプチャ」から呼ぶ
+; 画面キャプチャ（Snipping Tool 相当）。quick_menu.ahk の「C 画面キャプチャ」から呼ぶ
 ;
 ; 種類
 ;   Cap_Region()     … ドラッグで範囲を指定（画面を暗くし、選んだ範囲だけ明るく表示）

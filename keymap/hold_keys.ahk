@@ -28,10 +28,10 @@ vk1C & sc00F::  SendInput("^{y}")                   ; Tab -> やり直し
 vk1C & LShift:: SendInput("^{z}")                   ; 元に戻す
 vk1C & t::      SendInput("{Blind}{Delete}")
 vk1C & g::      SendInput("{Blind}{BackSpace}")
-vk1C & b::      SendInput("{F8}")
-vk1C & n::      SendInput("{F9}")
-vk1C & [::      SendInput("^+[")
-vk1C & ]::      SendInput("^+]")
+vk1C & b::      ShiftHold_SendPlain("{F8}")         ; F8（IME：半角に変換。Shift 長押しモード中も Shift なしで送る）
+vk1C & n::      ShiftHold_SendPlain("{F9}")         ; F9（IME：全角に変換。同上）
+vk1C & [::      return
+vk1C & ]::      return
 vk1C & sc029::  return                              ; 半角/全角（未割り当て）
 vk1C & sc070::  return                              ; カタカナひらがな（未割り当て）
 
@@ -145,7 +145,7 @@ vk1D & sc00D::  return
 ; --- 特殊・システム ---
 vk20 & vk1C::   SendInput("{Space}")
 vk20 & vk1D::   return                              ; 無変換（未割り当て）
-vk20 & sc03A::  SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（スクリーンセーバー回避も解除）
+vk20 & sc03A::  ShiftHold_Stop(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモードとスクリーンセーバー回避も解除）
 vk20 & sc00F::  SendInput("^+{Tab}")                ; Tab -> 前のタブへ
 vk20 & F1::     ScreenSaver_Toggle()
 vk20 & sc070::  return                              ; かな（未割り当て）
@@ -183,8 +183,8 @@ vk20 & PgUp::   SendInput("{WheelUp 6}")
 vk20 & PgDn::   SendInput("{WheelDown 6}")
 
 ; --- 編集・フォーカス ---
-vk20 & h::      SendInput("{Enter}")
-vk20 & g::      SendInput("{Enter}")
+vk20 & h::      ShiftHold_Enter()                   ; Enter（Shift 長押しモード中は、モードを終えてから送る＝確定して抜ける）
+vk20 & g::      ShiftHold_Enter()                   ; Enter（同上）
 vk20 & s::      SendInput("{Backspace}")
 vk20 & d::      SendInput("{Delete}")
 vk20 & *::      SendInput("{F2}")                   ; 名前の変更
@@ -196,8 +196,8 @@ vk20 & LShift:: SendInput("^{z}")
 vk20 & RShift:: SendInput("{Blind}+{Space}")
 vk20 & RControl:: SendInput("{Blind}^{Space}")
 vk20 & m::      return
-vk20 & ,::      return
-vk20 & .::      return
+vk20 & ,::      SendInput("^{WheelUp}")             ; 表示を拡大（Ctrl + ホイール↑）
+vk20 & .::      SendInput("^{WheelDown}")           ; 表示を縮小（Ctrl + ホイール↓）
 vk20 & /::      return
 
 ; --- ウィンドウ・タブ ---

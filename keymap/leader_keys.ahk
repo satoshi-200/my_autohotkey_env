@@ -21,6 +21,7 @@
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
 #Include %A_LineFile%\..\..\Lib\vimium_c_hints.ahk
+#Include %A_LineFile%\..\..\Lib\shift_hold.ahk
 
 ;------------------------------------------------------------------------------
 ; 起点キー（Space+F / Space+A は hold_keys.ahk から呼ぶ）
@@ -35,13 +36,13 @@ sc070:: Leader_Kana()                               ; カタカナひらがな
 vk1D:: IH_StopWithKey("sc07B")
 #HotIf
 
-; 大文字入力モードの終了（これらもプレフィックスなので InputHook に届かない）
-#HotIf UpperMode_IsOn()
-vk1D:: UpperMode_Stop()
-vk1C:: UpperMode_Stop()
-vk20:: UpperMode_Stop(), SendInput("{Space}")
-vk1C & b:: UpperMode_Stop(), SendInput("{F8}")      ; 組み合わせが発動すると上の vk1C:: は発動しない
-vk1C & n:: UpperMode_Stop(), SendInput("{F9}")
+; Shift 長押しモード（Lib\shift_hold.ahk）の終了。Shift を押したままの間は、「*」なしの単独キーのホットキーが発動しないので「*」を付ける。
+; Caps は上の Leader の起点（sc03A）と別の定義なので、モード中だけこちらが先に働く。Space+Caps は hold_keys.ahk で止める。
+#HotIf ShiftHold_IsOn()
+*sc03A:: ShiftHold_Stop()
+*Escape:: ShiftHold_Stop()
+*Enter:: ShiftHold_Enter("{Blind}{Enter}")          ; 確定したらモードを抜ける
+*NumpadEnter:: ShiftHold_Enter("{Blind}{NumpadEnter}")
 #HotIf
 
 ;------------------------------------------------------------------------------
@@ -103,7 +104,7 @@ Leader_Caps() {
     static specials := Map(
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
         0x79, Ime_Hiragana,                         ; 変換：IME をひらがなに
-        0x7B, UpperMode_Start,                      ; 無変換：大文字入力モード
+        0x7B, ShiftHold_Start,                      ; 無変換：Shift 長押しモード
         0x70, Text_CapitalizeNext)                  ; かな：次の 1 文字を大文字に
     Leader_Run("Caps", keys, specials, true)
 }

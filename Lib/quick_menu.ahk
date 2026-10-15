@@ -63,6 +63,7 @@
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
 #Include %A_LineFile%\..\keymap_view.ahk
+#Include %A_LineFile%\..\powerpoint_pack.ahk
 #Include %A_LineFile%\..\date_input.ahk
 
 class QuickPalette {
@@ -78,14 +79,11 @@ class QuickPalette {
         {key: "D", name: "仮想デスクトップ"},
         {key: "G", name: "検索・翻訳"},
         {key: "S", name: "システム"},
-        {key: "P", name: "画面キャプチャ"},
+        {key: "C", name: "画面キャプチャ"},
         {key: "M", name: "マルチクリップボード"},
         {key: "A", name: "アプリ・フォルダ"},
         {key: "V", name: "VS Code"},
-        {key: "F", name: "Fn キー"},
-        {key: "H", name: "Shift + Fn キー"},
-        {key: "C", name: "Ctrl + Fn キー"},
-        {key: "X", name: "Ctrl + Shift + Fn キー"}]
+        {key: "P", name: "PowerPoint"}]
 
     static Items := []
     static _inited := false
@@ -180,13 +178,13 @@ class QuickPalette {
         this.Add("S", "K", "keymap",       "キー割り当て一覧（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate")
 
         ;--- 画面キャプチャ（Lib\screen_capture.ahk）----------------------------
-        this.Add("P", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
-        this.Add("P", "W", "cap-window",  "ウィンドウを選んで全体",          (*) => Cap_Window(), "capture screenshot window")
-        this.Add("P", "C", "cap-area",    "ウィンドウ内のクリックした領域",  (*) => Cap_Area(), "capture screenshot element buhin ryouiki")
-        this.Add("P", "A", "cap-active",  "いまのウィンドウ全体",            (*) => Cap_Active(), "capture screenshot window active")
-        this.Add("P", "K", "cap-focus",   "フォーカス中の部品（F6 で移動）",  (*) => Cap_Focus(), "capture screenshot focus f6 buhin")
-        this.Add("P", "S", "cap-monitor", "いまのモニター全体",              (*) => Cap_Monitor(), "capture screenshot screen display")
-        this.Add("P", "F", "cap-all",     "すべてのモニター",                (*) => Cap_AllScreens(), "capture screenshot screen full zenmen")
+        this.Add("C", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
+        this.Add("C", "W", "cap-window",  "ウィンドウを選んで全体",          (*) => Cap_Window(), "capture screenshot window")
+        this.Add("C", "C", "cap-area",    "ウィンドウ内のクリックした領域",  (*) => Cap_Area(), "capture screenshot element buhin ryouiki")
+        this.Add("C", "A", "cap-active",  "いまのウィンドウ全体",            (*) => Cap_Active(), "capture screenshot window active")
+        this.Add("C", "K", "cap-focus",   "フォーカス中の部品（F6 で移動）",  (*) => Cap_Focus(), "capture screenshot focus f6 buhin")
+        this.Add("C", "S", "cap-monitor", "いまのモニター全体",              (*) => Cap_Monitor(), "capture screenshot screen display")
+        this.Add("C", "F", "cap-all",     "すべてのモニター",                (*) => Cap_AllScreens(), "capture screenshot screen full zenmen")
 
         ;--- マルチクリップボード -----------------------------------------------
         this.Add("M", "S", "clip-save",    "選択文字を箱にコピー保存",      (*) => Clip_Copy(), "clipboard box save copy")
@@ -210,20 +208,20 @@ class QuickPalette {
         this.Add("V", "W", "fold-all",         "すべて折りたたむ",           (*) => QM_VSCodeChord("^0"), "vscode tatami")
         this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
 
-        ;--- Fn キー（F1〜F12）---------------------------------------------------
-        ; キーの配置は oneshot_modifiers.ahk の Fn キー入力モードと同じ
-        fnKeys := []
-        fnKeys.Length := 12
-        for k, n in ONESHOT_FN_KEYS
-            fnKeys[n] := StrUpper(k)
-        fnMods := [
-            {cat: "F", mod: "",   tag: "",            name: ""},
-            {cat: "H", mod: "+",  tag: "shift-",      name: "Shift + "},
-            {cat: "C", mod: "^",  tag: "ctrl-",       name: "Ctrl + "},
-            {cat: "X", mod: "^+", tag: "ctrl-shift-", name: "Ctrl + Shift + "}]
-        for fm in fnMods
-            for n, k in fnKeys
-                this.Add(fm.cat, k, fm.tag "f" n, fm.name "F" n, SendInput.Bind(fm.mod "{F" n "}"), "fn function")
+        ;--- PowerPoint（Lib\powerpoint_pack.ahk。PowerPoint が前面にあるときだけ動く）---------
+        this.Add("P", "L", "ppt-left",      "左にそろえる",                  (*) => Ppt_Align("left"), "powerpoint slide align seiretsu")
+        this.Add("P", "R", "ppt-right",     "右にそろえる",                  (*) => Ppt_Align("right"), "powerpoint slide align seiretsu")
+        this.Add("P", "T", "ppt-top",       "上にそろえる",                  (*) => Ppt_Align("top"), "powerpoint slide align seiretsu")
+        this.Add("P", "B", "ppt-bottom",    "下にそろえる",                  (*) => Ppt_Align("bottom"), "powerpoint slide align seiretsu")
+        this.Add("P", "C", "ppt-center",    "左右の中央にそろえる",          (*) => Ppt_Align("center"), "powerpoint slide align seiretsu")
+        this.Add("P", "M", "ppt-middle",    "上下の中央にそろえる",          (*) => Ppt_Align("middle"), "powerpoint slide align seiretsu")
+        this.Add("P", "D", "ppt-dist-h",    "横に等間隔に並べる",            (*) => Ppt_Distribute("h"), "powerpoint slide distribute toukankaku")
+        this.Add("P", "E", "ppt-dist-v",    "縦に等間隔に並べる",            (*) => Ppt_Distribute("v"), "powerpoint slide distribute toukankaku")
+        this.Add("P", "W", "ppt-same-w",    "幅を最初の図形にそろえる",      (*) => Ppt_MatchSize("w"), "powerpoint slide size haba")
+        this.Add("P", "H", "ppt-same-h",    "高さを最初の図形にそろえる",    (*) => Ppt_MatchSize("h"), "powerpoint slide size takasa")
+        this.Add("P", "S", "ppt-same-size", "幅と高さを最初の図形にそろえる", (*) => Ppt_MatchSize("wh"), "powerpoint slide size ookisa")
+        this.Add("P", "X", "ppt-swap",      "2 つの図形の位置を入れ替え",    (*) => Ppt_Swap(), "powerpoint slide swap exchange irekae")
+        this.Add("P", "I", "ppt-paste-pic", "画像として貼り付け",            (*) => Ppt_PastePicture(), "powerpoint slide paste picture image gazou")
 
         this._BuildGui()
         this._BuildMenuGui()
@@ -828,7 +826,7 @@ QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
-QM_CaptureMenu_Show() => QuickPalette.ShowMenu("P")
+QM_CaptureMenu_Show() => QuickPalette.ShowMenu("C")
 QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 
 ;==============================================================================

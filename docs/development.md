@@ -42,4 +42,7 @@
 - UI Automation を使う部品は、仮想関数表の番号を部品の冒頭コメントに書いてある（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
 - `AutoHotkey64.exe /validate` の終了コードは、構文エラーがあっても 0 になる。出力の有無で判定する。存在しない変数名・関数名があると警告のダイアログで止まり、終わらないことがある（`Lib/keymap_view.ahk` の `Km_Validate` は時間切れで不可とする）。
 - 組み込み関数と同じ名前（`log`）、クラスと同じ名前（`file` は `File`）は、グローバルの変数に使えない。アロー関数の中では `global` を書けないので、普通の関数にする。
+- 変数名はクラス・関数と大文字小文字を区別されずに衝突する。関数 `Ppt_Align` と変数 `PPT_ALIGN` は同じ名前になり、読み込みでエラーになる（定数の変数には関数名と別の名前を付ける）。
+- 自分が押した Shift（`SendInput("{LShift down}")`）を押したままにしても、ほかの `SendInput`（`{Blind}` なしを含む）では外れず、組み合わせのホットキー（`変換 & g` のような形）も発動する。ただし「*」なしの単独キーのホットキーは、Shift を押したままの間は発動しない。押したままのモードを作るときは、終了用に `*` 付きのホットキーを `#HotIf` で用意し、終了・`OnExit` で必ず離す（`Lib/shift_hold.ahk`）。
+- 自動操作の試験では、`GetKeyState` は送った直後は前の状態を返すことがある。`Sleep` を挟んで読む。`A_TimeIdlePhysical` は人の入力がないと大きいままなので、時間切れの判定が即発動する。
 - WebView2（`Lib/webview2/`）：ページから AHK へは `chrome.webview.postMessage(文字列)`、AHK からページへは `ExecuteScriptAsync("関数(...)")`。受け取りは `wv.WebMessageReceived(関数)` で、戻り値のオブジェクトを変数に持っておく（捨てると登録が外れる）。重い処理は、受け取った通知の中でなく `SetTimer(…, -1)` で回す。

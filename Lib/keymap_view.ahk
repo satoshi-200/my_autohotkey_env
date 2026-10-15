@@ -36,7 +36,7 @@ KM_FUNC_NAMES := Km_Map(
     "QM_CaptureMenu_Show", "画面キャプチャメニュー", "VimiumC_ShowHints", "Vimium C 風ヒント",
     "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
-    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "UpperMode_Start", "大文字入力モード",
+    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Start", "Shift 長押しモード",
     "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス")
 
 ; SendInput のキー名 → 表示名
