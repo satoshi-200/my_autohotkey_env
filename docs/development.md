@@ -40,3 +40,6 @@
 - 全画面のウィンドウを `WinSetTransColor`（色抜き）で透かさない。`Show` の直後に画面全体が一瞬塗りつぶされて暗転する。透過・半透明の属性は `Show` の前に付け、見せたい部分だけを `SetWindowRgn` で切り抜く（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
 - 画面の座標は `config.ahk` で Per-Monitor v2（物理ピクセル）にしてある。GUI は `-DPIScale` を付けて物理ピクセルで指定する。
 - UI Automation を使う部品は、仮想関数表の番号を部品の冒頭コメントに書いてある（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
+- `AutoHotkey64.exe /validate` の終了コードは、構文エラーがあっても 0 になる。出力の有無で判定する。存在しない変数名・関数名があると警告のダイアログで止まり、終わらないことがある（`Lib/keymap_view.ahk` の `Km_Validate` は時間切れで不可とする）。
+- 組み込み関数と同じ名前（`log`）、クラスと同じ名前（`file` は `File`）は、グローバルの変数に使えない。アロー関数の中では `global` を書けないので、普通の関数にする。
+- WebView2（`Lib/webview2/`）：ページから AHK へは `chrome.webview.postMessage(文字列)`、AHK からページへは `ExecuteScriptAsync("関数(...)")`。受け取りは `wv.WebMessageReceived(関数)` で、戻り値のオブジェクトを変数に持っておく（捨てると登録が外れる）。重い処理は、受け取った通知の中でなく `SetTimer(…, -1)` で回す。

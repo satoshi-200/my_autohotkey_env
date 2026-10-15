@@ -63,6 +63,7 @@
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
 #Include %A_LineFile%\..\keymap_view.ahk
+#Include %A_LineFile%\..\date_input.ahk
 
 class QuickPalette {
     ;--- 設定 -----------------------------------------------------------------
@@ -124,8 +125,10 @@ class QuickPalette {
         ;--- 挿入 ---------------------------------------------------------------
         this.Add("I", "K", "symbols",      "記号メニュー（! # $ % & …）",   (*) => QM_SymbolMenu_Show(), "kigou symbol")
 
-        ;--- 日付・時刻（キー配置は Space+F の y u i o p と同じ書式をベースにしている）----------
+        ;--- 日付・時刻（上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用）----------
+        ; Space+F の u で日付・時刻メニュー、i で日付入力、o で yyyy/MM/dd、p で yyMMdd_ を直接呼べる
         ; 上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用
+        this.Add("N", "N", "date-pick",    "日付を選んで入力（日付 → フォーマットの順に選ぶ）", (*) => DateInput_Start(), "hiduke nyuuryoku select")
         this.Add("N", "Y", "date-full",    "日時（yyyy/MM/dd HH:mm:ss）",      (*) => QM_InsertTime("yyyy/MM/dd HH:mm:ss"), "hiduke jikoku nichiji")
         this.Add("N", "U", "date-ymd",     "日付（yyyy/MM/dd）",               (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
         this.Add("N", "I", "date-short",   "日付（yy/MM/dd）",                 (*) => QM_InsertTime("yy/MM/dd"), "hiduke")

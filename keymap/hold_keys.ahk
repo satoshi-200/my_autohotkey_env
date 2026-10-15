@@ -45,7 +45,7 @@ vk1C & p::      SendInput("{>}")
 vk1C & i::      SendInput("{{}")
 vk1C & o::      SendInput("{}}")
 vk1C & *::      SendInput("{'}")
-vk1C & `::      SendInput("{/}")
+vk1C & `::      return                              ; @（未割り当て）
 vk1C & h::      SendInput("{`"}")
 
 ; --- テンキー (wer / sdf / xcv / z) ---
@@ -94,12 +94,12 @@ vk1D & n::      SendInput("^{LButton}")
 vk1D & b::      SendInput("^{LButton}")
 vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
 vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
-vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ移動し、カーソル下をアクティブに
-vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターへ移動し、カーソル下をアクティブに
-vk1D & 7::      MouseNav_JumpLeft()
-vk1D & 8::      MouseNav_JumpUp()
-vk1D & 9::      MouseNav_JumpDown()
-vk1D & 0::      MouseNav_JumpRight()
+vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
+vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターの中央へ移動し、カーソル下をアクティブに
+vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は部品に残してある）
+vk1D & 8::      return                              ; 未割り当て
+vk1D & 9::      return                              ; 未割り当て
+vk1D & 0::      return                              ; 未割り当て
 vk1D & [::      return                              ; 未割り当て
 vk1D & ]::      return                              ; 未割り当て
 vk1D & RButton::    SendInput("^{LButton}")
@@ -115,10 +115,6 @@ vk1D & Left::   SendInput("^{Left}")
 vk1D & Up::     SendInput("^{Up}")
 vk1D & Down::   SendInput("^{Down}")
 vk1D & Right::  SendInput("^{Right}")
-vk1D & F9::     SendInput("^{Left}")
-vk1D & F10::    SendInput("^{Up}")
-vk1D & F11::    SendInput("^{Down}")
-vk1D & F12::    SendInput("^{Right}")
 vk1D & 6::      return
 
 ; --- 記号・入力 ---

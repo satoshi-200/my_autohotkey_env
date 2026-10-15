@@ -101,7 +101,6 @@ Leader_Caps() {
         ".",  Oneshot_CtrlNum,
         "/",  "")
     static specials := Map(
-        0x0F, WindowMonitor_Show,                   ; Tab：ウィンドウを別のモニターへ（Tab：次、Shift+Tab：前）
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
         0x79, Ime_Hiragana,                         ; 変換：IME をひらがなに
         0x7B, UpperMode_Start,                      ; 無変換：大文字入力モード
@@ -115,7 +114,7 @@ Leader_SpaceF() {
         "1",  "",
         "2",  "",
         "3",  "",
-        "4",  "!{F4}",
+        "4",  "",
         "5",  "",
         "6",  "",
         "7",  "",
@@ -131,10 +130,10 @@ Leader_SpaceF() {
         "e",  "{End}",                              ; 行末
         "r",  "^{End}",                             ; 文書の末尾
         "t",  "",
-        "y",  () => Text_InsertDate("yyyy/MM/dd HH:mm:ss"),
-        "u",  () => Text_InsertDate("yyyy/MM/dd"),
-        "i",  () => Text_InsertDate("yy/MM/dd"),
-        "o",  () => Text_InsertDate("yyyyMMdd"),
+        "y",  "",
+        "u",  QM_DateMenu_Show,                     ; 日付・時刻のメニュー（時刻の書式も選べる）
+        "i",  DateInput_Start,                      ; 日付入力（日付を調整 → フォーマットを選ぶ）
+        "o",  () => Text_InsertDate("yyyy/MM/dd"),
         "p",  () => Text_InsertDate("yyMMdd_"),     ; Obsidian のページ名用
         "@",  "",
         "[",  Window_CloseAndFocus,                 ; ウィンドウを閉じてカーソル下にフォーカス
@@ -144,7 +143,7 @@ Leader_SpaceF() {
         "d",  "{LAlt}",
         "f",  Mouse_ContextMenu,                    ; 右クリックメニュー
         "g",  "",
-        "h",  QM_DateMenu_Show,                     ; 日付・時刻のメニュー（時刻の書式も選べる）
+        "h",  "",
         "j",  "+{Enter}",
         "k",  "^{Enter}",
         "l",  "!{Enter}",

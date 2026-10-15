@@ -340,8 +340,11 @@ class MouseNav {
     }
 
     ; 外付けモニターの中央へ移動（外付けの間を左から右へ巡回。外付け以外からは最も左の外付けへ）
+    ; 外付けが 1 台以下（内蔵＋外付けの 2 画面など）のときは、全モニターの中央を巡回する
     static WarpToExternalCenter() {
         mons := this._ExternalMonitors()
+        if (mons.Length < 2)
+            mons := this._Monitors()
         if !mons.Length
             return
         this._GetPos(&x, &y)
@@ -741,7 +744,7 @@ MouseNav_JumpDown()          => MouseNav.Bisect("Down")
 MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
 MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()
 MouseNav_WarpMonitor() {
-    MouseNav.WarpToNextMonitor()
+    MouseNav.WarpToNextMonitor(true)
     Mouse_FocusUnderCursor()
 }
 MouseNav_WarpMonitorCenter() => MouseNav.WarpToNextMonitor(true)
