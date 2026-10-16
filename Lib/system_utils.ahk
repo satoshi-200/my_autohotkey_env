@@ -10,6 +10,7 @@
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\key_wait.ahk
+#Include %A_LineFile%\..\mouse_cursor.ahk
 
 ;------------------------------------------------------------------------------
 ; 共通部品
@@ -127,6 +128,9 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
 ; JIS キーボードの CapsLock（英数）は EndKey の名前が "CapsLock" とは限らないので、スキャンコードでも判定する
 _IsCapsKey(key) => key != "" && (key = "CapsLock" || GetKeySC(key) = 0x3A)
 
+; 取り消しのキーか（Esc、Caps、Space を押したまま Caps）。Space は決定のキーでもあるので、Caps が来なかったときは false
+_IsCancelKey(key) => key = "Escape" || _IsCapsKey(key) || (key != "" && GetKeyVK(key) = 0x20 && IH_CapsWhileSpaceHeld())
+
 _AppSwitcher_IsCloseKey(key) {
     for k in APPSWITCH_CLOSE_KEYS
         if (key = k)
@@ -183,7 +187,7 @@ _AppSwitcher_MoveCursorToCenter(hwnd) {
 ;------------------------------------------------------------------------------
 ; KeyCycler：キーを押すたびにその場で操作し、Esc で送った分を逆順に戻すモード
 ;   actions … キー → [送るキー（または元に戻す関数を返す関数）, 戻すときに送るキー, 表示名]
-;   ほかのキー：決定　Esc / Caps：動かした分を戻す
+;   ほかのキー：決定　Esc / Caps / Space+Caps：動かした分を戻す
 ;   KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
 ;------------------------------------------------------------------------------
 KEYCYCLE_IDLE_SEC := 3
@@ -206,7 +210,7 @@ KeyCycler_Show(title, actions) {
     undo := []                                      ; Esc で戻すための履歴
     result := "決定"
     loop {
-        ToolTip("📑 [" title "] " hint "`nほかのキー：決定　Esc / Caps：元に戻す"
+        ToolTip("📑 [" title "] " hint "`nほかのキー：決定　Esc / Caps / Space+Caps：元に戻す"
             . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -221,7 +225,7 @@ KeyCycler_Show(title, actions) {
             }
         }
         else {
-            if (key = "escape" || _IsCapsKey(key)) {
+            if _IsCancelKey(key) {
                 while undo.Length {
                     u := undo.Pop()
                     (u is Func) ? u() : SendInput(u)
@@ -298,7 +302,7 @@ WinSize_Restore(hwnd, prev) {
 ;     reverse … false：次のモニターへ、true：前のモニターへ
 ;   呼び出しに使ったキー（Caps → Tab なら Tab）で次へ、Shift 付きで前へ。
 ;   w：Win+↑、e：Win+↓ で大きさを変える。
-;   ほかのキー：決定　Esc / Caps：元のモニターに戻す
+;   ほかのキー：決定　Esc / Caps / Space+Caps：元のモニターに戻す
 ;   WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
 ;------------------------------------------------------------------------------
 WINMONITOR_IDLE_SEC := 3
@@ -326,7 +330,7 @@ WindowMonitor_Show(reverse := false) {
     loop {
         ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
             . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
-            . "`nほかのキー：決定　Esc：元に戻す"
+            . "`nほかのキー：決定　Esc / Caps / Space+Caps：元に戻す"
             . "`n（" WINMONITOR_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -351,7 +355,7 @@ WindowMonitor_Show(reverse := false) {
             }
         }
         else {
-            if (key = "Escape" || _IsCapsKey(key)) {
+            if _IsCancelKey(key) {
                 while sizeUndo.Length {
                     u := sizeUndo.Pop()
                     if (WinGetMinMax(hwnd) = -1)

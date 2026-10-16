@@ -18,11 +18,16 @@ Ime_Alnum()    => SendInput("{vk1A}")
 ; 大文字化
 ;------------------------------------------------------------------------------
 ; 次に入力する 1 文字を大文字にする
-Text_CapitalizeNext() {
+; 待ちを別スレッドで行う。呼び出し元（Caps のホットキー）のスレッドを塞ぐと、待っている間は Caps → 変換 / Space などが効かない
+Text_CapitalizeNext() => SetTimer(_Text_CapitalizeNext, -1)
+
+_Text_CapitalizeNext() {
     h := InputHook("L1 M")
+    h.KeyOpt("{Esc}", "ES")                         ; Esc で取り消し
     h.Start()
     h.Wait()
-    SendInput(Chr(Ord(h.Input) - 32))
+    if (h.EndReason = "Max")
+        SendInput(Chr(Ord(h.Input) - 32))
 }
 
 ;------------------------------------------------------------------------------

@@ -10,12 +10,13 @@
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
 #Include %A_LineFile%\..\..\Lib\text_input.ahk
-#Include %A_LineFile%\..\..\Lib\system_utils.ahk
+#Include %A_LineFile%\..\..\Lib\screen_saver.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
+#Include %A_LineFile%\..\..\Lib\shift_hold.ahk
 #Include %A_LineFile%\..\leader_keys.ahk
 
 ; 入力待ちの間は、このファイルのホットキーをすべて止める
-#HotIf !isWaitingInput
+#HotIf !IH_waiting
 
 ;------------------------------------------------------------------------------
 ; 変換 (vk1C) ＋ 各種キー
@@ -96,7 +97,7 @@ vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィン�
 vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
 vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
 vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターの中央へ移動し、カーソル下をアクティブに
-vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は部品に残してある）
+vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は Lib\archive\mouse_nav_timer.ahk にある）
 vk1D & 8::      return                              ; 未割り当て
 vk1D & 9::      return                              ; 未割り当て
 vk1D & 0::      return                              ; 未割り当て

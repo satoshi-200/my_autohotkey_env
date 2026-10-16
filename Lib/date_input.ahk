@@ -2,7 +2,7 @@
 ;==============================================================================
 ; date_input.ahk
 ; 日付入力：日付を調整 → フォーマットを選ぶ → 入力する（2 段階。確定までは何も入力しない）
-;   DateInput_Start()  呼ぶと現在の日付を表示する。クイックメニュー N → N から呼ぶ。
+;   DateInput_Start()  呼ぶと現在の日付を表示する。クイックメニュー N → N、Space+F → i から呼ぶ。
 ;
 ;   1. 日付の調整（初期値は今日）
 ;        K：1 日戻る　L：1 日進む　J：10 日戻る　;：10 日進む　H / N：日付を確定
@@ -10,6 +10,7 @@
 ;        L：次　K：前　J：先頭　;：最後　H / N：確定して入力
 ;   Esc / Caps / Space+Caps：キャンセル（DATEINPUT_TIMEOUT_MS 操作がなければ自動でキャンセル）
 ;==============================================================================
+#Include %A_LineFile%\..\key_wait.ahk
 #Include %A_LineFile%\..\text_input.ahk
 
 DATEINPUT_TIMEOUT_MS := 60000                  ; 操作がないときにキャンセルするまでの時間
@@ -21,7 +22,7 @@ DATEINPUT_FORMATS := [
     "yyyy/MM/dd(ddd)", "M/d", "MM/dd", "yyyy年M月d日", "yyyy年MM月dd日"]
 
 DateInput_Start() {
-    if isWaitingInput
+    if IH_waiting
         return
     IH_ModeBegin()
 

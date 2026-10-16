@@ -46,8 +46,8 @@
 | 起点 | 内容 |
 | :--- | :--- |
 | **CapsLock** | 下の表を参照 |
-| **Space + F** | 文書の先頭 / 末尾・行頭 / 行末への移動、修飾キー付き Enter、日付の入力（o p）、日付・時刻メニュー（u）、日付入力（i）、Win / Alt / Ctrl キー、ウィンドウを閉じる |
-| **Space + A** | 右手側の文字・記号を左手で入力する |
+| **Space + F** | 文書の先頭 / 末尾・行頭 / 行末への移動、修飾キー付き Enter、日付の入力（o p）、日付・時刻メニュー（u）、日付入力（i）、Win / Alt / Ctrl キー、ウィンドウを閉じる、`Caps`：Shift 長押しモード（Shift を押したままの状態にする。もう一度、Esc / Caps / Space+Caps / Enter で終了。`Lib/shift_hold.ahk`） |
+| **Space + A** | 右手側の文字・記号を左手で入力する（Shift 長押しモード中も使え、送る文字に Shift が反映される） |
 | **カタカナひらがな** | 割り当てなし（入力待ちだけ用意してある） |
 
 **CapsLock → 次のキー**
@@ -56,22 +56,22 @@
 | `u` | コマンドパレット |
 | `j` | クイックメニュー |
 | `k` | 記号メニュー |
+| `t` | 画面キャプチャメニュー（クイックメニューの C カテゴリを直接開く） |
+| `t` | 画面キャプチャメニュー（下の「クイックメニュー」の C カテゴリ） |
 | `e` | アプリ切り替え（下の説明を参照） |
 | `w` | 仮想デスクトップメニュー |
-| `d` | タブ・ページ切り替え（f / a：次 / 前のタブ、d / s：次 / 前のページ。w / e / r：タブを閉じる / 新しいタブ / 閉じたタブを復元、t / Tab：タブごと右 / 左へ移動。右手は j / ;：前 / 次のタブ、k / l・i / o：前 / 次のページ。連打で移動、ほかのキーで決定、Esc / Caps で元に戻る） |
+| `d` | タブ・ページ切り替え（f / a：次 / 前のタブ、d / s：次 / 前のページ。w / e / r：タブを閉じる / 新しいタブ / 閉じたタブを復元、t / Tab：タブごと右 / 左へ移動。右手は j / ;：前 / 次のタブ、k / l・i / o：前 / 次のページ。連打で移動、ほかのキーで決定、Esc / Caps / Space+Caps で元に戻る） |
 | `r` / `Tab` | ウィンドウを別のモニターへ移動（同じキーで次、Shift 付きで前。カーソルも移動先の中央へ） |
-| `q` | ウィンドウの大きさ（w：Win+↑ / e：Win+↓。連打可。ほかのキーで決定、Esc / Caps で元に戻る） |
+| `q` | ウィンドウの大きさ（w：Win+↑ / e：Win+↓。連打可。ほかのキーで決定、Esc / Caps / Space+Caps で元に戻る） |
 | `f` | Fn キー入力モード（下の配置で F1〜F12） |
 | `l` / `o` / `i` / `;` | Ctrl / Ctrl+Shift / Alt / Win ＋ 文字キー |
 | `s` | Vimium C 風ヒント（下の説明を参照。暫定の割り当て） |
 | `.` / `,` | Ctrl ＋ 数字キー（左手で入力。w e r：7 8 9 / s d f：4 5 6 / x c v：1 2 3 / z：0） |
 | `c` / `x` / `v` / `z` | 未割り当て（マルチクリップボードはクイックメニューの M カテゴリ） |
-| `b` / `n` | ドラッグ開始／解除（ドラッグ中は Esc でキャンセル） |
-| `\` | マルチクリップボードを全消去 |
+| `b` / `n` | ドラッグ開始／解除（ドラッグ中は Esc / Space+Caps でキャンセル） |
 | `g` / `h` | Enter |
 | `Space` / `変換` | IME を半角 / ひらがなにする |
-| `無変換` | Shift 長押しモード（Shift を押したままの状態にする。Esc / Caps / Space+Caps / Enter で終了。`Lib/shift_hold.ahk`） |
-| `カタカナひらがな` | 次に打つ 1 文字を大文字にする |
+| `無変換` | 次に打つ 1 文字を大文字にする |
 
 割り当ては `keymap/leader_keys.ahk` の各関数（`Leader_Caps()` など）の表に「キー, 送るキーまたは関数」の形で書く。
 
@@ -86,7 +86,7 @@ z:F10  x:F1  c:F2  v:F3
 - Alt+Tab の一覧を出したままにする（Alt を押し続ける必要はない）。
 - 続けて `e` で次、`w` で前のアプリを選ぶ。`j k l ;` または `a s d f` で ← ↑ ↓ → に動かす。
 - Delete で選んでいるウィンドウを閉じる。
-- 変換・Enter などのキーを押すか、3 秒操作しないと決定（`Lib/system_utils.ahk` の `APPSWITCH_IDLE_SEC` で変更可）。Esc / CapsLock / Space でキャンセル。
+- 変換・Enter などのキーを押すか、3 秒操作しないと決定（`Lib/window_switch.ahk` の `APPSWITCH_IDLE_SEC` で変更可）。Esc / CapsLock / Space でキャンセル。
 - Caps → e だけなら、直前に使っていたアプリに切り替わる。
 
 Vimium C 風ヒント（Caps → s、`Lib/vimium_c_hints.ahk`）：
@@ -120,7 +120,7 @@ Vimium C 風ヒント（Caps → s、`Lib/vimium_c_hints.ahk`）：
 | D 仮想デスクトップ | 作成・削除、前後への切り替え、ウィンドウを連れて移動（Caps → w で直接開く） |
 | G 検索・翻訳 | Google 検索、日本語・英語への翻訳 |
 | S システム | クリップボード履歴、画面キャプチャ（Win+Shift+S）、PC のロック、画面を消す、再読み込み、キー割り当て一覧（S → K。キーをクリックすると、その行を書き換えて保存できる。保存前に構文を確認し、1 つ前の内容に戻せる。反映は Insert のあと） など |
-| C 画面キャプチャ | 範囲指定（ドラッグ）、ウィンドウを選んで全体、ウィンドウ内のクリックした領域、フォーカス中の部品（F → Tab、A → Shift+Tab、D / E → F6、S / W → Shift+F6 でフォーカスを動かす）、いまのウィンドウ、モニター、全モニター。領域・フォーカスでは K / ホイール↑で外側、L / ホイール↓で内側の部品へ。Caps → a でこのメニューを直接開く。PNG 保存＋クリップボードにコピー（設定は `Lib/screen_capture.ahk` 冒頭） |
+| C 画面キャプチャ | 範囲指定（ドラッグ）、範囲指定のあと端の余計な細い帯を自動で切り落とす「端を自動トリミング」（C → T。上限など設定は `Lib/screen_capture.ahk` 冒頭の `CAP_TRIM_*`）、ウィンドウを選んで全体、ウィンドウ内のクリックした領域。領域では K / ホイール↑で外側、L / ホイール↓で内側の部品へ。いまのウィンドウ・モニター・全モニター・フォーカス中の部品は、あまり使わないので外した（`Lib/archive/capture_extras.ahk` に残してある）。Caps → t でこのメニューを直接開く。PNG 保存＋クリップボードにコピー（設定は `Lib/screen_capture.ahk` 冒頭） |
 | M マルチクリップボード | 箱にコピー保存・切り取り保存、箱から貼り付け、中身を見る、空にする（箱は一覧から選ぶ） |
 | A アプリ・フォルダ | ダウンロード、スクリプトのフォルダ、VS Code、メモ帳、電卓、Windows の設定 |
 | V VS Code | 折りたたみ・展開（切り替え / 再帰的 / すべて） |
@@ -135,23 +135,27 @@ keymap/
   hold_keys.ahk          押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）
   leader_keys.ahk        入力待ちの割り当て（Caps / Space+F / Space+A / かな → 次のキー）
 Lib/
-  config.ahk             動作設定（常駐・フック・優先度など）、共通の定数、キーコード早見表
+  config.ahk             動作設定（常駐・フック・優先度など）、共通の定数（ツールチップの番号など）、キーコード早見表
   IME.ahk                IME の状態の取得・設定（外部から取得したライブラリ。変更しない）
+  key_wait.ahk           入力待ちの共通部品（待機中の表示、キャンセル・タイムアウト、選ぶモード用の InputHook）
+  ui_common.ahk          表示まわりの共通部品（ツールチップ UI_Tip、小窓の位置、モニター、ウィンドウの矩形）
   text_input.ahk         文字入力の補助（IME の切り替え、大文字化、日付の入力、ホイールでのテキストカーソル移動）
-  key_wait.ahk           入力待ちの共通部品（待機中の表示、キャンセル・タイムアウト）
+  text_ops.ahk           選択文字の取得・貼り付け、文字の変換、入力先の IME の状態、検索・翻訳（クイックメニューから呼ぶ）
   oneshot_modifiers.ahk  次のキーを Fn / Ctrl / Alt / Win 付きで送る入力モード
-  quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー
   shift_hold.ahk         Shift 長押しモード（Shift を押したままの状態にして、押しながら打つのと同じ入力にする）
-  powerpoint_pack.ahk    PowerPoint 用の詰め合わせ（図形の整列など。PowerPoint が前面のときだけ動く。quick_menu から呼ぶ）
-  date_input.ahk        日付入力（日付を調整 → フォーマットを選んで入力。quick_menu から呼ぶ）
+  date_input.ahk         日付入力（日付を調整 → フォーマットを選んで入力）
+  mouse_cursor.ahk       キーボードでのマウス操作（加速つきの移動、スクロール、ワープ、ドラッグ）
+  window_ops.ahk         ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューから呼ぶ）、ウィンドウを閉じてカーソル下にフォーカス
+  window_switch.ahk      アプリ切り替え、タブ・ページ切り替え、ウィンドウの大きさ・モニター移動（押すたびに切り替えて決定するモード）
+  screen_saver.ahk       スクリーンセーバー回避
   vimium_c_hints.ahk     Vimium C 風ヒント（部品に英字のラベルを重ねて、打ったところをクリック）
-  screen_capture.ahk     画面キャプチャ（範囲・ウィンドウ・領域・モニター。quick_menu から呼ぶ）
+  quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ。処理の本体は text_ops / window_ops など）
+  multi_clipboard.ahk    マルチクリップボード（キーごとに文字列を保存・貼り付け。quick_menu から呼ぶ）
+  screen_capture.ahk     画面キャプチャ（範囲・端の自動トリミング・ウィンドウ・領域。quick_menu から呼ぶ）
+  powerpoint_pack.ahk    PowerPoint 用の詰め合わせ（図形の整列など。PowerPoint が前面のときだけ動く。quick_menu から呼ぶ）
   keymap_view.ahk        キー割り当て一覧（keymap のファイルを読んで JIS 配列の図を作り、WebView2 のウィンドウで開く。キーをクリックして行を編集できる）
   keymap_view.html       キー割り当て一覧の画面のひな形
   webview2/              WebView2 を AHK で使う外部の部品（thqby/ahk2_lib の WebView2.ahk と、Microsoft の WebView2Loader.dll）。変更しない
   ComVar.ahk, Promise.ahk  WebView2.ahk が読み込む外部の部品（thqby/ahk2_lib）。変更しない
-  mouse_cursor.ahk       キーボードでのマウス操作（加速つきの移動、スクロール、ジャンプ、モニター移動）
-  multi_clipboard.ahk    マルチクリップボード（キーごとに文字列を保存・貼り付け）
-  system_utils.ahk       アプリ切り替え、タブ・ページ切り替え、ウィンドウの大きさ・モニター移動、スクリーンセーバー回避
   archive/               使わなくなったスクリプトの保管場所（読み込まれない）
 ```

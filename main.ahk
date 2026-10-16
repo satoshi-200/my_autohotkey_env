@@ -21,18 +21,31 @@
 ; ==============================================================================
 
 ; ------------------------------------------------------------------------------
-; 部品の読み込み（上から順に初期化される）
+; 部品の読み込み（上から順に初期化される。各部品も使う部品を自分で読み込むが、一覧としてここにも書く）
 ; ------------------------------------------------------------------------------
+; 土台
 #Include Lib\config.ahk
 #Include Lib\IME.ahk
 #Include Lib\key_wait.ahk
+#Include Lib\ui_common.ahk
+; 文字入力
 #Include Lib\text_input.ahk
+#Include Lib\text_ops.ahk
 #Include Lib\oneshot_modifiers.ahk
-#Include Lib\system_utils.ahk
-#Include Lib\multi_clipboard.ahk
+#Include Lib\shift_hold.ahk
+#Include Lib\date_input.ahk
+; マウス・ウィンドウ
 #Include Lib\mouse_cursor.ahk
-#Include Lib\quick_menu.ahk
+#Include Lib\window_ops.ahk
+#Include Lib\window_switch.ahk
+#Include Lib\screen_saver.ahk
 #Include Lib\vimium_c_hints.ahk
+; メニューと、メニューから呼ぶ機能
+#Include Lib\multi_clipboard.ahk
+#Include Lib\screen_capture.ahk
+#Include Lib\powerpoint_pack.ahk
+#Include Lib\keymap_view.ahk
+#Include Lib\quick_menu.ahk
 
 ; ------------------------------------------------------------------------------
 ; キーの割り当て
@@ -43,6 +56,6 @@
 ; ------------------------------------------------------------------------------
 ; 全体の操作
 ; ------------------------------------------------------------------------------
-#HotIf !isWaitingInput
+#HotIf !IH_waiting
 Insert:: Reload                         ; スクリプトの再読み込み
 #HotIf

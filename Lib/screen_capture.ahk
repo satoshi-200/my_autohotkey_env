@@ -1,26 +1,23 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; screen_capture.ahk
-; 画面キャプチャ（Snipping Tool 相当）。quick_menu.ahk の「C 画面キャプチャ」から呼ぶ
+; 画面キャプチャ（Snipping Tool 相当）。quick_menu.ahk の「C 画面キャプチャ」から呼ぶ（Caps → t でこのメニューを直接開く）
 ;
 ; 種類
 ;   Cap_Region()     … ドラッグで範囲を指定（画面を暗くし、選んだ範囲だけ明るく表示）
+;   Cap_RegionTrim() … 上と同じで、撮った画像の端に残った「ほぼ 1 色の行・列」を外側から落とす（CAP_TRIM_*）
 ;   Cap_Window()     … 枠が出るウィンドウをクリックして、そのウィンドウ全体
 ;   Cap_Area()       … ウィンドウ内のクリックした部品・領域だけ（UI Automation）
-;   Cap_Focus()      … いまフォーカスしている部品だけ。フォーカスを動かすと、枠も付いてくる（ホームポジションからでも押せるキーを下に割り当てている）
-;   Cap_Active()     … いまのウィンドウ全体
-;   Cap_Monitor()    … マウスがあるモニター全体
-;   Cap_AllScreens() … すべてのモニター
+;   使っていない撮り方（フォーカス中の部品・いまのウィンドウ全体・モニター・全モニター）は Lib\archive\capture_extras.ahk に移した
 ;
-; 操作（範囲・ウィンドウ・領域・フォーカスの選択中）
-;   左クリック / ドラッグ / Enter / G / H … 決定（範囲はドラッグ）　　右クリック・Esc・Caps … 取り消し
-;   ホイール↑ / K … 外側（親）の部品へ　　ホイール↓ / L … 内側（子）の部品へ（領域・フォーカス）
-;   フォーカスの選択中だけ：F → Tab　A → Shift+Tab　D / E → F6　S / W → Shift+F6（矢印キーはそのまま使える）
+; 操作（範囲・ウィンドウ・領域の選択中）
+;   左クリック / ドラッグ / Enter / G / H … 決定（範囲はドラッグ）　　右クリック・Esc・Caps・Space+Caps … 取り消し
+;   ホイール↑ / K … 外側（親）の部品へ　　ホイール↓ / L … 内側（子）の部品へ（領域）
 ;
 ; 結果は PNG で保存し（CAP_SAVE_DIR）、クリップボードにも画像でコピーする（CAP_COPY）
-; QM_Tip / QM_MonitorFromPoint（quick_menu.ahk）を使う
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
+#Include %A_LineFile%\..\ui_common.ahk
 
 CAP_SAVE_DIR    := EnvGet("USERPROFILE") "\Pictures\Screenshots"   ; 保存先（"" なら保存しない）
 CAP_COPY        := true                    ; クリップボードにコピーするか
@@ -28,6 +25,9 @@ CAP_DELAY_MS    := 250                     ; 実行前の待ち時間（メニ�
 CAP_DIM_ALPHA   := 110                     ; 範囲選択中に画面を暗くする濃さ（0〜255）
 CAP_FRAME_COLOR := "FF3B30"                ; 選択中の枠の色
 CAP_FRAME_PX    := 3                       ; 枠の太さ
+CAP_TRIM_MAX_PX := 16                      ; 自動トリミングで各辺から削る幅の上限 [px]（これより長く同じ色が続く辺は、余白でなく面とみなして削らない）
+CAP_TRIM_TOL    := 12                      ; 同じ色とみなす差（R・G・B それぞれ 0〜255）
+CAP_TRIM_NOISE  := 0.02                    ; 1 行・列のうち、色が違っていても許す画素の割合
 Cap_session     := ""                      ; 選択中の状態（選択中でなければ ""）
 
 OnMessage(0x20, _Cap_OnSetCursor)          ; WM_SETCURSOR
@@ -40,61 +40,32 @@ h::          _Cap_OnEnter()
 RButton::    Cap_session.cancel := true
 Esc::        Cap_session.cancel := true
 sc03A::      Cap_session.cancel := true
+vk20 & sc03A:: Cap_session.cancel := true                       ; Space+Caps（hold_keys の Esc 送信は自分のホットキーに届かないのでここで受ける）
 WheelUp::    Cap_session.wheel++
 WheelDown::  Cap_session.wheel := Max(0, Cap_session.wheel - 1)
 k::          Cap_session.wheel++
 l::          Cap_session.wheel := Max(0, Cap_session.wheel - 1)
 #HotIf
 
-; フォーカスをホームポジションから動かす
-#HotIf IsObject(Cap_session) && Cap_session.mode = "focus"
-f::          SendInput("{Tab}")
-a::          SendInput("+{Tab}")
-d::          SendInput("{F6}")
-e::          SendInput("{F6}")
-s::          SendInput("+{F6}")
-w::          SendInput("+{F6}")
-#HotIf
-
 ;------------------------------------------------------------------------------
 ; 呼び出し口
 ;------------------------------------------------------------------------------
 Cap_Region()  => _Cap_Run("region")
+Cap_RegionTrim() => _Cap_Run("region", true)
 Cap_Window()  => _Cap_Run("window")
 Cap_Area()    => _Cap_Run("area")
-Cap_Focus()   => _Cap_Run("focus")
-
-Cap_Active() {
-    if !(hwnd := WinExist("A"))
-        return
-    Sleep(CAP_DELAY_MS)
-    _Cap_Finish(_Cap_Clamp(_Cap_WinRect(hwnd)))
-}
-
-Cap_Monitor() {
-    MouseGetPos(&x, &y)
-    MonitorGet(QM_MonitorFromPoint(x, y), &l, &t, &r, &b)
-    Sleep(CAP_DELAY_MS)
-    _Cap_Finish({l: l, t: t, r: r, b: b})
-}
-
-Cap_AllScreens() {
-    vx := SysGet(76), vy := SysGet(77)
-    Sleep(CAP_DELAY_MS)
-    _Cap_Finish({l: vx, t: vy, r: vx + SysGet(78), b: vy + SysGet(79)})
-}
 
 ;------------------------------------------------------------------------------
-; 範囲の選択（region / window / area / focus）
+; 範囲の選択（region / window / area）
 ;------------------------------------------------------------------------------
-_Cap_Run(mode) {
+_Cap_Run(mode, trim := false) {
     global Cap_session
     if IsObject(Cap_session)
         return
     CoordMode("ToolTip", "Screen")
     Sleep(CAP_DELAY_MS)
     vx := SysGet(76), vy := SysGet(77), vw := SysGet(78), vh := SysGet(79)
-    live := (mode = "window" || mode = "focus")                 ; 選ぶ間に画面が変わるモードは、決定後に撮り直す
+    live := (mode = "window")                                   ; 選ぶ間に画面が変わるモードは、決定後に撮り直す
     snap := live ? 0 : _Cap_Grab(vx, vy, vw, vh)                ; それ以外は、見ていた状態を撮る
     st := {mode: mode, down: false, cancel: false, wheel: 0, x0: 0, y0: 0, hwnd: 0, dim: 0, frame: _Cap_FrameNew()}
     Cap_session := st
@@ -106,12 +77,10 @@ _Cap_Run(mode) {
                 , "クリック / Enter / G / H：このウィンドウを撮影")
             case "area":   rc := _Cap_PickHover(st, _Cap_KeyMouse, _Cap_HoverArea
                 , "クリック / Enter / G / H：この領域を撮影　K / ホイール↑：外側へ　L / ホイール↓：内側へ")
-            case "focus":  rc := _Cap_PickHover(st, _Cap_KeyFocus, _Cap_HoverFocus
-                , "F：Tab　A：Shift+Tab　D / E：F6　S / W：Shift+F6　　K / ホイール↑：外側へ　L / ホイール↓：内側へ　　クリック / Enter / G / H：撮影")
         }
     } finally {
         Cap_session := ""
-        ToolTip(, , , 19)
+        ToolTip(, , , TIP_ID_CAPTURE)
         for g in [st.dim, st.frame]
             if g
                 g.Destroy()
@@ -121,10 +90,9 @@ _Cap_Run(mode) {
         if !(WinGetClass(st.hwnd) ~= "^(Shell_TrayWnd|Progman|WorkerW)$")
             try WinActivate(st.hwnd)
         Sleep(CAP_DELAY_MS)
-        rc := _Cap_Clamp(_Cap_WinRect(st.hwnd))
-    } else if (rc && live)
-        Sleep(CAP_DELAY_MS)                                     ; 枠とツールチップが消えるのを待つ
-    _Cap_Finish(rc, snap, vx, vy)
+        rc := _Cap_Clamp(UI_VisibleRect(st.hwnd))
+    }
+    _Cap_Finish(rc, snap, vx, vy, trim)
 }
 
 _Cap_OnDown() {
@@ -146,7 +114,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
     WinSetTransparent(CAP_DIM_ALPHA, dim)
     dim.Show("NA x" vx " y" vy " w" vw " h" vh)
     MouseGetPos(&mx, &my)
-    ToolTip("ドラッグで範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, 19)
+    ToolTip("ドラッグで範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, TIP_ID_CAPTURE)
     while (!st.down && !st.cancel)
         Sleep(15)
     if st.cancel
@@ -162,7 +130,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
             last := key
             _Cap_Hole(dim, rc, vx, vy, vw, vh)
             _Cap_FrameSet(st.frame, rc)
-            ToolTip((rc.r - rc.l) "×" (rc.b - rc.t), x + 16, y + 16, 19)
+            ToolTip((rc.r - rc.l) "×" (rc.b - rc.t), x + 16, y + 16, TIP_ID_CAPTURE)
         }
         Sleep(10)
     }
@@ -170,7 +138,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
 }
 
 ; 候補の矩形（rectFn が返す）に枠を出し、クリック・Enter で決定する
-; keyFn が返す文字列（マウスやフォーカスの位置）が変わったら、親をたどる段数を 0 に戻す
+; keyFn が返す文字列（マウスの位置）が変わったら、親をたどる段数を 0 に戻す
 _Cap_PickHover(st, keyFn, rectFn, hint) {
     lkey := lw := ""
     rc := 0
@@ -186,13 +154,8 @@ _Cap_PickHover(st, keyFn, rectFn, hint) {
                 _Cap_FrameSet(st.frame, rc)
             else
                 st.frame.Hide()
-            if (st.mode = "focus" && rc)
-                tx := rc.l + 8, ty := rc.t + 8
-            else {
-                MouseGetPos(&tx, &ty)
-                tx += 16, ty += 16
-            }
-            ToolTip((rc ? (rc.r - rc.l) "×" (rc.b - rc.t) "`n" : "") hint, tx, ty, 19)
+            MouseGetPos(&tx, &ty)
+            ToolTip((rc ? (rc.r - rc.l) "×" (rc.b - rc.t) "`n" : "") hint, tx + 16, ty + 16, TIP_ID_CAPTURE)
         }
         Sleep(40)
     }
@@ -208,35 +171,18 @@ _Cap_KeyMouse() {
     return x "," y
 }
 
-_Cap_KeyFocus() {
-    try {
-        rc := CapUIA.Focus(0, &used)
-        return rc ? rc.l "," rc.t "," rc.r "," rc.b : ""
-    }
-    return ""
-}
-
 _Cap_HoverWindow(st) {
     MouseGetPos(, , &hwnd)
     if (!hwnd || hwnd = st.frame.Hwnd)
         return 0
     st.hwnd := hwnd
-    return _Cap_Clamp(_Cap_WinRect(hwnd))
+    return _Cap_Clamp(UI_VisibleRect(hwnd))
 }
 
 _Cap_HoverArea(st) {
     MouseGetPos(&x, &y)
     try {
         rc := CapUIA.Rect(x, y, st.wheel, &used)
-        st.wheel := used
-        return _Cap_Clamp(rc)
-    }
-    return 0
-}
-
-_Cap_HoverFocus(st) {
-    try {
-        rc := CapUIA.Focus(st.wheel, &used)
         st.wheel := used
         return _Cap_Clamp(rc)
     }
@@ -290,16 +236,8 @@ _Cap_OnSetCursor(wParam, lParam, msg, hwnd) {
 }
 
 ;------------------------------------------------------------------------------
-; 矩形まわり
+; 矩形まわり（ウィンドウの見た目どおりの矩形は ui_common.ahk の UI_VisibleRect）
 ;------------------------------------------------------------------------------
-; ウィンドウの見た目どおりの矩形（影・見えない枠を除く）
-_Cap_WinRect(hwnd) {
-    rc := Buffer(16, 0)
-    if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", 9, "Ptr", rc, "UInt", 16) != 0)   ; DWMWA_EXTENDED_FRAME_BOUNDS
-        DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
-    return {l: NumGet(rc, 0, "Int"), t: NumGet(rc, 4, "Int"), r: NumGet(rc, 8, "Int"), b: NumGet(rc, 12, "Int")}
-}
-
 ; 画面の外にはみ出した分を削る（小さすぎるときは 0）
 _Cap_Clamp(rc) {
     vx := SysGet(76), vy := SysGet(77)
@@ -312,11 +250,12 @@ _Cap_Clamp(rc) {
 ; 画像の取得・出力
 ;------------------------------------------------------------------------------
 ; rc の部分を画像にして出力する。snap を渡すと、その画面全体の画像（原点 vx, vy）から切り出す
-_Cap_Finish(rc, snap := 0, vx := 0, vy := 0) {
+; trim が true なら、撮った画像の端を自動でトリミングする
+_Cap_Finish(rc, snap := 0, vx := 0, vy := 0, trim := false) {
     if !rc {
         if snap
             DllCall("DeleteObject", "Ptr", snap)
-        QM_Tip("キャプチャを取り消しました")
+        UI_Tip("キャプチャを取り消しました")
         return
     }
     w := rc.r - rc.l, h := rc.b - rc.t
@@ -326,7 +265,13 @@ _Cap_Finish(rc, snap := 0, vx := 0, vy := 0) {
     } else
         hbm := _Cap_Grab(rc.l, rc.t, w, h)
 
-    msg := "キャプチャしました（" w "×" h "）"
+    trimNote := ""
+    if trim {
+        cut := _Cap_Trim(&hbm, &w, &h)
+        trimNote := (cut.l + cut.t + cut.r + cut.b = 0) ? "`n端のトリミング：削る部分なし"
+            : "`n端をトリミング（左 " cut.l " 上 " cut.t " 右 " cut.r " 下 " cut.b " px）"
+    }
+    msg := "キャプチャしました（" w "×" h "）" trimNote
     if (CAP_SAVE_DIR != "") {
         path := CAP_SAVE_DIR "\Capture_" FormatTime(, "yyyyMMdd_HHmmss") ".png"
         try {
@@ -342,7 +287,7 @@ _Cap_Finish(rc, snap := 0, vx := 0, vy := 0) {
         hbm := 0                                                ; クリップボードが所有する
     if hbm
         DllCall("DeleteObject", "Ptr", hbm)
-    QM_Tip(msg (CAP_COPY ? "`nクリップボードにコピー" : ""), 2500)
+    UI_Tip(msg (CAP_COPY ? "`nクリップボードにコピー" : ""), 2500)
 }
 
 ; 画面の (x, y, w, h) を画像（HBITMAP）にする
@@ -361,6 +306,80 @@ _Cap_Crop(snap, x, y, w, h) {
     DllCall("SelectObject", "Ptr", hdc, "Ptr", old)
     DllCall("DeleteDC", "Ptr", hdc)
     return hbm
+}
+
+; 画像の端にある「ごく細い 1 色の帯（余白・端の切れっ端）」を外側から落とす。hbm・w・h を削ったあとのものに差し替え、削った幅 {l, t, r, b} を返す
+;   端から数えて、「ほぼ 1 色の行・列」が同じ色で CAP_TRIM_MAX_PX 本以内続き、その先で色が変わるときだけ削る。
+;   それより長く同じ色が続く辺は、余白ではなく塗りつぶしの面とみなして削らない。内側は 8 px 以上残す
+_Cap_Trim(&hbm, &w, &h) {
+    cut := {l: 0, t: 0, r: 0, b: 0}
+    px := Buffer(w * h * 4)
+    bi := Buffer(40, 0)
+    NumPut("UInt", 40, "Int", w, "Int", -h, "UShort", 1, "UShort", 32, bi)   ; BITMAPINFOHEADER（上から下の 32 bit）
+    hdc := DllCall("GetDC", "Ptr", 0, "Ptr")
+    got := DllCall("GetDIBits", "Ptr", hdc, "Ptr", hbm, "UInt", 0, "UInt", h, "Ptr", px, "Ptr", bi, "UInt", 0, "Int")
+    DllCall("ReleaseDC", "Ptr", 0, "Ptr", hdc)
+    if !got
+        return cut
+
+    x0 := 0, y0 := 0, x1 := w - 1, y1 := h - 1
+    changed := true
+    while changed {
+        changed := false
+        if (k := _Cap_EdgeBand(px, w, true, y0, 1, x0, x1, CAP_TRIM_MAX_PX - cut.t, y1 - y0 - 7))
+            y0 += k, cut.t += k, changed := true
+        if (k := _Cap_EdgeBand(px, w, true, y1, -1, x0, x1, CAP_TRIM_MAX_PX - cut.b, y1 - y0 - 7))
+            y1 -= k, cut.b += k, changed := true
+        if (k := _Cap_EdgeBand(px, w, false, x0, 1, y0, y1, CAP_TRIM_MAX_PX - cut.l, x1 - x0 - 7))
+            x0 += k, cut.l += k, changed := true
+        if (k := _Cap_EdgeBand(px, w, false, x1, -1, y0, y1, CAP_TRIM_MAX_PX - cut.r, x1 - x0 - 7))
+            x1 -= k, cut.r += k, changed := true
+    }
+    if (cut.l + cut.t + cut.r + cut.b = 0)
+        return cut
+    nw := x1 - x0 + 1, nh := y1 - y0 + 1
+    nhbm := _Cap_Crop(hbm, x0, y0, nw, nh)
+    DllCall("DeleteObject", "Ptr", hbm)
+    hbm := nhbm, w := nw, h := nh
+    return cut
+}
+
+; 端から内側へ、同じ色の「ほぼ 1 色の行・列」が何本続くか。maxRun 以下で色が変わればその本数、より長い・最後まで続く・続かないときは 0
+;   first：端の行（isRow）または列の番号　dir：内側への向き（+1 / -1）　from〜to：行・列を調べる範囲　avail：調べられる本数
+_Cap_EdgeBand(px, w, isRow, first, dir, from, to, maxRun, avail) {
+    k := 0, base := -1
+    while (k < avail) {
+        c := _Cap_LineColor(px, w, isRow, first + dir * k, from, to)
+        if (c < 0 || (base >= 0 && !_Cap_SameColor(c, base)))
+            return k
+        if (base < 0)
+            base := c
+        k++
+        if (k > maxRun)
+            return 0
+    }
+    return 0
+}
+
+_Cap_SameColor(a, b) => Abs(((a >> 16) & 255) - ((b >> 16) & 255)) <= CAP_TRIM_TOL
+    && Abs(((a >> 8) & 255) - ((b >> 8) & 255)) <= CAP_TRIM_TOL && Abs((a & 255) - (b & 255)) <= CAP_TRIM_TOL
+
+; 1 行（isRow）または 1 列の from〜to がほぼ 1 色ならその色（基準は真ん中の画素）、違う画素が CAP_TRIM_NOISE を超えたら -1
+_Cap_LineColor(px, w, isRow, idx, from, to) {
+    n := to - from + 1
+    mid := (from + to) // 2
+    ref := NumGet(px, (isRow ? idx * w + mid : mid * w + idx) * 4, "UInt") & 0xFFFFFF
+    limit := n * CAP_TRIM_NOISE, bad := 0
+    loop n {
+        i := from + A_Index - 1
+        v := NumGet(px, (isRow ? idx * w + i : i * w + idx) * 4, "UInt")
+        if !_Cap_SameColor(v, ref) {
+            bad++
+            if (bad > limit)
+                return -1
+        }
+    }
+    return ref
 }
 
 _Cap_Blt(srcDc, x, y, w, h) {
@@ -406,8 +425,8 @@ _Cap_CopyToClipboard(hbm) {
 }
 
 ;------------------------------------------------------------------------------
-; UI Automation：マウスの下・フォーカス中の部品の矩形（COM を直接呼ぶ最小実装）
-;   仮想関数表の番号：IUIAutomation 7 ElementFromPoint　8 GetFocusedElement　14 get_ControlViewWalker
+; UI Automation：マウスの下の部品の矩形（COM を直接呼ぶ最小実装）
+;   仮想関数表の番号：IUIAutomation 7 ElementFromPoint　14 get_ControlViewWalker
 ;                     IUIAutomationTreeWalker 3 GetParentElement
 ;                     IUIAutomationElement 43 CurrentBoundingRectangle
 ;------------------------------------------------------------------------------
@@ -431,13 +450,6 @@ class CapUIA {
     static Rect(x, y, up, &used) {
         this._Init()
         ComCall(7, this._ptr, "int64", (y << 32) | (x & 0xFFFFFFFF), "ptr*", &el := 0)
-        return this._Climb(el, up, &used)
-    }
-
-    ; フォーカス中の部品から up 段だけ親をたどった部品の矩形
-    static Focus(up, &used) {
-        this._Init()
-        ComCall(8, this._ptr, "ptr*", &el := 0)
         return this._Climb(el, up, &used)
     }
 

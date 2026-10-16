@@ -19,8 +19,6 @@ KM_FUNC_NAMES := Km_Map(
     "MousePlain_Right", "マウス →", "MousePlain_Left", "マウス ←", "MousePlain_Up", "マウス ↑", "MousePlain_Down", "マウス ↓",
     "MousePlain_ScrollUp", "スクロール ↑", "MousePlain_ScrollDown", "スクロール ↓",
     "MousePlain_ScrollLeft", "スクロール ←", "MousePlain_ScrollRight", "スクロール →",
-    "MouseNav_JumpLeft", "マウスを左へジャンプ", "MouseNav_JumpRight", "マウスを右へジャンプ",
-    "MouseNav_JumpUp", "マウスを上へジャンプ", "MouseNav_JumpDown", "マウスを下へジャンプ",
     "MouseNav_WarpWindow", "ウィンドウの中央へ", "MouseNav_WarpCenter", "モニターの中央へ",
     "MouseNav_WarpExternalCenter", "外付けモニターの中央へ", "MouseNav_WarpMonitor", "次のモニターへ",
     "MouseClick", "クリック", "Mouse_ToggleDrag", "ドラッグ開始／解除", "Mouse_FocusUnderCursor", "カーソル下をアクティブに",
@@ -36,7 +34,7 @@ KM_FUNC_NAMES := Km_Map(
     "QM_CaptureMenu_Show", "画面キャプチャメニュー", "VimiumC_ShowHints", "Vimium C 風ヒント",
     "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
-    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Start", "Shift 長押しモード",
+    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード",
     "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス")
 
 ; SendInput のキー名 → 表示名
@@ -105,10 +103,6 @@ Km_WriteHtml() {
     f.Close()
     return path
 }
-
-; スクリプトの起動（Insert での再読み込みを含む）のたびに HTML を作り直す。
-; 開いたままのページは F5 で最新になる。失敗しても起動は続ける
-try Km_WriteHtml()
 
 Km_BuildHtml() {
     dir := Km_KeymapDir()
@@ -556,3 +550,7 @@ Km_HistSave(hist) {
         out .= k "`t" v "`r`n"
     Km_WriteFile(Km_HistPath(), out)
 }
+
+; スクリプトの起動（Insert での再読み込みを含む）のたびに HTML を作り直す（このファイルの初期化が終わったあとに行う）。
+; 開いたままのページは F5 で最新になる。失敗しても起動は続ける
+try Km_WriteHtml()

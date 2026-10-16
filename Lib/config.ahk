@@ -18,6 +18,11 @@ DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")  ; Per-Monitor v2：�
 ;--- 共通の定数 -----------------------------------------------------------------
 TOOLTIP_DURATION_MS := 500                ; 完了・状態表示のツールチップを消すまでの時間
 
+; ツールチップの番号（同時に出る表示が消し合わないように分ける。1 は入力待ちなどの一時表示）
+TIP_ID_SHIFTHOLD := 18                    ; Shift 長押しモードの表示（出し続ける）
+TIP_ID_CAPTURE   := 19                    ; 画面キャプチャの選択中の案内
+TIP_ID_UI        := 20                    ; UI_Tip（完了の短い知らせ）
+
 ;--- キーコード早見表 -----------------------------------------------------------
 ; 修飾子：# Win　^ Ctrl　+ Shift　! Alt
 ; vk1C 変換　vk1D 無変換　vk20 Space　sc03A CapsLock　sc070 カタカナひらがな

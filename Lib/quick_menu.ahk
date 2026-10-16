@@ -4,7 +4,7 @@
 ; QuickPalette : 便利機能をまとめて呼び出すランチャー（AutoHotkey v2）
 ;------------------------------------------------------------------------------
 ; 【3つの呼び出し方】
-; (1) コマンドパレット（QuickPalette_Show）… Caps → j を想定
+; (1) コマンドパレット（QuickPalette_Show）… Caps → u
 ;     機能の一覧と入力欄を表示する。各機能には英語の短い名前（英名）が付いており、
 ;     一覧の先頭の列に表示している。
 ;       ・半角英字を打つ … 英名がその文字で始まる機能へジャンプする
@@ -14,13 +14,13 @@
 ;       ・↑↓ または Ctrl+J / Ctrl+K … 選択を移動
 ;       ・Enter / ダブルクリック        … 実行
 ;
-; (2) クイックメニュー（QuickMenu_Show）… Caps → k を想定
+; (2) クイックメニュー（QuickMenu_Show）… Caps → j
 ;     英字 1 文字でカテゴリを選び、もう 1 文字で機能を実行する（2 打鍵）。
 ;       例：T → U … 選択中の文字を大文字に
 ;           I → K … 記号メニューを開く
 ;       ・BS / ← … カテゴリ一覧に戻る
 ;
-; (3) 記号メニュー（QM_SymbolMenu_Show）（2026/09/30 追加）
+; (3) 記号メニュー（QM_SymbolMenu_Show）… Caps → k（2026/09/30 追加）
 ;     記号の一覧を表示し、英字 1 文字でその記号を入力する。
 ;     キーは記号の英語名の頭文字（重なるものは英語名の中の目立つ文字）。
 ;       E ! Exclamation     H # Hash           D $ Dollar        R % peRcent
@@ -57,9 +57,17 @@
 ;   既存のスクリプトと重複しないようにしている。
 ; ・AutoHotkey v2 は変数名とメソッド名の大文字小文字を区別しないため、
 ;   static 変数にはメソッドと重ならない名前を付けること。
+;
+; 【ファイルの分け方】
+; このファイルはメニュー（登録と画面）だけ。メニューから呼ぶ処理の本体は次のファイルにある。
+;   ui_common.ahk  … ツールチップ（UI_Tip）、小窓の位置、モニター（ほかの部品も使う）
+;   text_ops.ahk   … 選択文字の取得・貼り付け、文字の変換、IME の状態、検索・翻訳
+;   window_ops.ahk … ウィンドウ・仮想デスクトップ・システムの操作
 ;==============================================================================
 
-#Include %A_LineFile%\..\oneshot_modifiers.ahk
+#Include %A_LineFile%\..\ui_common.ahk
+#Include %A_LineFile%\..\text_ops.ahk
+#Include %A_LineFile%\..\window_ops.ahk
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
 #Include %A_LineFile%\..\keymap_view.ahk
@@ -125,7 +133,6 @@ class QuickPalette {
 
         ;--- 日付・時刻（上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用）----------
         ; Space+F の u で日付・時刻メニュー、i で日付入力、o で yyyy/MM/dd、p で yyMMdd_ を直接呼べる
-        ; 上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用
         this.Add("N", "N", "date-pick",    "日付を選んで入力（日付 → フォーマットの順に選ぶ）", (*) => DateInput_Start(), "hiduke nyuuryoku select")
         this.Add("N", "Y", "date-full",    "日時（yyyy/MM/dd HH:mm:ss）",      (*) => QM_InsertTime("yyyy/MM/dd HH:mm:ss"), "hiduke jikoku nichiji")
         this.Add("N", "U", "date-ymd",     "日付（yyyy/MM/dd）",               (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
@@ -157,9 +164,7 @@ class QuickPalette {
         this.Add("D", "M", "carry-new",    "新しいデスクトップへウィンドウを移動", (*) => QM_DesktopNew(true), "virtual desktop move window idou")
         this.Add("D", "T", "taskview",     "タスクビュー（Win+Tab）",       (*) => Send("#{Tab}"), "virtual desktop ichiran")
         this.Add("D", "I", "desk-info",    "今のデスクトップ番号を表示",    (*) => QM_DesktopInfo(), "virtual desktop bangou")
-        ; 番号を指定して切り替え（今は使わないので非表示。使うときは次の 2 行を有効にする）
-        ; loop 9
-        ;     this.Add("D", String(A_Index), "desk-" A_Index, "デスクトップ " A_Index " へ", QM_DesktopGo.Bind(A_Index), "virtual desktop switch kirikae")
+        ; 番号を指定して切り替える QM_DesktopGo は、使わないので Lib\archive\unused_functions.ahk に移した（戻し方はそのファイルの冒頭）
 
         ;--- 検索・翻訳 ---------------------------------------------------------
         this.Add("G", "G", "google",       "選択文字を Google 検索",        (*) => QM_WebSelection("https://www.google.com/search?q="), "search kensaku")
@@ -177,14 +182,11 @@ class QuickPalette {
         this.Add("S", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
         this.Add("S", "K", "keymap",       "キー割り当て一覧（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate")
 
-        ;--- 画面キャプチャ（Lib\screen_capture.ahk）----------------------------
+        ;--- 画面キャプチャ（Lib\screen_capture.ahk。使わない撮り方は Lib\archive\capture_extras.ahk に移した）----------------
         this.Add("C", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
+        this.Add("C", "T", "cap-trim",    "範囲を指定（端を自動トリミング）", (*) => Cap_RegionTrim(), "capture screenshot trim crop hanni kiritori")
         this.Add("C", "W", "cap-window",  "ウィンドウを選んで全体",          (*) => Cap_Window(), "capture screenshot window")
         this.Add("C", "C", "cap-area",    "ウィンドウ内のクリックした領域",  (*) => Cap_Area(), "capture screenshot element buhin ryouiki")
-        this.Add("C", "A", "cap-active",  "いまのウィンドウ全体",            (*) => Cap_Active(), "capture screenshot window active")
-        this.Add("C", "K", "cap-focus",   "フォーカス中の部品（F6 で移動）",  (*) => Cap_Focus(), "capture screenshot focus f6 buhin")
-        this.Add("C", "S", "cap-monitor", "いまのモニター全体",              (*) => Cap_Monitor(), "capture screenshot screen display")
-        this.Add("C", "F", "cap-all",     "すべてのモニター",                (*) => Cap_AllScreens(), "capture screenshot screen full zenmen")
 
         ;--- マルチクリップボード -----------------------------------------------
         this.Add("M", "S", "clip-save",    "選択文字を箱にコピー保存",      (*) => Clip_Copy(), "clipboard box save copy")
@@ -282,7 +284,7 @@ class QuickPalette {
         Sleep(50)
         try it.fn.Call()
         catch as e
-            QM_Tip("実行できませんでした：" e.Message)
+            UI_Tip("実行できませんでした：" e.Message)
     }
 
     ;=== コマンドパレット =======================================================
@@ -322,11 +324,11 @@ class QuickPalette {
         mon := MonitorGetPrimary()
         try {
             WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " this._target)
-            mon := QM_MonitorFromPoint(wx + ww // 2, wy + wh // 2)
+            mon := UI_MonitorFromPoint(wx + ww // 2, wy + wh // 2)
         }
         MonitorGetWorkArea(mon, &l, &t, &r, &b)
         this._gui.Show("Hide AutoSize")
-        QM_GetWinSize(this._gui.Hwnd, &gw, &gh)
+        UI_GetWinSize(this._gui.Hwnd, &gw, &gh)
         this._gui.Show("x" (l + (r - l - gw) // 2) " y" (t + (b - t) // 5))
         this._edit.Focus()
         QM_ImeOff(this._edit.Hwnd)
@@ -495,9 +497,9 @@ class QuickPalette {
         this._mLevel := (this._CatName(level) != "") ? level : ""
         this._MenuRender()
 
-        QM_PopupPos(&x, &y)
+        UI_PopupPos(&x, &y)
         this._mgui.Show("Hide AutoSize")
-        QM_ClampToMonitor(this._mgui.Hwnd, &x, &y)
+        UI_ClampToMonitor(this._mgui.Hwnd, &x, &y)
         this._mgui.Show("x" x " y" y)
 
         this._mOpen := true
@@ -531,7 +533,7 @@ class QuickPalette {
         lv.Opt("+Redraw")
         lv.Modify(1, "Select Focus")
 
-        QM_FitListView(lv, this._mView.Length, this._mFoot)
+        UI_FitListView(lv, this._mView.Length, this._mFoot)
         if this._mOpen
             this._mgui.Show("AutoSize")                          ; 位置はそのままで大きさだけ合わせる
     }
@@ -577,7 +579,7 @@ class QuickPalette {
     static _OnMenuKey(wParam, lParam, msg, hwnd) {
         if !this._inited || !this._mOpen || hwnd != this._mlv.Hwnd
             return
-        vk := QM_RealVk(wParam, lParam)
+        vk := UI_RealVk(wParam, lParam)
         this._MenuResetTimeout()
 
         switch vk {
@@ -685,9 +687,9 @@ class QM_SymbolMenu {
         this._Build()
         this._Refresh()
 
-        QM_PopupPos(&x, &y)
+        UI_PopupPos(&x, &y)
         this._win.Show("Hide AutoSize")
-        QM_ClampToMonitor(this._win.Hwnd, &x, &y)
+        UI_ClampToMonitor(this._win.Hwnd, &x, &y)
         this._win.Show("x" x " y" y)
 
         this._isOpen := true
@@ -734,7 +736,7 @@ class QM_SymbolMenu {
             this._lv.Add(, s.key, s.sym, s.en, s.ja)
         g.SetFont("s9 c808080")
         foot := g.AddText("w460", "英字：入力　Space：全角／半角を切り替え　↑↓ + Enter：選んで入力　Esc / Caps：閉じる")
-        QM_FitListView(this._lv, this.Symbols.Length, foot)
+        UI_FitListView(this._lv, this.Symbols.Length, foot)
         this._win := g
 
         this._lv.OnEvent("Click", (ctrl, row) => (row ? this._Pick(row) : 0))
@@ -780,7 +782,7 @@ class QM_SymbolMenu {
     static _OnKeyDown(wParam, lParam, msg, hwnd) {
         if !this._isOpen || !this._win || hwnd != this._lv.Hwnd
             return
-        vk := QM_RealVk(wParam, lParam)
+        vk := UI_RealVk(wParam, lParam)
         this._ResetTimeout()
         switch vk {
             case 0x1B:                                           ; Esc
@@ -835,449 +837,3 @@ QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
 #HotIf QuickPalette._IsOpen()
 sc03A:: QuickPalette.CloseAll()                                  ; Caps：閉じる
 #HotIf
-
-
-;==============================================================================
-; 共通処理
-;==============================================================================
-
-; ツールチップを一定時間表示する（InputHook 側のツールチップと干渉しないよう 20 番を使用）
-QM_Tip(msg, ms := 1500) {
-    ToolTip(msg, , , 20)
-    SetTimer(() => ToolTip(, , , 20), -ms)
-}
-
-; ウィンドウの大きさ（非表示でも取得できる）
-QM_GetWinSize(hwnd, &w, &h) {
-    rc := Buffer(16, 0)
-    DllCall("GetWindowRect", "Ptr", hwnd, "Ptr", rc)
-    w := NumGet(rc, 8, "Int") - NumGet(rc, 0, "Int")
-    h := NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int")
-}
-
-; 小窓の表示位置：文字カーソルの下（取れなければマウスの位置）
-QM_PopupPos(&x, &y) {
-    CoordMode("Caret", "Screen"), CoordMode("Mouse", "Screen")
-    if CaretGetPos(&x, &y)
-        y += 24
-    else
-        MouseGetPos(&x, &y)
-}
-
-; 窓が画面からはみ出さないよう x, y を調整する
-QM_ClampToMonitor(hwnd, &x, &y) {
-    QM_GetWinSize(hwnd, &w, &h)
-    MonitorGetWorkArea(QM_MonitorFromPoint(x, y), &l, &t, &r, &b)
-    x := Max(l, Min(x, r - w)), y := Max(t, Min(y, b - h))
-}
-
-; 一覧の高さを行数に合わせ、その下の文字（foot）を詰める
-QM_FitListView(lv, rows, foot) {
-    if (lv.GetCount() = 0)
-        return
-    rc := Buffer(16, 0)
-    DllCall("SendMessage", "Ptr", lv.Hwnd, "UInt", 0x100E, "Ptr", 0, "Ptr", rc, "Ptr")  ; LVM_GETITEMRECT
-    rowH := Max(NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int"), 16)
-    lv.GetPos(, &ly)
-    lvH := rowH * rows + 4
-    lv.Move(, , , lvH)
-    foot.Move(, ly + lvH + 6)
-}
-
-; IME が処理中のキー（VK_PROCESSKEY）を、実際のキーに戻す
-QM_RealVk(wParam, lParam) {
-    if (wParam = 0xE5)
-        return DllCall("MapVirtualKey", "UInt", (lParam >> 16) & 0xFF, "UInt", 1, "UInt")
-    return wParam
-}
-
-; IME ウィンドウへ問い合わせる（相手が応答しなくても 200ms で打ち切る）
-QM_ImeQuery(hIme, cmd) {
-    r := 0
-    ok := DllCall("SendMessageTimeout", "Ptr", hIme, "UInt", 0x0283, "Ptr", cmd, "Ptr", 0
-        , "UInt", 0x2, "UInt", 200, "UPtr*", &r, "Ptr")          ; WM_IME_CONTROL, SMTO_ABORTIFHUNG
-    return ok ? r : 0
-}
-
-; 入力先の IME が「全角で入力する状態」か
-;   IME オン かつ 変換モードに NATIVE（かな）または FULLSHAPE（全角）が含まれる → true
-;   IME オフ、半角英数                                                          → false
-QM_TargetImeIsFullWidth(hwnd) {
-    if !hwnd
-        return false
-    ; フォーカスのある部品（エディタ本体など）を探す
-    focus := hwnd
-    tid := DllCall("GetWindowThreadProcessId", "Ptr", hwnd, "Ptr", 0, "UInt")
-    size := (A_PtrSize = 8) ? 72 : 48
-    gti := Buffer(size, 0), NumPut("UInt", size, gti)
-    if DllCall("GetGUIThreadInfo", "UInt", tid, "Ptr", gti)
-        if (f := NumGet(gti, (A_PtrSize = 8) ? 16 : 12, "Ptr"))  ; hwndFocus
-            focus := f
-    hIme := DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", focus, "Ptr")
-    if !hIme
-        return false
-    if !QM_ImeQuery(hIme, 0x0005)                               ; IMC_GETOPENSTATUS
-        return false
-    mode := QM_ImeQuery(hIme, 0x0001)                           ; IMC_GETCONVERSIONMODE
-    return (mode & 0x9) != 0                                     ; IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE
-}
-
-; 半角の英数字・記号を全角に（! → ！、スペース → 全角スペース）
-QM_ToFullAscii(s) {
-    out := ""
-    loop parse s {
-        c := Ord(A_LoopField)
-        out .= (c >= 0x21 && c <= 0x7E) ? Chr(c + 0xFEE0) : (c = 0x20 ? "　" : A_LoopField)
-    }
-    return out
-}
-
-; 選択中の文字を取得する（クリップボードは元に戻す）
-QM_CopySelection(&text) {
-    saved := ClipboardAll()
-    A_Clipboard := ""
-    Send("^c")
-    ok := ClipWait(0.5)
-    text := ok ? A_Clipboard : ""
-    A_Clipboard := saved
-    return (ok && text != "")
-}
-
-; 文字を貼り付ける（クリップボードは元に戻す）
-QM_Paste(text) {
-    saved := ClipboardAll()
-    A_Clipboard := text
-    Send("^v")
-    Sleep(300)
-    A_Clipboard := saved
-}
-
-; 選択中の文字を fn で変換して置き換える
-QM_TransformSelection(fn) {
-    if !QM_CopySelection(&text) {
-        QM_Tip("文字が選択されていません")
-        return
-    }
-    out := fn(text)
-    if (out == text) {
-        QM_Tip("変更はありませんでした")
-        return
-    }
-    QM_Paste(out)
-}
-
-QM_InsertTime(fmt) => QM_Paste(FormatTime(, fmt))
-
-QM_PastePlain() {
-    if (A_Clipboard = "") {
-        QM_Tip("クリップボードに文字がありません")
-        return
-    }
-    A_Clipboard := A_Clipboard                                   ; 書式を取り除く
-    Send("^v")
-}
-
-; IME をオフにする
-QM_ImeOff(hwnd) {
-    hIme := DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", hwnd, "Ptr")
-    if hIme
-        DllCall("SendMessage", "Ptr", hIme, "UInt", 0x0283, "Ptr", 0x0006, "Ptr", 0)  ; IMC_SETOPENSTATUS = 0
-}
-
-QM_MonitorFromPoint(x, y) {
-    loop MonitorGetCount() {
-        MonitorGet(A_Index, &l, &t, &r, &b)
-        if (x >= l && x < r && y >= t && y < b)
-            return A_Index
-    }
-    return MonitorGetPrimary()
-}
-
-;--- 文字変換 -----------------------------------------------------------------
-
-; LCMapStringEx による変換（ひらがな・カタカナ・全角・半角）
-QM_LCMap(s, flags) {
-    n := DllCall("LCMapStringEx", "Str", "ja-JP", "UInt", flags, "Str", s, "Int", StrLen(s)
-        , "Ptr", 0, "Int", 0, "Ptr", 0, "Ptr", 0, "Ptr", 0, "Int")
-    if (n <= 0)
-        return s
-    buf := Buffer(n * 2)
-    DllCall("LCMapStringEx", "Str", "ja-JP", "UInt", flags, "Str", s, "Int", StrLen(s)
-        , "Ptr", buf, "Int", n, "Ptr", 0, "Ptr", 0, "Ptr", 0, "Int")
-    return StrGet(buf, n, "UTF-16")
-}
-QM_ToKatakana(s) => QM_LCMap(s, 0x00200000)                     ; LCMAP_KATAKANA
-QM_ToHiragana(s) => QM_LCMap(s, 0x00100000)                     ; LCMAP_HIRAGANA
-
-; 全角の英数字・記号・スペースだけを半角にする（かな・漢字はそのまま）
-QM_ToHalfAlnum(s) {
-    out := ""
-    loop parse s {
-        c := Ord(A_LoopField)
-        out .= (c >= 0xFF01 && c <= 0xFF5E) ? Chr(c - 0xFEE0) : (c = 0x3000 ? " " : A_LoopField)
-    }
-    return out
-}
-
-; 半角カナだけを全角カナにする（濁点・半濁点も 1 文字にまとめる）
-QM_HalfKanaToFull(s) {
-    out := "", pos := 1
-    while RegExMatch(s, "[\x{FF61}-\x{FF9F}]+", &m, pos) {
-        out .= SubStr(s, pos, m.Pos - pos) . QM_LCMap(m[0], 0x00800000)   ; LCMAP_FULLWIDTH
-        pos := m.Pos + m.Len
-    }
-    return out . SubStr(s, pos)
-}
-
-; 改行を削除して 1 行に（英単語どうしの間には半角スペースを入れる）
-QM_JoinLinesText(s) {
-    s := RegExReplace(s, "(?<=[!-~])[ \t]*\R+[ \t]*(?=[!-~])", " ")
-    return RegExReplace(s, "[ \t]*\R+[ \t]*")
-}
-
-QM_JoinArray(arr) {
-    out := ""
-    for i, v in arr
-        out .= (i > 1 ? "`r`n" : "") v
-    return out
-}
-
-QM_TrimLines(s) {
-    arr := []
-    loop parse s, "`n", "`r" {
-        t := Trim(A_LoopField, " `t　")
-        if (t != "")
-            arr.Push(t)
-    }
-    return QM_JoinArray(arr)
-}
-
-QM_Bullets(s) {
-    arr := []
-    loop parse s, "`n", "`r" {
-        t := A_LoopField
-        if (Trim(t, " `t　") != "" && SubStr(LTrim(t, " `t　"), 1, 1) != "・")
-            t := "・" t
-        arr.Push(t)
-    }
-    return QM_JoinArray(arr)
-}
-
-QM_SortLines(s) {
-    s := RTrim(StrReplace(s, "`r`n", "`n"), "`n")
-    return StrReplace(Sort(s), "`n", "`r`n")
-}
-
-QM_DedupLines(s) {
-    seen := Map(), arr := []
-    loop parse s, "`n", "`r" {
-        if !seen.Has(A_LoopField) {
-            seen[A_LoopField] := true
-            arr.Push(A_LoopField)
-        }
-    }
-    return QM_JoinArray(arr)
-}
-
-QM_Unquote(s)          => StrReplace(Trim(s), '"')
-QM_BackslashToSlash(s) => StrReplace(s, "\", "/")
-
-QM_CountSelection() {
-    if !QM_CopySelection(&t) {
-        QM_Tip("文字が選択されていません")
-        return
-    }
-    t := RTrim(StrReplace(t, "`r`n", "`n"), "`n")
-    lines   := StrSplit(t, "`n").Length
-    all     := StrLen(StrReplace(t, "`n"))
-    noSpace := StrLen(RegExReplace(t, "[\s　]"))
-    QM_Tip(Format("文字数　　：{}`n空白を除く：{}`n行数　　　：{}", all, noSpace, lines), 4000)
-}
-
-;--- 検索・翻訳 ---------------------------------------------------------------
-QM_UriEncode(s) {
-    buf := Buffer(StrPut(s, "UTF-8"))
-    StrPut(s, buf, "UTF-8")
-    out := ""
-    loop buf.Size - 1 {
-        b := NumGet(buf, A_Index - 1, "UChar")
-        out .= ((b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A)
-            || b = 0x2D || b = 0x2E || b = 0x5F || b = 0x7E) ? Chr(b) : Format("%{:02X}", b)
-    }
-    return out
-}
-
-QM_WebSelection(baseUrl) {
-    if !QM_CopySelection(&t) {
-        QM_Tip("文字が選択されていません")
-        return
-    }
-    Run(baseUrl . QM_UriEncode(Trim(t)))
-}
-
-;--- ウィンドウ ---------------------------------------------------------------
-QM_ToggleTopmost() {
-    WinSetAlwaysOnTop(-1, "A")
-    QM_Tip((WinGetExStyle("A") & 0x8) ? "常に最前面：ON" : "常に最前面：OFF")
-}
-
-QM_ToggleTransparent() {
-    cur := WinGetTransparent("A")
-    WinSetTransparent((cur = "") ? 200 : "Off", "A")
-    QM_Tip((cur = "") ? "半透明：ON" : "半透明：OFF")
-}
-
-QM_CenterWindow() {
-    if !(hwnd := WinExist("A"))
-        return
-    if (WinGetMinMax(hwnd) = 1)
-        WinRestore(hwnd)
-    WinGetPos(&x, &y, &w, &h, hwnd)
-    MonitorGetWorkArea(QM_MonitorFromPoint(x + w // 2, y + h // 2), &l, &t, &r, &b)
-    WinMove(l + (r - l - w) // 2, t + (b - t - h) // 2, , , hwnd)
-}
-
-QM_CopyWindowInfo() {
-    if !WinExist("A")
-        return
-    text := Format("Title: {}`r`nClass: ahk_class {}`r`nExe:   ahk_exe {}`r`nPath:  {}"
-        , WinGetTitle("A"), WinGetClass("A"), WinGetProcessName("A"), WinGetProcessPath("A"))
-    A_Clipboard := text
-    QM_Tip("ウィンドウ情報をコピーしました`n`n" text, 3000)
-}
-
-;--- システム・アプリ ---------------------------------------------------------
-QM_ShowClipboard() {
-    t := A_Clipboard
-    MsgBox((t = "") ? "（文字なし）" : SubStr(t, 1, 2000) (StrLen(t) > 2000 ? "`n…（以下省略）" : "")
-        , "クリップボードの内容")
-}
-
-QM_DisplayOff() {
-    Sleep(500)                                                   ; キーを離した信号で再点灯しないよう待つ
-    DllCall("PostMessage", "Ptr", 0xFFFF, "UInt", 0x0112, "Ptr", 0xF170, "Ptr", 2)  ; SC_MONITORPOWER
-}
-
-QM_OpenScriptInCode() {
-    try Run('code "' A_ScriptDir '"', , "Hide")
-    catch
-        Run(A_ScriptDir)
-}
-
-;--- VS Code ------------------------------------------------------------------
-; Ctrl+K に続けて key を送る（VS Code の 2 段階ショートカット）
-QM_VSCodeChord(key, waitMs := 200) {
-    SendInput("^k")
-    Sleep(waitMs)
-    SendInput(key)
-}
-
-;--- 仮想デスクトップ ---------------------------------------------------------
-; 現在の番号と総数をレジストリから読む（現在の番号が分からなければ false）
-QM_DesktopState(&cur, &count) {
-    key := "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer"
-    cur := 1, count := 1
-    ids := ""
-    try ids := RegRead(key "\VirtualDesktops", "VirtualDesktopIDs")
-    if (StrLen(ids) < 32)                                        ; 一度も追加していないときは値がない
-        return true
-    count := StrLen(ids) // 32                                   ; GUID 1 個 = 16 バイト = 16 進 32 文字
-
-    curId := ""
-    try curId := RegRead(key "\VirtualDesktops", "CurrentVirtualDesktop")          ; Windows 11
-    if (curId = "") {                                            ; Windows 10
-        sid := 0
-        DllCall("ProcessIdToSessionId", "UInt", DllCall("GetCurrentProcessId", "UInt"), "UInt*", &sid)
-        try curId := RegRead(key "\SessionInfo\" sid "\VirtualDesktops", "CurrentVirtualDesktop")
-    }
-    loop count
-        if (SubStr(ids, (A_Index - 1) * 32 + 1, 32) = curId) {
-            cur := A_Index
-            return true
-        }
-    return false
-}
-
-QM_DesktopMoveBy(d) {
-    keys := (d > 0) ? "^#{Right}" : "^#{Left}"
-    loop Abs(d) {
-        SendInput(keys)
-        Sleep(100)
-    }
-}
-
-; 隣のデスクトップへ（carry = true ならアクティブなウィンドウも一緒に移動）
-QM_DesktopStep(d, carry := false) {
-    known := QM_DesktopState(&cur, &count)
-    n := cur + d
-    if (known && (n < 1 || n > count)) {
-        QM_Tip((d > 0) ? "右側にデスクトップはありません" : "左側にデスクトップはありません")
-        return
-    }
-    if carry
-        QM_CarryWindow(() => QM_DesktopMoveBy(d))
-    else
-        QM_DesktopMoveBy(d)
-    if known
-        QM_Tip("デスクトップ " n " / " count)
-}
-
-; 番号を指定して切り替える
-QM_DesktopGo(n) {
-    if !QM_DesktopState(&cur, &count) {
-        QM_Tip("仮想デスクトップの状態を取得できませんでした")
-        return
-    }
-    if (n > count) {
-        QM_Tip("デスクトップ " n " はありません（全 " count " 個）")
-        return
-    }
-    if (n != cur)
-        QM_DesktopMoveBy(n - cur)
-    QM_Tip("デスクトップ " n " / " count)
-}
-
-; 新しいデスクトップを右端に作って切り替える（carry = true ならウィンドウも移動）
-QM_DesktopNew(carry := false) {
-    QM_DesktopState(&cur, &count)
-    if carry
-        QM_CarryWindow(() => SendInput("^#d"))
-    else
-        SendInput("^#d")
-    QM_Tip("デスクトップを作成しました（" count + 1 " / " count + 1 "）")
-}
-
-; 今のデスクトップを閉じる（開いていたウィンドウは隣のデスクトップへ移る）
-QM_DesktopClose() {
-    if (QM_DesktopState(&cur, &count) && count <= 1) {
-        QM_Tip("デスクトップが 1 つしかないため閉じられません")
-        return
-    }
-    SendInput("^#{F4}")
-    QM_Tip("デスクトップ " cur " を閉じました（残り " count - 1 " 個）")
-}
-
-QM_DesktopInfo() {
-    if QM_DesktopState(&cur, &count)
-        QM_Tip("現在のデスクトップ：" cur " / " count, 2500)
-    else
-        QM_Tip("仮想デスクトップの状態を取得できませんでした")
-}
-
-; アクティブなウィンドウを隠してから切り替え、切り替え先で表示し直す（表示した側のデスクトップに移る）
-QM_CarryWindow(switchFn) {
-    hwnd := WinExist("A")
-    if (!hwnd || RegExMatch(WinGetClass(hwnd), "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$")) {
-        QM_Tip("移動できるウィンドウがありません")
-        return
-    }
-    WinHide(hwnd)
-    try {
-        Sleep(50)
-        switchFn()
-        Sleep(250)
-    } finally {
-        WinShow(hwnd)
-        try WinActivate(hwnd)
-    }
-}

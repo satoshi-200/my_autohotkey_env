@@ -6,8 +6,7 @@
 ;   Clip_Cut()       選択範囲を切り取って箱に保存
 ;   Clip_Paste()     箱の中身を貼り付け
 ;   Clip_Show()      箱の中身を全文表示
-;   Clip_Clear()     箱を 1 つ空にする
-;   Clip_ClearAll()  すべての箱を空にする（確認あり）
+;   Clip_Clear()     箱を 1 つ空にする（すべて空にする Clip_ClearAll は Lib\archive\unused_functions.ahk に移した）
 ;   箱は一覧（キーと中身の先頭、複数列）から、キー / 矢印+Enter / クリックで選ぶ。Esc でキャンセル
 ;==============================================================================
 Clip_boxes := Map()
@@ -52,13 +51,6 @@ Clip_Clear() {
         return
     Clip_boxes.Delete(key)
     _Clip_Tip("箱 [" key "] を空にしました。")
-}
-
-Clip_ClearAll() {
-    if (MsgBox("すべての箱を空にしますか？", "全消去の確認", "YesNo Icon!") = "Yes") {
-        Clip_boxes.Clear()
-        _Clip_Tip("すべて空にしました！")
-    }
 }
 
 ;------------------------------------------------------------------------------

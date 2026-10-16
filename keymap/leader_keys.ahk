@@ -9,14 +9,15 @@
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
-;   specials … 特殊キーのスキャンコード → 処理（Tab 0x0F / Space 0x39 / 変換 0x79 / 無変換 0x7B / かな 0x70）
+;   specials … 特殊キーのスキャンコード → 処理（Tab 0x0F / Caps 0x3A / Space 0x39 / 変換 0x79 / 無変換 0x7B / かな 0x70）。Caps は表にあるときだけキャンセルではなく処理になる
 ;   処理は「送るキーの文字列」か「呼び出す関数」。"" は未割り当て（空きが分かるように主要なキーはすべて書く）
 ;   行末のコメントは、入力待ちで止まったときに出る割り当て一覧の説明になる（なければ処理をそのまま表示）
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
 #Include %A_LineFile%\..\..\Lib\oneshot_modifiers.ahk
 #Include %A_LineFile%\..\..\Lib\text_input.ahk
-#Include %A_LineFile%\..\..\Lib\system_utils.ahk
+#Include %A_LineFile%\..\..\Lib\window_switch.ahk
+#Include %A_LineFile%\..\..\Lib\window_ops.ahk
 #Include %A_LineFile%\..\..\Lib\multi_clipboard.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
@@ -26,13 +27,13 @@
 ;------------------------------------------------------------------------------
 ; 起点キー（Space+F / Space+A は hold_keys.ahk から呼ぶ）
 ;------------------------------------------------------------------------------
-#HotIf !isWaitingInput
+#HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
 sc070:: Leader_Kana()                               ; カタカナひらがな
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
-#HotIf isWaitingInput && ih.InProgress
+#HotIf IH_waiting && IH_hook.InProgress
 vk1D:: IH_StopWithKey("sc07B")
 #HotIf
 
@@ -63,13 +64,13 @@ Leader_Caps() {
         "0",  "",
         "-",  "",
         "^",  "",
-        "\",  "",                        ; ￥ / ろ：マルチクリップボードを全消去
+        "\",  "",
         ; --- 上段 ---
         "q",  WindowResizer_Show,                   ; ウィンドウの大きさ
         "w",  QM_DesktopMenu_Show,                  ; 仮想デスクトップメニュー
         "e",  () => AppSwitcher_Show(false, "w"),   ; アプリ切り替え（e：次、w：前）
         "r",  WindowMonitor_Show,                   ; ウィンドウを別のモニターへ（r：次、Shift+r：前）
-        "t",  "",
+        "t",  QM_CaptureMenu_Show,                  ; 画面キャプチャメニュー
         "y",  "",
         "u",  QuickPalette_Show,                    ; コマンドパレット
         "i",  Oneshot_AltChar,                      ; Alt + 文字キー
@@ -78,7 +79,7 @@ Leader_Caps() {
         "@",  "",
         "[",  "",
         ; --- 中段 ---
-        "a",  QM_CaptureMenu_Show,                  ; 画面キャプチャメニュー
+        "a",  "",
         "s",  VimiumC_ShowHints,                    ; Vimium C 風ヒント（部品に英字を重ねて、打ったところをクリック）
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
         "f",  Oneshot_Fn,                           ; Fn キー
@@ -104,8 +105,7 @@ Leader_Caps() {
     static specials := Map(
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
         0x79, Ime_Hiragana,                         ; 変換：IME をひらがなに
-        0x7B, ShiftHold_Start,                      ; 無変換：Shift 長押しモード
-        0x70, Text_CapitalizeNext)                  ; かな：次の 1 文字を大文字に
+        0x7B, Text_CapitalizeNext)                  ; 無変換：次の 1 文字を大文字に
     Leader_Run("Caps", keys, specials, true)
 }
 
@@ -162,7 +162,10 @@ Leader_SpaceF() {
         ",",  "",
         ".",  "",
         "/",  "")
-    Leader_Run("Space + F", keys)
+    static specials := Map(
+        0x3A, ShiftHold_Toggle)                     ; Caps：Shift 長押しモード
+    ShiftHold_Remember()
+    Leader_Run("Space + F", keys, specials)
 }
 
 ; 右手側の文字・記号を左手で入力する
@@ -219,7 +222,7 @@ Leader_SpaceA() {
         ",",  "",
         ".",  "",
         "/",  "")
-    Leader_Run("Space + A：左手で文字・記号", keys)
+    Leader_Run("Space + A：左手で文字・記号", keys, , , true)
 }
 
 ; カタカナひらがなの入力待ち（いまは割り当てなし）
@@ -284,7 +287,7 @@ Leader_Kana() {
 ;------------------------------------------------------------------------------
 LEADER_HELP_DELAY_MS := 1000              ; 入力待ちでこの時間キーを押さないと割り当て一覧を表示する
 LEADER_END_KEYS := "{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}"
-LEADER_KEY_NAMES := Map(0x138, "右Alt", 0x2A, "LShift", 0x0F, "Tab", 0x39, "Spaceキー"
+LEADER_KEY_NAMES := Map(0x138, "右Alt", 0x2A, "LShift", 0x0F, "Tab", 0x3A, "Caps", 0x39, "Spaceキー"
     , 0x79, "変換キー", 0x7B, "無変換キー", 0x70, "カタカナひらがなキー")
 
 ; 文字キーの割り当て表を作る（大文字・小文字を区別しない）
@@ -297,14 +300,19 @@ Leader_Keys(pairs*) {
 
 ; 次のキーを待ち、表に従って処理する
 ;   forcedAsSpecial … ホットキーから渡された無変換も特殊キーとして扱う（Caps のみ）
-Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false) {
+;   shiftAware     … Shift 長押しモード中、待つ間だけ Shift を離して表を引き、送るときに Shift を戻す（送る文字にモードが反映される）
+Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false, shiftAware := false) {
     help := Leader_ShowHelp.Bind(mode, Error("", -2).What)   ; 呼び出し元（Leader_Caps など）の表を表示する
     SetTimer(help, -LEADER_HELP_DELAY_MS)
-    accepted := IH_WaitNext(mode, , LEADER_END_KEYS)
+    if shiftAware
+        ShiftHold_Pause()
+    accepted := IH_WaitNext(mode, , LEADER_END_KEYS, IsObject(specials) && specials.Has(0x3A))
     SetTimer(help, 0)
+    if shiftAware
+        ShiftHold_Resume()
     if !accepted
         return
-    endKey := forcedAsSpecial ? IH_EndKeyOf() : (ih.EndReason = "EndKey" ? ih.EndKey : "")
+    endKey := forcedAsSpecial ? IH_EndKeyOf() : (IH_hook.EndReason = "EndKey" ? IH_hook.EndKey : "")
     if (endKey != "") {
         sc := GetKeySC(endKey)
         if (specials && specials.Has(sc))
@@ -312,19 +320,19 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false) {
         else if LEADER_KEY_NAMES.Has(sc)
             ToolTip(LEADER_KEY_NAMES[sc] "検知")    ; 未割り当ての特殊キー（動作確認用）
     }
-    else if keys.Has(ih.Input) {
-        action := keys[ih.Input]
+    else if keys.Has(IH_hook.Input) {
+        action := keys[IH_hook.Input]
         if !(action is String)
             action()
         else if (action != "")
             SendInput(action)
     }
-    ih.Stop()
+    IH_hook.Stop()
 }
 
 ; 割り当て一覧をツールチップで表示する
 Leader_ShowHelp(mode, funcName) {
-    if ih.InProgress
+    if IH_hook.InProgress
         ToolTip("⌨️ [" mode "] 次のキー待ち...（Esc / Caps：キャンセル）`n" Leader_HelpText(funcName))
 }
 

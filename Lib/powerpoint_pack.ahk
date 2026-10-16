@@ -15,6 +15,7 @@
 ;   ・図形を選んでいないとき、必要な数の図形を選んでいないときは、ツールチップで知らせる。
 ;   ・「大きさをそろえる」は、選んだ図形のうち最初のもの（ShapeRange の 1 番目）に合わせる。
 ;==============================================================================
+#Include %A_LineFile%\..\ui_common.ahk
 
 PPT_EXE := "ahk_exe POWERPNT.EXE"
 PPT_REQUIRE_ACTIVE := true                         ; false にすると、前面でなくても動かす（動作確認用）
@@ -25,14 +26,14 @@ PPT_ALIGN_CMD := Map("left", 0, "center", 1, "right", 2, "top", 3, "middle", 4, 
 ; PowerPoint の本体（Application）を返す。使えないときは ""（理由はツールチップで知らせる）
 Ppt_App() {
     if (PPT_REQUIRE_ACTIVE && !WinActive(PPT_EXE)) {
-        QM_Tip("PowerPoint が前面にありません")
+        UI_Tip("PowerPoint が前面にありません")
         return ""
     }
     try
         return ComObjActive("PowerPoint.Application")
     try
         return ComObject("PowerPoint.Application")      ; 起動中のものにつながる
-    QM_Tip("PowerPoint につなげませんでした")
+    UI_Tip("PowerPoint につなげませんでした")
     return ""
 }
 
@@ -50,7 +51,7 @@ Ppt_Shapes(count := 1) {
             throw Error("few shapes")
         return shapes
     }
-    QM_Tip(count > 1 ? "図形を " count " 個以上選んでください" : "図形を選んでください")
+    UI_Tip(count > 1 ? "図形を " count " 個以上選んでください" : "図形を選んでください")
     return ""
 }
 
@@ -63,7 +64,7 @@ Ppt_Align(kind) {
     try
         shapes.Align(PPT_ALIGN_CMD[kind], shapes.Count = 1 ? -1 : 0)
     catch as e
-        QM_Tip("そろえられませんでした：" e.Message)
+        UI_Tip("そろえられませんでした：" e.Message)
 }
 
 ; dir: "h" 横、"v" 縦。3 つ以上は図形どうしの間隔を等しく、2 つならスライドの端に合わせる
@@ -74,7 +75,7 @@ Ppt_Distribute(dir) {
     try
         shapes.Distribute(dir = "h" ? 0 : 1, shapes.Count >= 3 ? 0 : -1)
     catch as e
-        QM_Tip("等間隔にできませんでした：" e.Message)
+        UI_Tip("等間隔にできませんでした：" e.Message)
 }
 
 ; what: "w" 幅、"h" 高さ、"wh" 両方。最初の図形に合わせる
@@ -96,7 +97,7 @@ Ppt_MatchSize(what) {
             s.LockAspectRatio := lock
         }
     } catch as e
-        QM_Tip("大きさをそろえられませんでした：" e.Message)
+        UI_Tip("大きさをそろえられませんでした：" e.Message)
 }
 
 ; 2 つの図形の位置を入れ替える（それぞれの中心を入れ替える）
@@ -105,7 +106,7 @@ Ppt_Swap() {
     if !IsObject(shapes)
         return
     if (shapes.Count != 2) {
-        QM_Tip("入れ替えるには、図形をちょうど 2 つ選んでください")
+        UI_Tip("入れ替えるには、図形をちょうど 2 つ選んでください")
         return
     }
     try {
@@ -115,7 +116,7 @@ Ppt_Swap() {
         a.Left := bx - a.Width / 2, a.Top := by - a.Height / 2
         b.Left := ax - b.Width / 2, b.Top := ay - b.Height / 2
     } catch as e
-        QM_Tip("入れ替えられませんでした：" e.Message)
+        UI_Tip("入れ替えられませんでした：" e.Message)
 }
 
 ;--- 貼り付け ---------------------------------------------------------------------
@@ -129,7 +130,7 @@ Ppt_Mso(idMso, failMessage) {
             throw Error("disabled")
         app.CommandBars.ExecuteMso(idMso)
     } catch
-        QM_Tip(failMessage)
+        UI_Tip(failMessage)
 }
 
 Ppt_PastePicture() => Ppt_Mso("PasteAsPicture", "画像として貼り付けられません（クリップボードを確かめてください）")

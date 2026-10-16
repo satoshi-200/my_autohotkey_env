@@ -48,8 +48,8 @@ Oneshot_AltChar()       => _Oneshot_Char("!",  "Alt + 文字キー",          "^
 _Oneshot_Wait(mode, hint := "") {
     if !IH_WaitNext(mode, hint)
         return ""
-    k := StrLower(ih.Input)
-    ih.Stop()
+    k := StrLower(IH_hook.Input)
+    IH_hook.Stop()
     return k
 }
 
