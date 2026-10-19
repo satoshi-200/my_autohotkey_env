@@ -211,6 +211,8 @@ class QuickPalette {
         this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
 
         ;--- PowerPoint（Lib\powerpoint_pack.ahk。PowerPoint が前面にあるときだけ動く）---------
+        this.Add("P", "F", "ppt-edit-mode", "図形編集モード（大きさ・移動・回転）", (*) => Ppt_EditStart(), "powerpoint slide shape edit zukei henshu")
+        if PPT_SHOW_LEGACY {
         this.Add("P", "L", "ppt-left",      "左にそろえる",                  (*) => Ppt_Align("left"), "powerpoint slide align seiretsu")
         this.Add("P", "R", "ppt-right",     "右にそろえる",                  (*) => Ppt_Align("right"), "powerpoint slide align seiretsu")
         this.Add("P", "T", "ppt-top",       "上にそろえる",                  (*) => Ppt_Align("top"), "powerpoint slide align seiretsu")
@@ -224,6 +226,7 @@ class QuickPalette {
         this.Add("P", "S", "ppt-same-size", "幅と高さを最初の図形にそろえる", (*) => Ppt_MatchSize("wh"), "powerpoint slide size ookisa")
         this.Add("P", "X", "ppt-swap",      "2 つの図形の位置を入れ替え",    (*) => Ppt_Swap(), "powerpoint slide swap exchange irekae")
         this.Add("P", "I", "ppt-paste-pic", "画像として貼り付け",            (*) => Ppt_PastePicture(), "powerpoint slide paste picture image gazou")
+        }
 
         this._BuildGui()
         this._BuildMenuGui()

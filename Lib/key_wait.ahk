@@ -86,6 +86,23 @@ IH_CapsWhileSpaceHeld() {
     return h.EndReason = "EndKey"
 }
 
+; Space を押したままの間に打ったキー（アプリには渡さない）。何も打たずに Space を離したら ""
+; キーを 1 つずつ待つモードで、Space+g（Enter）や Space+Caps（取り消し）を受けるために使う
+IH_KeyWhileSpaceHeld() {
+    h := InputHook("L0 T" IH_TIMEOUT_SEC)
+    h.KeyOpt("{All}", "ES")
+    h.KeyOpt("{LCtrl}{RCtrl}{LShift}{RShift}{LAlt}{RAlt}{LWin}{RWin}{vk20}{sc039}", "-E")
+    h.KeyOpt("{vk20}{sc039}", "NS")                ; Space 自体は終了にせず、離したら終える
+    h.OnKeyUp := (hk, vk, sc) => (vk = 0x20 ? hk.Stop() : 0)
+    h.Start()
+    if !(GetKeyState("vk20", "P") || GetKeyState("vk20")) {
+        h.Stop()
+        return ""
+    }
+    h.Wait()
+    return (h.EndReason = "EndKey") ? h.EndKey : ""
+}
+
 ; 独自の InputHook を使うモードの開始（ほかのレイヤーを止め、呼び出し元の消去タイマーを止める）
 IH_ModeBegin() {
     global IH_waiting := true

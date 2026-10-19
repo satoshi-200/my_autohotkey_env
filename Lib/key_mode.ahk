@@ -4,6 +4,7 @@
 ; InputHook でキーを受けるモード（カーソル移動モード、Vimium C 風ヒントなど）の共通の骨組み。関数は IHM_ で始める
 ;   IHM_Run(st, opts)    モードを動かす。st はモードの状態オブジェクト（held・leftHand・result・hook・idle が加わる）
 ;   IHM_Finish(st, result)  結果を決めて待ちを終える（最初に決めた結果を残す）
+;   IHM_Tip(st, status, help)  案内を出す（出し方は opts.tip。下の説明）
 ; 骨組みがやること
 ;   ・IH_ModeBegin / IH_ModeEnd、InputHook（全キーを通知し、アプリには渡さない）、時間切れ（押すたびに数え直す）、後始末
 ;   ・押しっぱなし（キーリピート）の無視、押しているキーの記録（st.held：スキャンコード → true）
@@ -22,10 +23,19 @@
 ;   keep          Space+A の待ちの間も、文字に直さず通常のキーとして扱うスキャンコード（Esc・Caps・BackSpace・Tab は常に）
 ;   preHeld       起動に使ったキーなど、始めに押していればリピートとして無視するスキャンコード
 ;   critical      true にすると、キーの処理の間はタイマーに割り込まれない
+;   tip           案内（IHM_Tip）の出し方。既定 "cursor"
+;                   "cursor"：状態と説明を、マウスカーソルの近くに出す
+;                   "corner"：状態（短い 1 行）だけを、カーソルのあるモニターの左下に出す。手が止まったら説明も出す
+;                   "hidden"：何も出さない。手が止まったら、左下に状態と説明を出す
+;                 画面に重ねる表示があるモード（ラベル・グリッド）は、案内が押したい場所を隠さないよう "corner" か "hidden" にする
+;   helpDelayMs   "corner" / "hidden" で、説明を出すまでの操作のない時間（既定 IHM_HELP_DELAY_MS）
 ; 親指キー（変換・Space・無変換）そのものは何もしない（k を渡さない）。親指キーを押したまま打ったキーのうち、
 ; 送るキーのない割り当て（関数を呼ぶものなど）は渡さない（Esc と Caps は除く）。
 ;==============================================================================
 #Include %A_LineFile%\..\key_wait.ahk
+#Include %A_LineFile%\..\ui_common.ahk
+
+IHM_HELP_DELAY_MS := 1000                 ; 案内の説明を出すまでの、操作のない時間（tip が "corner" / "hidden" のとき）
 
 IHM_Run(st, opts) {
     IH_ModeBegin()
@@ -33,6 +43,10 @@ IHM_Run(st, opts) {
     st.held := Map()
     st.hook := InputHook("L0")
     st.idle := IHM_Finish.Bind(st, "timeout")
+    st.tipPos := opts.HasProp("tip") ? opts.tip : "cursor"
+    st.helpDelayMs := opts.HasProp("helpDelayMs") ? opts.helpDelayMs : IHM_HELP_DELAY_MS
+    st.helpFn := _IHM_ShowHelp.Bind(st)
+    st.tipText := ["", ""]
     idleMs := (opts.HasProp("idleSec") ? opts.idleSec : IH_TIMEOUT_SEC) * 1000
     st.hook.KeyOpt("{All}", "NS")                   ; すべてのキーを通知し、アプリには渡さない
     st.hook.OnKeyDown := _IHM_OnKeyDown.Bind(st, opts, idleMs)
@@ -56,6 +70,7 @@ IHM_Run(st, opts) {
     }
     finally {
         SetTimer(st.idle, 0)
+        SetTimer(st.helpFn, 0)
         st.hook.Stop()
         if opts.HasProp("onEnd")
             opts.onEnd.Call(st)
@@ -68,6 +83,39 @@ IHM_Finish(st, result) {
     if (st.result = "")
         st.result := result
     st.hook.Stop()
+}
+
+; 案内を出す。status は短い状態（1 行）、help は操作の説明（なければ ""）。出し方は opts.tip
+IHM_Tip(st, status, help := "") {
+    SetTimer(st.helpFn, 0)
+    st.tipText := [status, help]
+    switch st.tipPos {
+        case "cursor":
+            ToolTip(status (help != "" ? "`n" help : ""))
+            return
+        case "hidden":
+            ToolTip()
+        default:
+            _IHM_TipCorner(status)
+    }
+    if (help != "")
+        SetTimer(st.helpFn, -st.helpDelayMs)
+}
+
+_IHM_ShowHelp(st) {
+    if (st.result = "")
+        _IHM_TipCorner(st.tipText[1] "`n" st.tipText[2])
+}
+
+; カーソルのあるモニターの作業領域の左下に出す（タスクバーに重ねない）
+_IHM_TipCorner(text) {
+    CoordMode("Mouse", "Screen"), CoordMode("ToolTip", "Screen")
+    MouseGetPos(&mx, &my)
+    MonitorGetWorkArea(UI_MonitorFromPoint(mx, my), &l, &t, &r, &b)
+    if !(hwnd := ToolTip(text, l + 12, b - 60))
+        return
+    WinGetPos(, , , &h, hwnd)
+    WinMove(l + 12, b - h - 12, , , hwnd)
 }
 
 _IHM_OnKeyDown(st, opts, idleMs, h, vk, sc) {

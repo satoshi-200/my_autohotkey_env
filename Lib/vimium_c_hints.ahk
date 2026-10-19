@@ -37,7 +37,7 @@
 #Include %A_LineFile%\..\key_wait.ahk
 #Include %A_LineFile%\..\key_mode.ahk
 
-VIMIUMC_ALPHABET := "asdfjklghqweruiop"      ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる）
+VIMIUMC_ALPHABET := "asdfjklghweruio"        ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる。q・p は遠いので使わない）
 VIMIUMC_LABEL_BG := "FFE066"                 ; ラベルの背景色
 VIMIUMC_LABEL_FG := "000000"                 ; ラベルの文字色
 VIMIUMC_LABEL_ALPHA := 140                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
@@ -45,6 +45,9 @@ VimiumC_session := ""                        ; 実行中のモードの状態（
 ; true：親指キーでクリックの種類を選ぶ（Space＝ダブルクリック、変換＝右クリック、無変換＝ホバー）
 ; false：これらをやめ、Space+A で左手だけのラベル入力にする（右手でマウスを持つとき用）
 VIMIUMC_THUMB_CLICK := false
+; 待っている間の案内の出し方（Lib\key_mode.ahk）。押したい部品を隠さないように、既定はモニターの左下に状態だけ（手が止まったら説明も）
+;   "corner" / "hidden"（手が止まるまで出さない）/ "cursor"（以前のようにマウスカーソルの近く）
+VIMIUMC_TIP := "corner"
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで受ける
 #HotIf IsObject(VimiumC_session) && VIMIUMC_THUMB_CLICK
@@ -59,7 +62,7 @@ VimiumC_ShowHints() {
     st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map()}
     VimiumC_session := st
     IHM_Run(st, {message: _VimiumC_Message, onKey: _VimiumC_OnKey, onTip: _VimiumC_Tip, onStart: _VimiumC_OnStart
-        , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp
+        , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp, tip: VIMIUMC_TIP
         , layers: !VIMIUMC_THUMB_CLICK})            ; 旧の動作では親指キー自体に意味があるので、読み替えをしない
 }
 
@@ -131,7 +134,7 @@ _VimiumC_TypeLabel(st, name) {
             hit := true
     }
     if !hit {
-        ToolTip("🎯 [Vimium C ヒント] 「" StrUpper(typed) "」のラベルはありません")
+        IHM_Tip(st, "🎯 [Vimium C ヒント] 「" StrUpper(typed) "」のラベルはありません")
         SetTimer(_VimiumC_Tip.Bind(st), -700)
         return
     }
@@ -163,7 +166,7 @@ _VimiumC_Thumb(st, vk) {
 _VimiumC_Load(st) {
     _VimiumC_Close(st)
     st.typed := ""
-    ToolTip("🎯 [Vimium C ヒント] 部品を取得中...")           ; 初めて開くアプリは数秒かかることがある
+    IHM_Tip(st, "🎯 [Vimium C ヒント] 部品を取得中...")           ; 初めて開くアプリは数秒かかることがある
     st.items := _VimiumC_Gather(st.scope)
     if st.items.Length
         st.ov := _VimiumC_Overlay(st.items)
@@ -193,23 +196,23 @@ _VimiumC_Refresh(st) {
     _VimiumC_Tip(st)
 }
 
+; 案内（出し方は VIMIUMC_TIP。既定はモニターの左下に状態だけを出し、手が止まったら説明も出す）
 _VimiumC_Tip(st) {
     if !st.hook.InProgress && st.result != ""
         return
     now := (st.scope = "window") ? "ウィンドウ" : "タスクバー"
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
+    typed := (st.typed != "") ? "　入力：" StrUpper(st.typed) : ""
+    cancel := "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
     if !VIMIUMC_THUMB_CLICK {
-        ToolTip("🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
-            . (st.leftHand ? "`n左手入力：次のキーを、Space+A の表で右手側の文字に直して入力"
-                : "`nSpace+A → キー：左手だけで右手側の文字を入力　Tab：" other "へ")
-            . "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
+        IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed
+                . (st.leftHand ? "　左手入力：次のキーを右手側の文字に" : "")
+            , "Space+A → キー：左手だけで右手側の文字を入力　Tab：" other "へ" cancel)
         return
     }
     static names := Map("left", "クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "カーソル移動")
-    ToolTip("🎯 [Vimium C ヒント：" now "] " st.items.Length " 件　動作：" names[st.mode]
-        . (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
-        . "`nSpace：ダブルクリック　変換：右クリック　無変換：カーソル移動　Tab：" other "へ"
-        . "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
+    IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件　動作：" names[st.mode] typed
+        , "Space：ダブルクリック　変換：右クリック　無変換：カーソル移動　Tab：" other "へ" cancel)
 }
 
 _VimiumC_Act(it, mode) {

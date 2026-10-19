@@ -11,6 +11,24 @@
 #Include %A_LineFile%\..\key_wait.ahk
 #Include %A_LineFile%\..\ui_common.ahk
 
+; タブ・ページ切り替え、ウィンドウの大きさ、モニター移動で決定するキー（ほかのキーは無視する）
+;   キャプチャの選択の G / H、Space+g / h（Enter）・Space+b / n（クリック）に合わせる。v は b より近いので加える
+SWITCH_DECIDE_KEYS := ["g", "h", "v", "b", "n", "Enter", "NumpadEnter"]
+SWITCH_DECIDE_HINT := "g / h / v / b / n / Enter：決定　Esc / Caps / Space+Caps：元に戻す"
+
+_Switch_IsDecideKey(key) {
+    for k in SWITCH_DECIDE_KEYS
+        if (key = k)
+            return true
+    return false
+}
+
+; Space が来たとき：押したまま打ったキーが決定・取り消しならそのキー、それ以外（Space だけを含む）は ""（無視）
+_Switch_SpaceChord() {
+    key := IH_KeyWhileSpaceHeld()
+    return (_Switch_IsDecideKey(key) || IH_IsCapsKey(key)) ? key : ""
+}
+
 ;------------------------------------------------------------------------------
 ; アプリ切り替え
 ;   Alt を押したままの状態を代わりに作り、Alt+Tab の一覧を出したまま選ばせる。
@@ -147,8 +165,8 @@ _AppSwitcher_MoveCursorToCenter(hwnd) {
 ;------------------------------------------------------------------------------
 ; KeyCycler：キーを押すたびにその場で操作し、Esc で送った分を逆順に戻すモード
 ;   actions … キー → [送るキー（または元に戻す関数を返す関数）, 戻すときに送るキー, 表示名]
-;   ほかのキー：決定　Esc / Caps / Space+Caps：動かした分を戻す
-;   KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
+;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）：決定　Esc / Caps / Space+Caps：動かした分を戻す
+;   ほかのキーは無視。KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
 ;------------------------------------------------------------------------------
 KEYCYCLE_IDLE_SEC := 3
 
@@ -170,12 +188,16 @@ KeyCycler_Show(title, actions) {
     undo := []                                      ; Esc で戻すための履歴
     result := "決定"
     loop {
-        ToolTip("📑 [" title "] " hint "`nほかのキー：決定　Esc / Caps / Space+Caps：元に戻す"
+        ToolTip("📑 [" title "] " hint "`n" SWITCH_DECIDE_HINT
             . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
+        if (h.EndReason = "Timeout")
+            break
         key := StrLower(h.EndKey)
-        if (h.EndReason = "EndKey" && actions.Has(key)) {
+        if (GetKeyVK(key) = 0x20)                   ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
+            key := StrLower(_Switch_SpaceChord())
+        if actions.Has(key) {
             a := actions[key]
             if (a[1] is Func)
                 undo.Push(a[1]())                   ; 関数は戻す処理（関数）を返す
@@ -184,15 +206,15 @@ KeyCycler_Show(title, actions) {
                 undo.Push(a[2])
             }
         }
-        else {
-            if IH_IsCancelKey(key) {
-                while undo.Length {
-                    u := undo.Pop()
-                    (u is Func) ? u() : SendInput(u)
-                    Sleep(30)                       ; 連続で送ると取りこぼすアプリがある
-                }
-                result := "元に戻しました"
+        else if _Switch_IsDecideKey(key)
+            break
+        else if (key = "Escape" || IH_IsCapsKey(key)) {
+            while undo.Length {
+                u := undo.Pop()
+                (u is Func) ? u() : SendInput(u)
+                Sleep(30)                           ; 連続で送ると取りこぼすアプリがある
             }
+            result := "元に戻しました"
             break
         }
     }
@@ -262,8 +284,8 @@ WinSize_Restore(hwnd, prev) {
 ;     reverse … false：次のモニターへ、true：前のモニターへ
 ;   呼び出しに使ったキー（Caps → Tab なら Tab）で次へ、Shift 付きで前へ。
 ;   w：Win+↑、e：Win+↓ で大きさを変える。
-;   ほかのキー：決定　Esc / Caps / Space+Caps：元のモニターに戻す
-;   WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
+;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）：決定　Esc / Caps / Space+Caps：元のモニターに戻す
+;   ほかのキー（Space だけを含む）は無視する。WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
 ;------------------------------------------------------------------------------
 WINMONITOR_IDLE_SEC := 3
 
@@ -290,12 +312,16 @@ WindowMonitor_Show(reverse := false) {
     loop {
         ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
             . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
-            . "`nほかのキー：決定　Esc / Caps / Space+Caps：元に戻す"
+            . "`n" SWITCH_DECIDE_HINT
             . "`n（" WINMONITOR_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
+        if (h.EndReason = "Timeout")
+            break
         key := h.EndKey
         vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
+        if (vk = 0x20)                              ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
+            key := _Switch_SpaceChord(), vk := (key != "") ? GetKeyVK(key) : 0
         if (vk && vk = sameVK) {
             back := (reverse != GetKeyState("Shift"))   ; Shift 付きなら逆方向
             mon := _WinMonitor_Step(hwnd, back)
@@ -314,24 +340,24 @@ WindowMonitor_Show(reverse := false) {
                 sizeUndo.Push(key = "w" ? "#{Down}" : "#{Up}")
             }
         }
-        else {
-            if IH_IsCancelKey(key) {
-                while sizeUndo.Length {
-                    u := sizeUndo.Pop()
-                    if (WinGetMinMax(hwnd) = -1)
-                        WinActivate(hwnd)           ; 最小化からの復帰 = Win+↑ 1 回分
-                    else {
-                        try WinActivate(hwnd)
-                        Send(u)
-                    }
-                    Sleep(30)
+        else if _Switch_IsDecideKey(key)
+            break
+        else if (key = "Escape" || IH_IsCapsKey(key)) {
+            while sizeUndo.Length {
+                u := sizeUndo.Pop()
+                if (WinGetMinMax(hwnd) = -1)
+                    WinActivate(hwnd)               ; 最小化からの復帰 = Win+↑ 1 回分
+                else {
+                    try WinActivate(hwnd)
+                    Send(u)
                 }
-                n := Mod(Mod(steps, count) + count, count)  ; 元のモニターまで「前へ」を何回押すか
-                loop n
-                    _WinMonitor_Step(hwnd, true)
-                DllCall("SetCursorPos", "Int", NumGet(startPt, 0, "Int"), "Int", NumGet(startPt, 4, "Int"))
-                result := "元に戻しました"
+                Sleep(30)
             }
+            n := Mod(Mod(steps, count) + count, count)  ; 元のモニターまで「前へ」を何回押すか
+            loop n
+                _WinMonitor_Step(hwnd, true)
+            DllCall("SetCursorPos", "Int", NumGet(startPt, 0, "Int"), "Int", NumGet(startPt, 4, "Int"))
+            result := "元に戻しました"
             break
         }
     }

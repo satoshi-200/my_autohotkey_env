@@ -2,7 +2,7 @@
 ;==============================================================================
 ; mouse_grid.ahk
 ; カーソル移動モード（グリッドジャンプ）：キーボードの配置を画面の地図にして、マウスカーソルを大まかに飛ばす
-;   keymap\leader_keys.ahk（カタカナひらがな）から呼ぶ。設計の経緯は docs\ideas.md の「カーソル移動モード」
+;   keymap\leader_keys.ahk（Caps → Caps）から呼ぶ。設計の経緯は docs\ideas.md の「カーソル移動モード」
 ;
 ; 操作
 ;   上段・中段・下段の 10 × 3 のキー … 領域をその位置のマスに絞り、中央へカーソルを飛ばす（MOUSEGRID_MAX_DEPTH 回選んだら自動終了。既定は 1）
@@ -25,6 +25,7 @@ MOUSEGRID_LINE_COLOR := "F0A0A0"             ; 枠・区切り線の色（薄い
 MOUSEGRID_LABEL_BG := "FFE066"               ; ラベルの背景色
 MOUSEGRID_LABEL_FG := "000000"               ; ラベルの文字色
 MOUSEGRID_ALPHA := 200                       ; 表示の不透明度（0〜255。小さいほど下の画面が見える）
+MOUSEGRID_TIP := "corner"                    ; 案内の出し方（"corner"：左下に状態だけ、手が止まったら説明も / "hidden" / "cursor"。Lib\key_mode.ahk）
 MouseGrid_session := ""                      ; 実行中のモードの状態（動作確認用。実行していなければ ""）
 
 ; 行ごとのキー（左から 10 個）と、その先頭のスキャンコード
@@ -46,8 +47,9 @@ MouseGrid_Start() {
     MouseGrid_session := st
     IHM_Run(st, {message: _MG_Message, onKey: _MG_OnKey, onTip: _MG_Tip, onStart: _MG_OnStart, onEnd: _MG_OnEnd
         , critical: true                            ; 位置の判定のタイマーに割り込まれないように
+        , tip: MOUSEGRID_TIP
         , keep: [0x29, 0x70]                        ; 半角/全角・カタカナひらがなは Space+A の待ちでもそのまま効かせる
-        , preHeld: [0x70]})                         ; 起動に使ったキーは、離すまで無視する
+        , preHeld: [0x3A]})                         ; 起動に使った Caps（Caps→Caps）は、離すまで無視する
 }
 
 _MG_OnStart(st) {
@@ -201,16 +203,14 @@ _MG_NextRoot(st) {
     _MG_Tip(st)
 }
 
-; 案内は、カーソルのあるモニターの左下に出す（飛んだ先の表示に重ならないように）
+; 案内（出し方は MOUSEGRID_TIP。既定はモニターの左下に状態だけを出し、手が止まったら説明も出す）
 _MG_Tip(st) {
-    CoordMode("ToolTip", "Screen")
-    mr := MouseNav._MonitorRect(st.last.x, st.last.y)
     a := st.area
-    ToolTip("🧭 [カーソル移動：" a.name "] 領域 " (a.r - a.l) "×" (a.b - a.t) (MOUSEGRID_MAX_DEPTH > 1 ? "　段 " (st.stack.Length + 1) : "")
-        . "`nキーの位置 = 画面の位置　" (MOUSEGRID_MAX_DEPTH > 1 ? "BS：1 段戻る　" : "") "Tab：領域を替える（" st.roots.Length " 件）"
-        . (st.leftHand ? "`n左手入力：次のキーを、Space+A の表で右手側のキーに直して入力"
-            : "`nSpace+A → キー：左手だけで右手側のマスを指す")
-        . "`n半角/全角：開始位置へ戻る　Esc / Caps / かな：終了　赤ポチの操作でも終了", mr.L + 12, mr.B - 130)
+    IHM_Tip(st, "🧭 [カーソル移動：" a.name "] 領域 " (a.r - a.l) "×" (a.b - a.t) (MOUSEGRID_MAX_DEPTH > 1 ? "　段 " (st.stack.Length + 1) : "")
+            . (st.leftHand ? "　左手入力：次のキーを右手側のマスに" : "")
+        , "キーの位置 = 画面の位置　" (MOUSEGRID_MAX_DEPTH > 1 ? "BS：1 段戻る　" : "") "Tab：領域を替える（" st.roots.Length " 件）"
+            . "`nSpace+A → キー：左手だけで右手側のマスを指す"
+            . "`n半角/全角：開始位置へ戻る　Esc / Caps / かな：終了　赤ポチの操作でも終了")
 }
 
 ;------------------------------------------------------------------------------

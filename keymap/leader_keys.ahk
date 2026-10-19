@@ -5,7 +5,7 @@
 ;   CapsLock          … Leader_Caps()
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
-;   カタカナひらがな  … MouseGrid_Start() （入力待ちではなく、カーソル移動モード。Lib\mouse_grid.ahk）
+;   Caps → Caps       … MouseGrid_Start() （入力待ちではなく、カーソル移動モード。Lib\mouse_grid.ahk）
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
@@ -31,7 +31,6 @@
 ;------------------------------------------------------------------------------
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
-sc070:: MouseGrid_Start()                           ; カタカナひらがな：カーソル移動モード
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
@@ -82,7 +81,7 @@ Leader_Caps() {
         "[",  "",
         ; --- 中段 ---
         "a",  "",
-        "s",  VimiumC_ShowHints,                    ; Vimium C 風ヒント（部品に英字を重ねて、打ったところをクリック）
+        "s",  VimiumC_ShowHints,                    ; Vimium C 風ヒント（部品に英字を重ねて、        打ったところをクリック）
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
         "f",  Oneshot_Fn,                           ; Fn キー
         "g",  "{Enter}",
@@ -106,6 +105,7 @@ Leader_Caps() {
         "/",  "")
     static specials := Map(
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
+        0x3A, MouseGrid_Start,                      ; Caps：カーソル移動モード
         0x79, Ime_Hiragana,                         ; 変換：IME をひらがなに
         0x7B, Text_CapitalizeNext)                  ; 無変換：次の 1 文字を大文字に
     Leader_Run("Caps", keys, specials, true)
@@ -201,7 +201,7 @@ Leader_SpaceA() {
         "@",  "{\}",
         "[",  "",
         ; --- 中段 ---
-        "a",  "{Space}",
+        "a",  "{;}",
         "s",  "{l}",
         "d",  "{k}",
         "f",  "{j}",
