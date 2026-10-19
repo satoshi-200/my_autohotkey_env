@@ -11,11 +11,17 @@
 ;   ラベルは 1・2 文字で絞り込み、BackSpace で戻す、Esc で取り消す、という点も同じ
 ;   Vimium C では f / F / yf など別のコマンドでクリックの種類を選ぶ。ここでは親指キーで選ぶ（下の「操作」）。
 ;
-; 操作
-;   ラベルの英字     … 1〜2 文字で決定（打つごとに候補が絞られる）。そのままならクリック
+; 操作（VIMIUMC_THUMB_CLICK が false：既定）
+;   ラベルの英字     … 1て2 文字で決定（打つごとに候補が絞られる）。クリックする
+;   Space+A → キー   … 左手だけで右手側の文字を入力（keymap\leader_keys.ahk の Leader_SpaceA の表を読む。Q → P など）。
+;                       Space+A を押したあとの次の 1 キーだけが対象
+;   変換+g や Space+s など … BackSpace などを送る割り当ても、そのキーとして扱う（IH_LayerSc）
+; 操作（VIMIUMC_THUMB_CLICK を true にしたとき：親指キーでクリックの種類を選ぶ旧の動作）
+;   ラベルの英字     … 1て2 文字で決定（打つごとに候補が絞られる）。そのままならクリック
 ;   Space → ラベル  … ダブルクリック（親指キーは押して離してからラベルを打つ。同じキーをもう一度で取り消し）
 ;   変換 → ラベル   … 右クリック
 ;   無変換 → ラベル … マウスカーソルを移動するだけ（ホバー）
+; どちらも共通
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
 ;   BackSpace        … 1 文字戻す
 ;   Esc / Caps       … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
@@ -29,15 +35,19 @@
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\key_wait.ahk
+#Include %A_LineFile%\..\key_mode.ahk
 
 VIMIUMC_ALPHABET := "asdfjklghqweruiop"      ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる）
 VIMIUMC_LABEL_BG := "FFE066"                 ; ラベルの背景色
 VIMIUMC_LABEL_FG := "000000"                 ; ラベルの文字色
 VIMIUMC_LABEL_ALPHA := 140                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
 VimiumC_session := ""                        ; 実行中のモードの状態（動作確認用。実行していなければ ""）
+; true：親指キーでクリックの種類を選ぶ（Space＝ダブルクリック、変換＝右クリック、無変換＝ホバー）
+; false：これらをやめ、Space+A で左手だけのラベル入力にする（右手でマウスを持つとき用）
+VIMIUMC_THUMB_CLICK := false
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで受ける
-#HotIf IsObject(VimiumC_session)
+#HotIf IsObject(VimiumC_session) && VIMIUMC_THUMB_CLICK
 vk1D:: _VimiumC_Thumb(VimiumC_session, 0x1D)
 #HotIf
 
@@ -46,87 +56,70 @@ vk1D:: _VimiumC_Thumb(VimiumC_session, 0x1D)
 ;------------------------------------------------------------------------------
 VimiumC_ShowHints() {
     global VimiumC_session
-    IH_ModeBegin()
-    st := {scope: "window", items: [], ov: 0, typed: "", result: "", pick: 0, mode: "left", err: ""
-        , held: Map(), hook: InputHook("L0")}
-    st.idle := _VimiumC_Finish.Bind(st, "timeout")
-    st.hook.KeyOpt("{All}", "NS")                   ; すべてのキーを通知し、アプリには渡さない
-    st.hook.OnKeyDown := _VimiumC_OnKey.Bind(st)
-    st.hook.OnKeyUp := _VimiumC_OnKeyUp.Bind(st)
-    for vk in [0x20, 0x1C]                          ; 起動時にすでに押している親指キーは、離すまで無視する
-        if GetKeyState(Format("vk{:X}", vk), "P")
-            st.held[vk] := true
+    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map()}
     VimiumC_session := st
-    try {
-        if _VimiumC_Load(st) {
-            SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)
-            st.hook.Start()
-            st.hook.Wait()
-        }
-        else
-            st.result := "none"
-    }
-    catch as e {
-        st.result := "error"
-        st.err := e.Message
-    }
-    finally {
-        SetTimer(st.idle, 0)
-        st.hook.Stop()
-        _VimiumC_Close(st)
-        VimiumC_session := ""
-    }
-
-    switch st.result {
-        case "pick":
-            msg := _VimiumC_Act(st.pick, st.mode)
-        case "timeout":
-            msg := "❌ [Vimium C ヒント] タイムアウト"
-        case "none":
-            msg := "❌ [Vimium C ヒント] 操作できる部品が見つかりません"
-        case "error":
-            msg := "⚠️ [Vimium C ヒント] 取得に失敗：" st.err
-        default:
-            msg := "❌ [Vimium C ヒント] キャンセル"
-    }
-    IH_ModeEnd(msg)
+    IHM_Run(st, {message: _VimiumC_Message, onKey: _VimiumC_OnKey, onTip: _VimiumC_Tip, onStart: _VimiumC_OnStart
+        , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp
+        , layers: !VIMIUMC_THUMB_CLICK})            ; 旧の動作では親指キー自体に意味があるので、読み替えをしない
 }
 
-; キーが押されたとき（InputHook の OnKeyDown）
-_VimiumC_OnKey(st, h, vk, sc) {
-    SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)       ; 待ち時間は押すたびに数え直す
-    if (st.result != "")
-        return
-    if (vk = 0x20 || vk = 0x1C) {                   ; Space / 変換（押しっぱなしのリピートは無視）
-        if !st.held.Has(vk) {
-            st.held[vk] := true
-            _VimiumC_Thumb(st, vk)
-        }
-        return
-    }
-    if (sc = 0x01 || sc = 0x3A) {                   ; Esc / Caps
-        _VimiumC_Finish(st, "cancel")
-        return
-    }
-    if (sc = 0x0F) {                                ; Tab
-        st.scope := (st.scope = "window") ? "taskbar" : "window"
-        try
-            _VimiumC_Load(st)
-        catch as e {
-            st.err := e.Message
-            _VimiumC_Finish(st, "error")
-        }
-        return
-    }
-    if (sc = 0x0E) {                                ; BackSpace
-        if (st.typed != "") {
-            st.typed := SubStr(st.typed, 1, -1)
-            _VimiumC_Refresh(st)
-        }
-        return
-    }
+_VimiumC_OnStart(st) {
+    for vk in [0x20, 0x1C]                          ; 起動時にすでに押している親指キーは、離すまで無視する（旧の動作用）
+        if GetKeyState(Format("vk{:X}", vk), "P")
+            st.thumbHeld[vk] := true
+    if !_VimiumC_Load(st)
+        IHM_Finish(st, "none")
+}
 
-    name := StrLower(GetKeyName(Format("vk{:X}sc{:X}", vk, sc)))
+_VimiumC_OnEnd(st) {
+    global VimiumC_session
+    _VimiumC_Close(st)
+    VimiumC_session := ""
+}
+
+; 終わったときの表示。選んだときはここでクリックする（ラベルの表示を消したあと）
+_VimiumC_Message(st) {
+    switch st.result {
+        case "pick":    return _VimiumC_Act(st.pick, st.mode)
+        case "timeout": return "❌ [Vimium C ヒント] タイムアウト"
+        case "none":    return "❌ [Vimium C ヒント] 操作できる部品が見つかりません"
+        case "error":   return "⚠️ [Vimium C ヒント] 取得に失敗：" st.err
+        default:        return "❌ [Vimium C ヒント] キャンセル"
+    }
+}
+
+; キーが来たとき（リピートの無視、親指キーの読み替え、Space+A は骨組み key_mode.ahk）
+_VimiumC_OnKey(st, k) {
+    if (k.HasProp("raw") && (k.vk = 0x20 || k.vk = 0x1C)) {   ; 旧の動作：Space / 変換はクリックの種類の切り替え（リピートは無視）
+        if !st.thumbHeld.Has(k.vk) {
+            st.thumbHeld[k.vk] := true
+            _VimiumC_Thumb(st, k.vk)
+        }
+        return
+    }
+    switch k.sc {
+        case 0x01, 0x3A:                            ; Esc / Caps
+            IHM_Finish(st, "cancel")
+        case 0x0F:                                  ; Tab
+            st.scope := (st.scope = "window") ? "taskbar" : "window"
+            try
+                _VimiumC_Load(st)
+            catch as e {
+                st.err := e.Message
+                IHM_Finish(st, "error")
+            }
+        case 0x0E:                                  ; BackSpace
+            if (st.typed != "") {
+                st.typed := SubStr(st.typed, 1, -1)
+                _VimiumC_Refresh(st)
+            }
+        default:
+            _VimiumC_TypeLabel(st, k.name)
+    }
+}
+
+; ラベルの文字を 1 つ打つ（合うラベルがなければ知らせる。1 つに決まればクリックへ）
+_VimiumC_TypeLabel(st, name) {
     if (StrLen(name) != 1 || !InStr(VIMIUMC_ALPHABET, name))
         return
     typed := st.typed name
@@ -145,15 +138,15 @@ _VimiumC_OnKey(st, h, vk, sc) {
     st.typed := typed
     if pick {
         st.pick := pick
-        _VimiumC_Finish(st, "pick")
+        IHM_Finish(st, "pick")
         return
     }
     _VimiumC_Refresh(st)
 }
 
-_VimiumC_OnKeyUp(st, h, vk, sc) {
-    if st.held.Has(vk)
-        st.held.Delete(vk)
+_VimiumC_OnKeyUp(st, vk, sc) {
+    if st.thumbHeld.Has(vk)
+        st.thumbHeld.Delete(vk)
 }
 
 ; 親指キーでクリックの種類を切り替える（同じキーをもう一度で通常のクリックに戻す）
@@ -164,13 +157,6 @@ _VimiumC_Thumb(st, vk) {
     SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)
     st.mode := (st.mode = modes[vk]) ? "left" : modes[vk]
     _VimiumC_Tip(st)
-}
-
-; 結果を決めて待ちを終える（最初に決めた結果を残す）
-_VimiumC_Finish(st, result) {
-    if (st.result = "")
-        st.result := result
-    st.hook.Stop()
 }
 
 ; 対象から部品を集めてラベルを重ねる。見つかった数を返す
@@ -212,6 +198,13 @@ _VimiumC_Tip(st) {
         return
     now := (st.scope = "window") ? "ウィンドウ" : "タスクバー"
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
+    if !VIMIUMC_THUMB_CLICK {
+        ToolTip("🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
+            . (st.leftHand ? "`n左手入力：次のキーを、Space+A の表で右手側の文字に直して入力"
+                : "`nSpace+A → キー：左手だけで右手側の文字を入力　Tab：" other "へ")
+            . "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
+        return
+    }
     static names := Map("left", "クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "カーソル移動")
     ToolTip("🎯 [Vimium C ヒント：" now "] " st.items.Length " 件　動作：" names[st.mode]
         . (st.typed != "" ? "　入力：" StrUpper(st.typed) : "")
@@ -366,8 +359,7 @@ _VimiumC_SetShape(ov, items) {
 ;     IUIAutomationCacheRequest 3 AddProperty　7 TreeScope　11 AutomationElementMode
 ;------------------------------------------------------------------------------
 class VimiumCUIA {
-    static _com   := 0              ; IUIAutomation（COM オブジェクト。解放されないよう保持する）
-    static _ptr   := 0
+    static _ptr   := 0              ; IUIAutomation（UI_Uia() が持ち続けるものを借りる）
     static _cache := 0              ; 先に取っておくプロパティの指定
     ; 操作できる部品が持つパターン：Invoke / ExpandCollapse / SelectionItem / Toggle / Value
     static _PATTERNS := [30031, 30028, 30036, 30041, 30043]
@@ -375,8 +367,7 @@ class VimiumCUIA {
     static _Init() {
         if this._ptr
             return
-        this._com := ComObject("{FF48DBA4-60EF-4201-AA87-54103EEF594E}", "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
-        this._ptr := ComObjValue(this._com)
+        this._ptr := UI_Uia()
         ComCall(20, this._ptr, "ptr*", &cr := 0)
         ComCall(3, cr, "int", 30001)                ; BoundingRectangle
         ComCall(3, cr, "int", 30022)                ; IsOffscreen

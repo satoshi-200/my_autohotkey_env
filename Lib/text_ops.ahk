@@ -61,12 +61,12 @@ QM_CopySelection(&text) {
     return (ok && text != "")
 }
 
-; 文字を貼り付ける（クリップボードは元に戻す）
-QM_Paste(text) {
+; 文字を貼り付ける（クリップボードは元に戻す。waitMs は貼り付けが終わるのを待つ時間）
+QM_Paste(text, waitMs := 300) {
     saved := ClipboardAll()
     A_Clipboard := text
     Send("^v")
-    Sleep(300)
+    Sleep(waitMs)
     A_Clipboard := saved
 }
 

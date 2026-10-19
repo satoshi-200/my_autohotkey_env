@@ -1,15 +1,34 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; ui_common.ahk
-; 画面の表示まわりで、いくつかの部品が共通で使うもの（ツールチップ、小窓の位置、モニター、ウィンドウの矩形）
+; 画面の表示まわりで、いくつかの部品が共通で使うもの
+;   ツールチップ（UI_Tip / UI_TipFlash / UI_TipClear）、小窓の位置、モニター（番号・矩形）、ウィンドウの矩形、
+;   デスクトップ・タスクバーの判定（UI_IsShellWindow）、UI Automation の生成（UI_Uia）
 ;   quick_menu.ahk から分けた。関数は UI_ で始める
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 
 ; ツールチップを一定時間表示する（InputHook 側のツールチップと干渉しないよう TIP_ID_UI を使う）
 UI_Tip(msg, ms := 1500) {
+    static clear := () => ToolTip(, , , TIP_ID_UI)      ; 同じ関数にして、前の消去の予約を上書きする
     ToolTip(msg, , , TIP_ID_UI)
-    SetTimer(() => ToolTip(, , , TIP_ID_UI), -ms)
+    SetTimer(clear, -ms)
+}
+
+; 既定のツールチップ（1 番。入力待ちやモードの表示と共通）を ms 後に消す。
+; 消す関数を 1 つにしているので、新しい表示や SetTimer(UI_TipClear, 0) で、前の消去の予約が取り消される
+UI_TipFlash(msg, ms := TOOLTIP_DURATION_MS) {
+    ToolTip(msg)
+    SetTimer(UI_TipClear, -ms)
+}
+
+UI_TipClear() => ToolTip()
+
+; UI Automation（IUIAutomation）のポインタ。COM オブジェクトは 1 つだけ作って持ち続ける（解放されないように）
+;   使う部品：screen_capture.ahk（CapUIA）、vimium_c_hints.ahk（VimiumCUIA）。仮想関数表の番号はそれぞれの部品に書く
+UI_Uia() {
+    static com := ComObject("{FF48DBA4-60EF-4201-AA87-54103EEF594E}", "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
+    return ComObjValue(com)
 }
 
 ; ウィンドウの大きさ（非表示でも取得できる）
@@ -56,6 +75,7 @@ UI_RealVk(wParam, lParam) {
     return wParam
 }
 
+; 点 (x, y) を含むモニターの番号（どのモニターにもなければメインのモニター）
 UI_MonitorFromPoint(x, y) {
     loop MonitorGetCount() {
         MonitorGet(A_Index, &l, &t, &r, &b)
@@ -63,6 +83,26 @@ UI_MonitorFromPoint(x, y) {
             return A_Index
     }
     return MonitorGetPrimary()
+}
+
+; モニター（ハンドル hMon）の矩形 {L, T, R, B}（タスクバーも含む全体）
+UI_MonitorRectOf(hMon) {
+    mi := Buffer(40, 0), NumPut("UInt", 40, mi)
+    DllCall("GetMonitorInfo", "Ptr", hMon, "Ptr", mi)
+    return {L: NumGet(mi, 4, "Int"), T: NumGet(mi, 8, "Int"), R: NumGet(mi, 12, "Int"), B: NumGet(mi, 16, "Int")}
+}
+
+; 点 (x, y) にいちばん近いモニターの矩形
+UI_MonitorRectFromPoint(x, y) => UI_MonitorRectOf(DllCall("MonitorFromPoint", "Int64", (y << 32) | (x & 0xFFFFFFFF), "UInt", 2, "Ptr"))
+
+; ウィンドウといちばん多く重なるモニターの矩形
+UI_MonitorRectFromWindow(hwnd) => UI_MonitorRectOf(DllCall("MonitorFromWindow", "Ptr", hwnd, "UInt", 2, "Ptr"))
+
+; デスクトップかタスクバーのウィンドウか（ウィンドウ操作の対象から外すため。なくなったウィンドウでも例外にならない）
+UI_IsShellWindow(hwnd) {
+    cls := Buffer(512, 0)
+    DllCall("GetClassName", "Ptr", hwnd, "Ptr", cls, "Int", 256)
+    return RegExMatch(StrGet(cls), "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$") > 0
 }
 
 ; ウィンドウの見た目どおりの矩形 {l, t, r, b}（影を含まない。取れなければ GetWindowRect）

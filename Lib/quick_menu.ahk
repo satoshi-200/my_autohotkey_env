@@ -99,8 +99,8 @@ class QuickPalette {
     static _view   := []        ; パレットの ListView の行番号 → 項目
     static _target := 0         ; パレット／メニューを開く前にアクティブだったウィンドウ
 
-    ; クイックメニューの状態
-    static _mOpen  := false     ; 表示中か
+    ; クイックメニューの状態（画面は QM_ListPopup）
+    static _menu   := 0         ; QM_ListPopup
     static _mLevel := ""        ; "" = カテゴリ一覧、それ以外 = 表示中のカテゴリの英字
     static _mView  := []        ; メニューの行番号 → {type, key, it}
 
@@ -253,8 +253,7 @@ class QuickPalette {
             return true
         if !this._inited
             return false
-        return WinActive("ahk_id " this._gui.Hwnd)
-            || (this._mOpen && WinActive("ahk_id " this._mgui.Hwnd))
+        return WinActive("ahk_id " this._gui.Hwnd) || this._menu.IsActive()
     }
 
     ; すべて閉じて元のウィンドウに戻る
@@ -262,8 +261,7 @@ class QuickPalette {
         QM_SymbolMenu.Close()
         if !this._inited
             return
-        if this._mOpen
-            this._MenuClose()
+        this._menu.Close()
         if WinExist("ahk_id " this._gui.Hwnd) {                 ; 表示中のみ（非表示のウィンドウは見つからない）
             this._gui.Hide()
             this._RestoreTarget()
@@ -277,11 +275,7 @@ class QuickPalette {
 
     ; 機能を実行する（元のウィンドウに戻してから）
     static _Exec(it) {
-        if (this._target && WinExist("ahk_id " this._target)) {
-            try WinActivate("ahk_id " this._target)
-            try WinWaitActive("ahk_id " this._target, , 0.5)
-        }
-        Sleep(50)
+        QM_BackToTarget(this._target, 50)
         try it.fn.Call()
         catch as e
             UI_Tip("実行できませんでした：" e.Message)
@@ -314,8 +308,7 @@ class QuickPalette {
     ; target を指定すると、その画面を「元のウィンドウ」として扱う（メニューから開くとき用）
     static Show(target := 0) {
         this._Init()
-        if this._mOpen
-            this._MenuClose(false)
+        this._menu.Close(false)
         this._target := target || WinExist("A")
         this._edit.Value := ""
         this._Filter()
@@ -465,57 +458,32 @@ class QuickPalette {
 
     ;=== クイックメニュー =======================================================
     static _BuildMenuGui() {
-        g := Gui("+AlwaysOnTop -Caption +Border +ToolWindow", "QuickMenu")
-        g.MarginX := 8, g.MarginY := 6
-        g.SetFont("s9 c808080", "Yu Gothic UI")
-        this._mTitle := g.AddText("w300", "クイックメニュー")
-        g.SetFont("s11 cDefault")
-        this._mlv := g.AddListView("w300 r8 -Multi -Hdr NoSortHdr +LV0x10000 -E0x200", ["キー", "機能"])
-        this._mlv.ModifyCol(1, 44), this._mlv.ModifyCol(2, 250)
-        g.SetFont("s9 c808080")
-        this._mFoot := g.AddText("w300", "英字：選択　BS / ←：戻る　Esc / Caps：閉じる")
-        this._mgui := g
-
-        this._mlv.OnEvent("Click", (ctrl, row) => (row ? this._MenuPick(row) : 0))
-        g.OnEvent("Escape", (*) => this._MenuClose())
-        g.OnEvent("Close",  (*) => this._MenuClose())
-        this._mTimeoutFn := () => this._MenuClose()
-
-        OnMessage(0x0100, ObjBindMethod(this, "_OnMenuKey"))       ; WM_KEYDOWN
-        OnMessage(0x0102, ObjBindMethod(this, "_OnMenuChar"))      ; WM_CHAR
-        OnMessage(0x0006, ObjBindMethod(this, "_OnMenuActivate"))  ; WM_ACTIVATE
+        this._menu := QM_ListPopup("QuickMenu", 300, ["キー", "機能"], [44, 250], 8
+            , "英字：選択　BS / ←：戻る　Esc / Caps：閉じる"
+            , ObjBindMethod(this, "_OnMenuKey"), ObjBindMethod(this, "_MenuPick"))
     }
 
     ; level を指定すると、そのカテゴリを開いた状態で表示する
     static ShowMenu(level := "") {
         this._Init()
-        if this._mOpen {                                         ; 開いていれば閉じる（切り替え）
-            this._MenuClose()
+        if this._menu.isOpen {                                   ; 開いていれば閉じる（切り替え）
+            this._menu.Close()
             return
         }
-        this._target := WinExist("A")
+        this._target := this._menu.target := WinExist("A")
         this._mLevel := (this._CatName(level) != "") ? level : ""
         this._MenuRender()
-
-        UI_PopupPos(&x, &y)
-        this._mgui.Show("Hide AutoSize")
-        UI_ClampToMonitor(this._mgui.Hwnd, &x, &y)
-        this._mgui.Show("x" x " y" y)
-
-        this._mOpen := true
-        this._mlv.Focus()
-        QM_ImeOff(this._mlv.Hwnd)
-        this._MenuResetTimeout()
+        this._menu.Open()
     }
 
     ; 現在の階層の一覧を表示する
     static _MenuRender() {
-        lv := this._mlv
+        lv := this._menu.lv
         lv.Opt("-Redraw")
         lv.Delete()
         this._mView := []
         if (this._mLevel = "") {
-            this._mTitle.Value := "クイックメニュー"
+            this._menu.title.Value := "クイックメニュー"
             for c in this.Cats {
                 lv.Add(, c.key, c.name "  ▸")
                 this._mView.Push({type: "cat", key: c.key})
@@ -523,7 +491,7 @@ class QuickPalette {
             lv.Add(, "/", "コマンドパレットを開く")
             this._mView.Push({type: "palette", key: "/"})
         } else {
-            this._mTitle.Value := "クイックメニュー ▸ " this._CatName(this._mLevel)
+            this._menu.title.Value := "クイックメニュー ▸ " this._CatName(this._mLevel)
             for it in this.Items
                 if (it.catKey = this._mLevel) {
                     lv.Add(, it.key, it.name)
@@ -532,10 +500,7 @@ class QuickPalette {
         }
         lv.Opt("+Redraw")
         lv.Modify(1, "Select Focus")
-
-        UI_FitListView(lv, this._mView.Length, this._mFoot)
-        if this._mOpen
-            this._mgui.Show("AutoSize")                          ; 位置はそのままで大きさだけ合わせる
+        this._menu.Fit(this._mView.Length)
     }
 
     ; 行を選んだとき
@@ -547,61 +512,34 @@ class QuickPalette {
             case "cat":
                 this._mLevel := v.key
                 this._MenuRender()
-                this._MenuResetTimeout()
+                this._menu.ResetTimeout()
             case "palette":
                 target := this._target
-                this._MenuClose(false)
+                this._menu.Close(false)
                 SetTimer(() => this.Show(target), -1)
             case "item":
                 it := v.it
                 this._used[it.name] := A_TickCount
-                this._MenuClose(false)
+                this._menu.Close(false)
                 SetTimer(() => this._Exec(it), -1)
         }
     }
 
-    ; メニューを閉じる（restore = true なら元のウィンドウに戻る）
-    static _MenuClose(restore := true) {
-        if !this._mOpen
-            return
-        this._mOpen := false                                     ; 先に下ろす（非アクティブ化の通知で二重に閉じないように）
-        SetTimer(this._mTimeoutFn, 0)
-        this._mgui.Hide()
-        if restore
-            this._RestoreTarget()
-    }
-
-    static _MenuResetTimeout() {
-        if (this.MENU_TIMEOUT_MS > 0)
-            SetTimer(this._mTimeoutFn, -this.MENU_TIMEOUT_MS)
-    }
-
-    static _OnMenuKey(wParam, lParam, msg, hwnd) {
-        if !this._inited || !this._mOpen || hwnd != this._mlv.Hwnd
-            return
-        vk := UI_RealVk(wParam, lParam)
-        this._MenuResetTimeout()
-
+    ; Esc・Enter・↑↓ 以外のキー（その 3 つは QM_ListPopup が受ける）。一覧の既定の動きを止めるときは 0 を返す
+    static _OnMenuKey(vk) {
+        lv := this._menu.lv
         switch vk {
-            case 0x1B:                                           ; Esc：閉じる
-                this._MenuClose()
-                return 0
             case 0x08, 0x25:                                     ; BS / ←：カテゴリ一覧に戻る
                 if (this._mLevel != "") {
                     this._mLevel := ""
                     this._MenuRender()
                 }
                 return 0
-            case 0x0D:                                           ; Enter：選択中の行を実行
-                this._MenuPick(this._mlv.GetNext(0))
-                return 0
             case 0x27:                                           ; →：カテゴリに入る
-                row := this._mlv.GetNext(0)
+                row := lv.GetNext(0)
                 if (row && this._mView[row].type = "cat")
                     this._MenuPick(row)
                 return 0
-            case 0x26, 0x28:                                     ; ↑↓：通常の行移動
-                return
         }
 
         ; 英数字・/ ・; ：該当する行を実行（key は空白区切りで複数指定できる）
@@ -620,27 +558,16 @@ class QuickPalette {
             if (hits.Length = 1)
                 this._MenuPick(hits[1])
             else if (hits.Length > 1) {                          ; 同じキーが複数：押すたびに次の候補を選択（Enter で実行）
-                cur := this._mlv.GetNext(0), next := hits[1]
+                cur := lv.GetNext(0), next := hits[1]
                 for i in hits
                     if (i > cur) {
                         next := i
                         break
                     }
-                this._mlv.Modify(0, "-Select -Focus")
-                this._mlv.Modify(next, "Select Focus Vis")
+                this._menu.Select(next)
             }
             return 0                                             ; 該当なしは無視
         }
-    }
-
-    static _OnMenuChar(wParam, lParam, msg, hwnd) {
-        if (this._inited && hwnd = this._mlv.Hwnd)
-            return 0                                             ; 一覧の頭文字検索とビープ音を止める
-    }
-
-    static _OnMenuActivate(wParam, lParam, msg, hwnd) {
-        if (this._inited && this._mOpen && hwnd = this._mgui.Hwnd && (wParam & 0xFFFF) = 0)
-            SetTimer(() => this._MenuClose(false), -1)          ; ほかの場所をクリック／Alt+Tab で閉じる
     }
 }
 
@@ -674,43 +601,29 @@ class QM_SymbolMenu {
     static FULL_OVERRIDE := Map()
 
     ;--- 内部状態（※メソッド名と大文字小文字違いで重ならない名前にすること）--------
-    static _win := 0, _isOpen := false, _target := 0, _full := false
+    static _p := 0, _target := 0, _full := false             ; _p：画面（QM_ListPopup。初めて開くときに作る）
 
     ; 表示する（開いていれば閉じる）
     static Show() {
-        if this._isOpen {
-            this.Close()
+        if (this._p && this._p.isOpen) {
+            this._p.Close()
             return
         }
         this._target := WinExist("A")
         this._full := QM_TargetImeIsFullWidth(this._target)     ; メニューが前面に出る前に調べる
         this._Build()
+        this._p.target := this._target
         this._Refresh()
-
-        UI_PopupPos(&x, &y)
-        this._win.Show("Hide AutoSize")
-        UI_ClampToMonitor(this._win.Hwnd, &x, &y)
-        this._win.Show("x" x " y" y)
-
-        this._isOpen := true
-        this._lv.Modify(0, "-Select -Focus")
-        this._lv.Modify(1, "Select Focus")
-        this._lv.Focus()
-        QM_ImeOff(this._lv.Hwnd)
-        this._ResetTimeout()
+        this._p.Select(1)
+        this._p.Open()
     }
 
-    static IsActive() => (this._isOpen && this._win && WinActive("ahk_id " this._win.Hwnd))
+    static IsActive() => this._p && this._p.IsActive()
 
     ; 閉じる（restore = true なら元のウィンドウに戻る）
     static Close(restore := true) {
-        if !this._isOpen
-            return
-        this._isOpen := false                                    ; 先に下ろす（非アクティブ化の通知で二重に閉じないように）
-        SetTimer(this._timeoutFn, 0)
-        this._win.Hide()
-        if (restore && this._target && WinExist("ahk_id " this._target))
-            try WinActivate("ahk_id " this._target)
+        if this._p
+            this._p.Close(restore)
     }
 
     ; 入力する文字（全角モードなら全角に変換）
@@ -723,42 +636,22 @@ class QM_SymbolMenu {
     }
 
     static _Build() {
-        if this._win
+        if this._p
             return
-        g := Gui("+AlwaysOnTop -Caption +Border +ToolWindow", "QuickSymbol")
-        g.MarginX := 8, g.MarginY := 6
-        g.SetFont("s9 c808080", "Yu Gothic UI")
-        this._title := g.AddText("w460", "記号メニュー")
-        g.SetFont("s11 cDefault")
-        this._lv := g.AddListView("w460 r16 -Multi -Hdr NoSortHdr +LV0x10000 -E0x200", ["キー", "記号", "英語名", "読み"])
-        this._lv.ModifyCol(1, 44), this._lv.ModifyCol(2, 44), this._lv.ModifyCol(3, 170), this._lv.ModifyCol(4, 196)
+        p := QM_ListPopup("QuickSymbol", 460, ["キー", "記号", "英語名", "読み"], [44, 44, 170, 196], 16
+            , "英字：入力　Space：全角／半角を切り替え　↑↓ + Enter：選んで入力　Esc / Caps：閉じる"
+            , ObjBindMethod(this, "_OnKey"), ObjBindMethod(this, "_Pick"))
         for s in this.Symbols
-            this._lv.Add(, s.key, s.sym, s.en, s.ja)
-        g.SetFont("s9 c808080")
-        foot := g.AddText("w460", "英字：入力　Space：全角／半角を切り替え　↑↓ + Enter：選んで入力　Esc / Caps：閉じる")
-        UI_FitListView(this._lv, this.Symbols.Length, foot)
-        this._win := g
-
-        this._lv.OnEvent("Click", (ctrl, row) => (row ? this._Pick(row) : 0))
-        g.OnEvent("Escape", (*) => this.Close())
-        g.OnEvent("Close",  (*) => this.Close())
-        this._timeoutFn := () => this.Close()
-
-        OnMessage(0x0100, ObjBindMethod(this, "_OnKeyDown"))   ; WM_KEYDOWN
-        OnMessage(0x0102, ObjBindMethod(this, "_OnChar"))      ; WM_CHAR
-        OnMessage(0x0006, ObjBindMethod(this, "_OnActivate"))  ; WM_ACTIVATE
+            p.lv.Add(, s.key, s.sym, s.en, s.ja)
+        p.Fit(this.Symbols.Length)
+        this._p := p
     }
 
     ; タイトルと「記号」列を、全角／半角に合わせて書き換える
     static _Refresh() {
-        this._title.Value := "記号メニュー　［" (this._full ? "全角" : "半角") "で入力］"
+        this._p.title.Value := "記号メニュー　［" (this._full ? "全角" : "半角") "で入力］"
         for i, s in this.Symbols
-            this._lv.Modify(i, , , this._Char(s.sym))
-    }
-
-    static _ResetTimeout() {
-        if (QuickPalette.MENU_TIMEOUT_MS > 0)
-            SetTimer(this._timeoutFn, -QuickPalette.MENU_TIMEOUT_MS)
+            this._p.lv.Modify(i, , , this._Char(s.sym))
     }
 
     ; 記号を入力する
@@ -771,32 +664,16 @@ class QM_SymbolMenu {
     }
 
     static _Type(ch) {
-        if (this._target && WinExist("ahk_id " this._target)) {
-            try WinActivate("ahk_id " this._target)
-            try WinWaitActive("ahk_id " this._target, , 0.5)
-        }
-        Sleep(30)
+        QM_BackToTarget(this._target, 30)
         SendText(ch)                                             ; 文字をそのまま入力（キー配列・Shift の影響を受けない）
     }
 
-    static _OnKeyDown(wParam, lParam, msg, hwnd) {
-        if !this._isOpen || !this._win || hwnd != this._lv.Hwnd
-            return
-        vk := UI_RealVk(wParam, lParam)
-        this._ResetTimeout()
-        switch vk {
-            case 0x1B:                                           ; Esc
-                this.Close()
-                return 0
-            case 0x0D:                                           ; Enter
-                this._Pick(this._lv.GetNext(0))
-                return 0
-            case 0x20:                                           ; Space：全角／半角を切り替え
-                this._full := !this._full
-                this._Refresh()
-                return 0
-            case 0x26, 0x28:                                     ; ↑↓：通常の行移動
-                return
+    ; Esc・Enter・↑↓ 以外のキー（その 3 つは QM_ListPopup が受ける）。一覧の既定の動きを止めるときは 0 を返す
+    static _OnKey(vk) {
+        if (vk = 0x20) {                                         ; Space：全角／半角を切り替え
+            this._full := !this._full
+            this._Refresh()
+            return 0
         }
         if (vk >= 0x41 && vk <= 0x5A) {                          ; 英字：該当する記号を入力
             ch := Chr(vk)
@@ -808,16 +685,123 @@ class QM_SymbolMenu {
             return 0                                             ; 該当なしは無視
         }
     }
+}
 
-    static _OnChar(wParam, lParam, msg, hwnd) {
-        if (this._win && hwnd = this._lv.Hwnd)
+
+;==============================================================================
+; QM_ListPopup : 文字カーソルの近くに出す小さな一覧（クイックメニューと記号メニューが使う）
+;   タイトル・一覧・説明の 3 段。キーは一覧が受ける（Esc：閉じる、Enter：選んでいる行、↑↓：行の移動）。
+;   ほかのキーは onKey(vk) に渡す（0 を返すと、一覧の既定の動き（頭文字検索・ビープ音）を止める）。
+;   閉じ方：Esc、ほかの場所をクリック／Alt+Tab、一定時間操作しない（QuickPalette.MENU_TIMEOUT_MS）、Close()。
+;   閉じたら target（開く前にアクティブだったウィンドウ）に戻る。使う側が開く前に入れる。
+;==============================================================================
+class QM_ListPopup {
+    ; name：ウィンドウ名　width：幅　cols / colWidths：一覧の列と幅　rows：一覧の行数（Fit で合わせ直せる）
+    ; foot：下の説明　onKey(vk)：Esc・Enter・↑↓ 以外のキー　onPick(row)：行の決定（Enter・クリック）
+    __New(name, width, cols, colWidths, rows, foot, onKey, onPick) {
+        g := Gui("+AlwaysOnTop -Caption +Border +ToolWindow", name)
+        g.MarginX := 8, g.MarginY := 6
+        g.SetFont("s9 c808080", "Yu Gothic UI")
+        this.title := g.AddText("w" width, "")
+        g.SetFont("s11 cDefault")
+        this.lv := g.AddListView("w" width " r" rows " -Multi -Hdr NoSortHdr +LV0x10000 -E0x200", cols)
+        for i, w in colWidths
+            this.lv.ModifyCol(i, w)
+        g.SetFont("s9 c808080")
+        this.foot := g.AddText("w" width, foot)
+        this.gui := g
+        this.isOpen := false
+        this.target := 0
+        this.onKey := onKey, this.onPick := onPick
+        this.timeoutFn := ObjBindMethod(this, "Close")
+
+        this.lv.OnEvent("Click", (ctrl, row) => (row ? onPick(row) : 0))
+        g.OnEvent("Escape", (*) => this.Close())
+        g.OnEvent("Close",  (*) => this.Close())
+        OnMessage(0x0100, ObjBindMethod(this, "_OnKeyDown"))   ; WM_KEYDOWN
+        OnMessage(0x0102, ObjBindMethod(this, "_OnChar"))      ; WM_CHAR（Enter などのビープ音を防ぐ）
+        OnMessage(0x0006, ObjBindMethod(this, "_OnActivate"))  ; WM_ACTIVATE（ほかを選んだら閉じる）
+    }
+
+    ; 文字カーソルの下（取れなければマウスの位置）に出す。中身は先に用意しておく
+    Open() {
+        UI_PopupPos(&x, &y)
+        this.gui.Show("Hide AutoSize")
+        UI_ClampToMonitor(this.gui.Hwnd, &x, &y)
+        this.gui.Show("x" x " y" y)
+        this.isOpen := true
+        this.lv.Focus()
+        QM_ImeOff(this.lv.Hwnd)
+        this.ResetTimeout()
+    }
+
+    ; 閉じる（restore = true なら元のウィンドウに戻る）
+    Close(restore := true) {
+        if !this.isOpen
+            return
+        this.isOpen := false                                     ; 先に下ろす（非アクティブ化の通知で二重に閉じないように）
+        SetTimer(this.timeoutFn, 0)
+        this.gui.Hide()
+        if (restore && this.target && WinExist("ahk_id " this.target))
+            try WinActivate("ahk_id " this.target)
+    }
+
+    IsActive() => this.isOpen && WinActive("ahk_id " this.gui.Hwnd)
+
+    ; 一覧の高さを n 行に合わせる（表示中なら、位置はそのままで大きさだけ合わせる）
+    Fit(n) {
+        UI_FitListView(this.lv, n, this.foot)
+        if this.isOpen
+            this.gui.Show("AutoSize")
+    }
+
+    ResetTimeout() {
+        if (QuickPalette.MENU_TIMEOUT_MS > 0)
+            SetTimer(this.timeoutFn, -QuickPalette.MENU_TIMEOUT_MS)
+    }
+
+    ; 行 row を選んだ状態にする
+    Select(row) {
+        this.lv.Modify(0, "-Select -Focus")
+        this.lv.Modify(row, "Select Focus Vis")
+    }
+
+    _OnKeyDown(wParam, lParam, msg, hwnd) {
+        if !this.isOpen || hwnd != this.lv.Hwnd
+            return
+        vk := UI_RealVk(wParam, lParam)
+        this.ResetTimeout()
+        switch vk {
+            case 0x1B:                                           ; Esc：閉じる
+                this.Close()
+                return 0
+            case 0x0D:                                           ; Enter：選んでいる行
+                this.onPick.Call(this.lv.GetNext(0))
+                return 0
+            case 0x26, 0x28:                                     ; ↑↓：通常の行移動
+                return
+        }
+        return this.onKey.Call(vk)
+    }
+
+    _OnChar(wParam, lParam, msg, hwnd) {
+        if (hwnd = this.lv.Hwnd)
             return 0                                             ; 一覧の頭文字検索とビープ音を止める
     }
 
-    static _OnActivate(wParam, lParam, msg, hwnd) {
-        if (this._isOpen && this._win && hwnd = this._win.Hwnd && (wParam & 0xFFFF) = 0)
+    _OnActivate(wParam, lParam, msg, hwnd) {
+        if (this.isOpen && hwnd = this.gui.Hwnd && (wParam & 0xFFFF) = 0)
             SetTimer(() => this.Close(false), -1)               ; ほかの場所をクリック／Alt+Tab で閉じる
     }
+}
+
+; メニューを開く前のウィンドウを前面に戻し（最大 0.5 秒待つ）、sleepMs 待つ。メニューから実行する操作が、元のウィンドウに届くように
+QM_BackToTarget(target, sleepMs) {
+    if (target && WinExist("ahk_id " target)) {
+        try WinActivate("ahk_id " target)
+        try WinWaitActive("ahk_id " target, , 0.5)
+    }
+    Sleep(sleepMs)
 }
 
 

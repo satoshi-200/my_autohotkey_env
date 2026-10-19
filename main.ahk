@@ -4,7 +4,7 @@
 ;
 ; ●ファイル構成
 ;   ・keymap\hold_keys.ahk   : 押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）
-;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A / かな → 何か）
+;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A → 何か。かなはカーソル移動モード）
 ;   ・Lib\                   : 各機能の部品
 ;
 ; ●キー対応表 (JIS キーボード)
@@ -26,6 +26,7 @@
 ; 土台
 #Include Lib\config.ahk
 #Include Lib\IME.ahk
+#Include Lib\keymap_parse.ahk
 #Include Lib\key_wait.ahk
 #Include Lib\ui_common.ahk
 ; 文字入力
@@ -36,6 +37,7 @@
 #Include Lib\date_input.ahk
 ; マウス・ウィンドウ
 #Include Lib\mouse_cursor.ahk
+#Include Lib\mouse_grid.ahk
 #Include Lib\window_ops.ahk
 #Include Lib\window_switch.ahk
 #Include Lib\screen_saver.ahk

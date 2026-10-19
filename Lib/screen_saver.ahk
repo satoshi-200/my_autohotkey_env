@@ -6,6 +6,7 @@
 ;   状態はトレイアイコン・トレイのツールチップ・トレイメニューのチェックで表示する。
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
+#Include %A_LineFile%\..\ui_common.ahk
 
 ScreenSaver_on := false
 SCREENSAVER_MENU := "スクリーンセーバー回避"
@@ -26,8 +27,7 @@ ScreenSaver_Toggle() {
         A_IconTip := ""
         A_TrayMenu.Uncheck(SCREENSAVER_MENU)
     }
-    ToolTip("☕ スクリーンセーバー回避：" (ScreenSaver_on ? "ON" : "OFF"))
-    SetTimer(() => ToolTip(), -TOOLTIP_DURATION_MS)
+    UI_TipFlash("☕ スクリーンセーバー回避：" (ScreenSaver_on ? "ON" : "OFF"))
 }
 
 ; オンのときだけ解除する（ホットキーから Esc を送るときに併用）

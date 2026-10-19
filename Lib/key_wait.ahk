@@ -7,8 +7,12 @@
 ;   IH_WaitNext()    次のキーを 1 つ待ち、キャンセル・タイムアウトを判定する
 ;   IH_ModeBegin() / IH_ModeEnd()  独自の InputHook を使うモードの開始・終了処理
 ;   IH_HotkeyTrigger() / IH_ChoiceHook() / IH_IsCancelKey()  そのモードで使う部品（ファイルの末尾）
+;   IH_LayerSc()     変換+g や Space+s のような「別のキーを送る割り当て」を、モードでもそのキーとして扱う
+;   IH_SpaceAChar()  Space+A の表（右手側の文字を左手で入力）を、モードから引く
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
+#Include %A_LineFile%\..\ui_common.ahk
+#Include %A_LineFile%\..\keymap_parse.ahk
 
 IH_hook := InputHook("L1")
 IH_waiting := false
@@ -33,7 +37,7 @@ IH_WaitNext(mode, hint := "", endKeys := "", capsIsKey := false) {
 IH_TipWaiting(mode, hint := "") {
     global IH_waiting := true
     global IH_forcedKey := ""
-    SetTimer(IH_TipClear, 0)              ; 前のモードの「消去タイマー」で待ち表示が消えないように
+    SetTimer(UI_TipClear, 0)              ; 前のモードの「消去タイマー」で待ち表示が消えないように
     ToolTip("⌨️ [" mode "] 次のキー待ち..." (hint != "" ? "`n" hint : "")
         "`nEsc / Caps / Space+Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
 }
@@ -61,10 +65,9 @@ IH_EndWait(mode, capsIsKey := false) {
     IH_waiting := false
 
     if (cancelled != "")
-        ToolTip("❌ [" mode "] " cancelled)
+        UI_TipFlash("❌ [" mode "] " cancelled)
     else
-        ToolTip("✅ [" mode "] accepted:[" ((endKey != "") ? endKey : IH_hook.Input) "]")
-    SetTimer(IH_TipClear, -TOOLTIP_DURATION_MS)
+        UI_TipFlash("✅ [" mode "] accepted:[" ((endKey != "") ? endKey : IH_hook.Input) "]")
     return cancelled != ""
 }
 
@@ -86,17 +89,14 @@ IH_CapsWhileSpaceHeld() {
 ; 独自の InputHook を使うモードの開始（ほかのレイヤーを止め、呼び出し元の消去タイマーを止める）
 IH_ModeBegin() {
     global IH_waiting := true
-    SetTimer(IH_TipClear, 0)
+    SetTimer(UI_TipClear, 0)
 }
 
 ; 独自の InputHook を使うモードの終了（結果を短く表示する）
 IH_ModeEnd(message) {
     global IH_waiting := false
-    ToolTip(message)
-    SetTimer(IH_TipClear, -TOOLTIP_DURATION_MS)
+    UI_TipFlash(message)
 }
-
-IH_TipClear() => ToolTip()
 
 ;------------------------------------------------------------------------------
 ; 独自の InputHook で選ぶモード（アプリ切り替え・タブ切り替えなど）の共通部品
@@ -126,3 +126,70 @@ IH_IsCapsKey(key) => key != "" && (key = "CapsLock" || GetKeySC(key) = 0x3A)
 
 ; 取り消しのキーか（Esc、Caps、Space を押したまま Caps）。Space は決定のキーでもあるので、Caps が来なかったときは false
 IH_IsCancelKey(key) => key = "Escape" || IH_IsCapsKey(key) || (key != "" && GetKeyVK(key) = 0x20 && IH_CapsWhileSpaceHeld())
+
+;------------------------------------------------------------------------------
+; 親指キーのレイヤーのうち、「別のキーを送るだけ」の割り当てを、モードでもそのキーとして扱うための部品
+;   モードの間はレイヤーのホットキーが止まる。自分の SendInput は自分の InputHook に届かないので、
+;   変換+g（BackSpace）や Space+s（BackSpace）を押しても、モードには g や s だけが届く。
+;   そこで、keymap\hold_keys.ahk の「起点 & キー::  SendInput("{キー}")」を読んで、同じ対応をモードでも使う。
+;   対応を二重に書かない。割り当てを変えれば、モードもこれに従う。
+;------------------------------------------------------------------------------
+; 親指キー（変換・Space・無変換）を押したまま打ったキー sc を、レイヤーが送るキーのスキャンコードに直す。
+; held は押されているキー（スキャンコード → true）。送るキーがない割り当ては、ignoreOthers なら 0（無視）、そうでなければ元の sc。
+; Esc と Caps は取り消しなので、親指キーを押していてもそのまま返す。
+; 親指キー自身に独自の意味があるモード（Vimium C 風ヒントの Space＝ダブルクリックなど）では使わない。
+IH_LayerSc(held, sc, ignoreOthers := false) {
+    static prefixes := Map(0x79, "vk1C", 0x39, "vk20", 0x7B, "vk1D")
+    static table := 0
+    if (sc = 0x01 || sc = 0x3A || prefixes.Has(sc))
+        return sc
+    for thumb, prefix in prefixes {
+        if !held.Has(thumb)
+            continue
+        if !IsObject(table)
+            table := _IH_LoadLayerTable()
+        key := prefix "|" sc
+        if table.Has(key)
+            return table[key]
+        return ignoreOthers ? 0 : sc
+    }
+    return sc
+}
+
+; hold_keys.ahk から、「起点|キーのスキャンコード → 送るキーのスキャンコード」の表を作る
+_IH_LoadLayerTable() {
+    table := Map()
+    try
+        src := KP_Read("hold_keys.ahk")
+    catch
+        return table
+    for prefix in ["vk1C", "vk1D", "vk20"]
+        for row in KP_HoldRows(src, prefix) {
+            if RegExMatch(row.action, "^SendInput\(`"(?:\{Blind\})?\{(\w+)\}`"\)$", &k)
+                name := k[1]
+            else if (row.action = "ShiftHold_Enter()")
+                name := "Enter"
+            else
+                continue
+            from := GetKeySC(row.key), to := GetKeySC(name)
+            if (from && to && !table.Has(prefix "|" from))
+                table[prefix "|" from] := to
+        }
+    return table
+}
+
+; Space+A（leader_keys.ahk の Leader_SpaceA の表）で、キー key（小文字 1 文字）に割り当てられた 1 文字。なければ ""
+; 左手だけで右手側の文字を入力するモード（Vimium C 風ヒントなど）が、同じ対応を使うための部品。表は読んで使う（二重に書かない）
+IH_SpaceAChar(key) {
+    static table := 0
+    if !IsObject(table) {
+        table := Map()
+        table.CaseSense := false
+        src := ""
+        try src := KP_Read("leader_keys.ahk")
+        for row in KP_LeaderRows(src, "Leader_SpaceA")
+            if (!row.special && RegExMatch(row.action, '^"\{(.)\}"$', &m))
+                table[row.key] := m[1]
+    }
+    return table.Has(key) ? table[key] : ""
+}

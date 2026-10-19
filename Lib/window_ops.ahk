@@ -145,7 +145,7 @@ QM_DesktopInfo() {
 ; アクティブなウィンドウを隠してから切り替え、切り替え先で表示し直す（表示した側のデスクトップに移る）
 QM_CarryWindow(switchFn) {
     hwnd := WinExist("A")
-    if (!hwnd || RegExMatch(WinGetClass(hwnd), "^(Progman|WorkerW|Shell_TrayWnd|Shell_SecondaryTrayWnd)$")) {
+    if (!hwnd || UI_IsShellWindow(hwnd)) {
         UI_Tip("移動できるウィンドウがありません")
         return
     }

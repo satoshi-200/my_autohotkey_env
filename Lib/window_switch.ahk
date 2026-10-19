@@ -353,18 +353,7 @@ _WinMonitor_Step(hwnd, back) {
 
 ; ウィンドウがいるモニターの番号と中央の座標
 _WinMonitor_Info(hwnd) {
-    hMon := DllCall("MonitorFromWindow", "Ptr", hwnd, "UInt", 2, "Ptr")
-    mi := Buffer(40, 0)
-    NumPut("UInt", 40, mi)
-    DllCall("GetMonitorInfo", "Ptr", hMon, "Ptr", mi)
-    l := NumGet(mi, 4, "Int"), t := NumGet(mi, 8, "Int"), r := NumGet(mi, 12, "Int"), b := NumGet(mi, 16, "Int")
-    idx := "?"
-    loop MonitorGetCount() {
-        MonitorGet(A_Index, &ml, &mt)
-        if (ml = l && mt = t) {
-            idx := A_Index
-            break
-        }
-    }
-    return {idx: idx, cx: (l + r) // 2, cy: (t + b) // 2}
+    r := UI_MonitorRectFromWindow(hwnd)
+    cx := (r.L + r.R) // 2, cy := (r.T + r.B) // 2
+    return {idx: UI_MonitorFromPoint(cx, cy), cx: cx, cy: cy}
 }

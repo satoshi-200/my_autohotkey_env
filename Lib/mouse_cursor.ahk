@@ -112,31 +112,16 @@ class MouseNav {
         DllCall(this._pSet, "Int", x + dx, "Int", y + dy, "Int")
     }
 
-    ; ワープ先として有効な通常ウィンドウかを判定する
+    ; ワープ先として有効な通常ウィンドウかを判定する（デスクトップ・タスクバー・非表示・最小化中は除く）
     static _IsWarpTarget(hwnd) {
-        if (!hwnd
-            || !DllCall("IsWindowVisible", "Ptr", hwnd)
-            || DllCall("IsIconic", "Ptr", hwnd))                ; 最小化中
-            return false
-        cls := Buffer(512, 0)
-        DllCall("GetClassName", "Ptr", hwnd, "Ptr", cls, "Int", 256)
-        switch StrGet(cls) {
-            case "Progman", "WorkerW":                          ; デスクトップ
-                return false
-            case "Shell_TrayWnd", "Shell_SecondaryTrayWnd":     ; タスクバー
-                return false
-        }
-        return true
+        return hwnd
+            && DllCall("IsWindowVisible", "Ptr", hwnd)
+            && !DllCall("IsIconic", "Ptr", hwnd)
+            && !UI_IsShellWindow(hwnd)
     }
 
     ; カーソルのあるモニターの矩形（タスクバー含む全体）
-    static _MonitorRect(x, y) {
-        hMon := DllCall("MonitorFromPoint", "Int64", (y << 32) | (x & 0xFFFFFFFF), "UInt", 2, "Ptr")
-        mi := Buffer(40, 0), NumPut("UInt", 40, mi)
-        DllCall("GetMonitorInfo", "Ptr", hMon, "Ptr", mi)
-        return {L: NumGet(mi, 4, "Int"), T: NumGet(mi, 8, "Int")
-              , R: NumGet(mi, 12, "Int"), B: NumGet(mi, 16, "Int")}
-    }
+    static _MonitorRect(x, y) => UI_MonitorRectFromPoint(x, y)
 
     ; 全モニターの矩形を「左端の小さい順、同じなら上端の小さい順」で返す。excluded にあるデバイス名（小文字）は除く
     static _Monitors(excluded := 0) {
@@ -300,13 +285,12 @@ Mouse_ToggleDrag() {
     if Mouse_dragging {
         Click("Up")
         Mouse_dragging := false
-        ToolTip("Released")
+        UI_TipFlash("Released", 3000)
     } else {
         Click("Down")
         Mouse_dragging := true
-        ToolTip("Holding")
+        UI_TipFlash("Holding", 3000)
     }
-    SetTimer(() => ToolTip(), -3000)
 }
 
 Mouse_IsDragging() => Mouse_dragging
@@ -315,8 +299,7 @@ Mouse_CancelDrag() {
     global Mouse_dragging
     Click("Up")
     Mouse_dragging := false
-    ToolTip("Canceled")
-    SetTimer(() => ToolTip(), -2000)
+    UI_TipFlash("Canceled", 2000)
 }
 
 #HotIf Mouse_IsDragging() && !IH_waiting

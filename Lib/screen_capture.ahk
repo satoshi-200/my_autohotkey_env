@@ -87,7 +87,7 @@ _Cap_Run(mode, trim := false) {
     }
 
     if (rc && mode = "window") {                                ; 隠れた部分も撮れるよう、前面に出して撮り直す
-        if !(WinGetClass(st.hwnd) ~= "^(Shell_TrayWnd|Progman|WorkerW)$")
+        if !UI_IsShellWindow(st.hwnd)
             try WinActivate(st.hwnd)
         Sleep(CAP_DELAY_MS)
         rc := _Cap_Clamp(UI_VisibleRect(st.hwnd))
@@ -431,7 +431,6 @@ _Cap_CopyToClipboard(hbm) {
 ;                     IUIAutomationElement 43 CurrentBoundingRectangle
 ;------------------------------------------------------------------------------
 class CapUIA {
-    static _com := 0                ; 解放されないよう保持する
     static _ptr := 0
     static _walkerCom := 0
     static _walker := 0
@@ -439,8 +438,7 @@ class CapUIA {
     static _Init() {
         if this._ptr
             return
-        this._com := ComObject("{FF48DBA4-60EF-4201-AA87-54103EEF594E}", "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
-        this._ptr := ComObjValue(this._com)
+        this._ptr := UI_Uia()
         ComCall(14, this._ptr, "ptr*", &w := 0)
         this._walkerCom := ComValue(13, w)
         this._walker := w

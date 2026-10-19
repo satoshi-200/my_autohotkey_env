@@ -5,7 +5,7 @@
 ;   CapsLock          … Leader_Caps()
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
-;   カタカナひらがな  … Leader_Kana()
+;   カタカナひらがな  … MouseGrid_Start() （入力待ちではなく、カーソル移動モード。Lib\mouse_grid.ahk）
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
@@ -14,12 +14,14 @@
 ;   行末のコメントは、入力待ちで止まったときに出る割り当て一覧の説明になる（なければ処理をそのまま表示）
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
+#Include %A_LineFile%\..\..\Lib\keymap_parse.ahk
 #Include %A_LineFile%\..\..\Lib\oneshot_modifiers.ahk
 #Include %A_LineFile%\..\..\Lib\text_input.ahk
 #Include %A_LineFile%\..\..\Lib\window_switch.ahk
 #Include %A_LineFile%\..\..\Lib\window_ops.ahk
 #Include %A_LineFile%\..\..\Lib\multi_clipboard.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
+#Include %A_LineFile%\..\..\Lib\mouse_grid.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
 #Include %A_LineFile%\..\..\Lib\vimium_c_hints.ahk
 #Include %A_LineFile%\..\..\Lib\shift_hold.ahk
@@ -29,7 +31,7 @@
 ;------------------------------------------------------------------------------
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
-sc070:: Leader_Kana()                               ; カタカナひらがな
+sc070:: MouseGrid_Start()                           ; カタカナひらがな：カーソル移動モード
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
@@ -212,9 +214,9 @@ Leader_SpaceA() {
         ":",  "{~}",
         "]",  "",
         ; --- 下段 ---
-        "z",  "",
-        "x",  "",
-        "c",  "",
+        "z",  "{/}",
+        "x",  "{.}",
+        "c",  "{,}",
         "v",  "{m}",
         "b",  "{n}",
         "n",  "",
@@ -223,63 +225,6 @@ Leader_SpaceA() {
         ".",  "",
         "/",  "")
     Leader_Run("Space + A：左手で文字・記号", keys, , , true)
-}
-
-; カタカナひらがなの入力待ち（いまは割り当てなし）
-Leader_Kana() {
-    static keys := Leader_Keys(
-        ; --- 数字列 ---
-        "1",  "",
-        "2",  "",
-        "3",  "",
-        "4",  "",
-        "5",  "",
-        "6",  "",
-        "7",  "",
-        "8",  "",
-        "9",  "",
-        "0",  "",
-        "-",  "",
-        "^",  "",
-        "\",  "",
-        ; --- 上段 ---
-        "q",  "",
-        "w",  "",
-        "e",  "",
-        "r",  "",
-        "t",  "",
-        "y",  "",
-        "u",  "",
-        "i",  "",
-        "o",  "",
-        "p",  "",
-        "@",  "",
-        "[",  "",
-        ; --- 中段 ---
-        "a",  "",
-        "s",  "",
-        "d",  "",
-        "f",  "",
-        "g",  "",
-        "h",  "",
-        "j",  "",
-        "k",  "",
-        "l",  "",
-        ";",  "",
-        ":",  "",
-        "]",  "",
-        ; --- 下段 ---
-        "z",  "",
-        "x",  "",
-        "c",  "",
-        "v",  "",
-        "b",  "",
-        "n",  "",
-        "m",  "",
-        ",",  "",
-        ".",  "",
-        "/",  "")
-    Leader_Run("カタカナひらがな", keys)
 }
 
 ;------------------------------------------------------------------------------
@@ -336,36 +281,25 @@ Leader_ShowHelp(mode, funcName) {
         ToolTip("⌨️ [" mode "] 次のキー待ち...（Esc / Caps：キャンセル）`n" Leader_HelpText(funcName))
 }
 
-; 割り当て表の関数（funcName）のソースを読み、割り当て済みの行から一覧の文字列を作る
+; 割り当て表の関数（funcName）のソースを読み、割り当て済みの行から一覧の文字列を作る（行の読み取りは Lib\keymap_parse.ahk）
 Leader_HelpText(funcName) {
     static cache := Map()
     if cache.Has(funcName)
         return cache[funcName]
-    lines := "", specialLines := "", inFunc := false
-    Loop Parse, FileRead(A_LineFile, "UTF-8"), "`n", "`r" {
-        if !inFunc {
-            inFunc := RegExMatch(A_LoopField, "^" funcName "\(\)\s*\{")
+    lines := "", specialLines := ""
+    for row in KP_LeaderRows(FileRead(A_LineFile, "UTF-8"), funcName) {
+        if (row.action = "" || row.action = '""')
             continue
-        }
-        if RegExMatch(A_LoopField, "^\}")
-            break
-        ; 例：  "q",  WindowResizer_Show,   ; ウィンドウの大きさ  ／  0x0F, WindowMonitor_Show)  ; Tab：…
-        if !RegExMatch(A_LoopField, '^\s*(?:"(.)"|(0x\w+)),\s*(.+?),?(?:\s+;\s*(.*?))?\s*$', &m)
-            continue
-        action := m[3]
-        if (StrLen(StrReplace(action, ")")) < StrLen(StrReplace(action, "(")))   ; 表の最後の行の閉じ括弧を除く
-            action := SubStr(action, 1, -1)
-        if (action = '""')
-            continue
-        label := m[4] != "" ? m[4]
-            : RegExReplace(RegExReplace(action, '^"\{(.)\}"$|^"(.*)"$', "$1$2"), "^\(\) => ")
-        if (m[2] != "") {
-            sc := Integer(m[2])
+        label := row.comment != "" ? row.comment
+            : RegExReplace(RegExReplace(row.action, '^"\{(.)\}"$|^"(.*)"$', "$1$2"), "^\(\) => ")
+        if row.special {
+            sc := Integer(row.key)
             label := RegExReplace(label, "^[^：]+：")      ; コメント先頭の「Tab：」などを除く
-            specialLines .= "`n" (LEADER_KEY_NAMES.Has(sc) ? LEADER_KEY_NAMES[sc] : m[2]) "：" label
+            specialLines .= "`n" (LEADER_KEY_NAMES.Has(sc) ? LEADER_KEY_NAMES[sc] : row.key) "：" label
         }
         else
-            lines .= "`n" StrUpper(m[1]) "：" label
+            lines .= "`n" StrUpper(row.key) "：" label
     }
     return cache[funcName] := LTrim(lines specialLines, "`n")
 }
+

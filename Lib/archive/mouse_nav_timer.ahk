@@ -97,10 +97,10 @@
 ;   なめらか（旧既定） : S_TAP 0   / S_TAP_MS 0  / S_EASE_MS 60 / S_GLIDE_MS 100 / S_STEP 1
 ;   ホイール再現       : S_TAP 120 / S_TAP_MS 0  / S_EASE_MS 0  / S_GLIDE_MS 0   / S_STEP 120
 ;==============================================================================
-#Include %A_LineFile%\..\config.ahk
-#Include %A_LineFile%\..\key_wait.ahk
-#Include %A_LineFile%\..\ui_common.ahk
-#Include %A_LineFile%\..\text_input.ahk
+#Include %A_LineFile%\..\..\config.ahk
+#Include %A_LineFile%\..\..\key_wait.ahk
+#Include %A_LineFile%\..\..\ui_common.ahk
+#Include %A_LineFile%\..\..\text_input.ahk
 
 
 class MouseNav {
@@ -292,7 +292,7 @@ class MouseNav {
     static WarpToActiveWindow() {
         hwnd := DllCall("GetForegroundWindow", "Ptr")
         if this._IsWarpTarget(hwnd) {
-            rc := Win_VisibleRect(hwnd)
+            rc := UI_VisibleRect(hwnd)
             cx := (rc.l + rc.r) // 2
             cy := (rc.t + rc.b) // 2
             ; ウィンドウの中央がどのモニター上にもない場合は採用しない
@@ -835,7 +835,7 @@ Mouse_CancelDrag() {
     SetTimer(() => ToolTip(), -2000)
 }
 
-#HotIf Mouse_IsDragging() && !isWaitingInput
+#HotIf Mouse_IsDragging() && !IH_waiting
 Esc:: Mouse_CancelDrag()
 vk20 & sc03A:: Mouse_CancelDrag()                   ; Space+Caps
 #HotIf

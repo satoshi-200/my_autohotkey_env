@@ -7,11 +7,13 @@
 - 部品は `#Include %A_LineFile%\..\○○.ahk` で、必要な部品を自分で読み込む。同じファイルは 1 回しか読み込まれない。
 - キー割り当ては `keymap\hold_keys.ahk`（押しながら使う）と `keymap\leader_keys.ahk`（押して離してから次のキー）。機能の本体は `Lib\` に置き、keymap には呼び出しだけを書く。
 - 使わなくなったものは `Lib\archive\` へ移す（読み込まれない）。小さな関数は `Lib\archive\unused_functions.ahk` にまとめる。
-- いくつかの部品で使うものの置き場所：表示まわり（`UI_Tip`、小窓の位置、モニター、`UI_VisibleRect`）は `Lib\ui_common.ahk`、入力待ち・選ぶモードの InputHook は `Lib\key_wait.ahk`、選択文字・文字の変換は `Lib\text_ops.ahk`、ツールチップの番号（`TIP_ID_*`）は `Lib\config.ahk`。
+- いくつかの部品で使うものの置き場所：表示まわり（`UI_Tip`、`UI_TipFlash`（既定のツールチップを一定時間で消す）、小窓の位置、モニターの番号・矩形、`UI_VisibleRect`、デスクトップ・タスクバーの判定 `UI_IsShellWindow`、UI Automation の生成 `UI_Uia`）は `Lib\ui_common.ahk`、入力待ち・選ぶモードの InputHook と、モードでのキーの読み替え（`IH_LayerSc` / `IH_SpaceAChar`）は `Lib\key_wait.ahk`、keymap の割り当て表の読み取りは `Lib\keymap_parse.ahk`、選択文字・文字の変換・クリップボードを戻す貼り付け（`QM_Paste`）は `Lib\text_ops.ahk`、ツールチップの番号（`TIP_ID_*`）は `Lib\config.ahk`。
+- InputHook でキーをイベントで受けるモードを足すときは `Lib\key_mode.ahk` の `IHM_Run()` を使う（例：`Lib\mouse_grid.ahk`）。モードの状態を入れる変数（`MouseGrid_session` など）はモード側に持ち、`#HotIf IsObject(...)` や試験で使う。
+- クイックメニューと記号メニューの小窓（タイトル・一覧・説明、Esc / 非アクティブ / 時間切れで閉じる）は `Lib\quick_menu.ahk` の `QM_ListPopup` が共通。同じ形の小窓を足すときはこれを使う。
 - `quick_menu.ahk` はメニューの登録と画面だけを置き、メニューから呼ぶ処理の本体はそれぞれの部品（`text_ops` / `window_ops` / `screen_capture` など）に置く。
 
 ## 命名
-- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち。共有の InputHook は `IH_hook`、待機中フラグは `IH_waiting`）、`UI_`（表示の共通部品。`ui_common.ahk`）など。`text_ops.ahk` / `window_ops.ahk` の関数は、クイックメニューから呼ぶものなので `QM_` のまま。
+- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち。共有の InputHook は `IH_hook`、待機中フラグは `IH_waiting`）、`KP_`（割り当て表の読み取り。`keymap_parse.ahk`）、`UI_`（表示の共通部品。`ui_common.ahk`）など。`text_ops.ahk` / `window_ops.ahk` の関数は、クイックメニューから呼ぶものなので `QM_` のまま。
 - AutoHotkey v2 は変数名・関数名・メソッド名の大文字小文字を区別しない。ローカル変数が同名のクラス・関数・static 変数を隠さないよう、別の名前にする（例：`gui := Gui(...)` は不可、`log` は `Log()` と衝突）。
 - 設定値は部品の冒頭に大文字の変数で置く（例：`CAP_SAVE_DIR`）。
 

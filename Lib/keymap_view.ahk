@@ -12,7 +12,10 @@
 ; 表示する文字は、コメントがあればコメント、なければ処理から作る（SendInput の中身はキー名に直す）。
 ; 関数名だけの処理は KM_FUNC_NAMES で日本語にする。載っていない関数は関数名のまま表示する。
 ; 画面のひな形は keymap_view.html（__DATA__ の部分に割り当てのデータを入れる）。
+; 行の読み取り（コメントの分離など）は keymap_parse.ahk と共通（モードのキーの読み替えや入力待ちの一覧も同じものを使う）。
 ;==============================================================================
+#Include %A_LineFile%\..\keymap_parse.ahk
+#Include %A_LineFile%\..\ui_common.ahk
 
 ; 関数名 → 表示名（キー割り当てに出てくるもの）
 KM_FUNC_NAMES := Km_Map(
@@ -35,7 +38,7 @@ KM_FUNC_NAMES := Km_Map(
     "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード",
-    "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス")
+    "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード")
 
 ; SendInput のキー名 → 表示名
 KM_KEY_NAMES := Km_Map(
@@ -115,8 +118,7 @@ Km_BuildHtml() {
         Km_Layer("Space +", ["039"], "Space を押しながら押すキー（Space+F / Space+A は入力待ちになる）", Km_ParseHold(hold, "vk20", hf)),
         Km_Layer("Caps →", ["03A"], "CapsLock を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Caps", lf)),
         Km_Layer("Space+F →", ["039", "021"], "Space+F を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_SpaceF", lf)),
-        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf)),
-        Km_Layer("かな →", ["070"], "カタカナひらがなを押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Kana", lf))]
+        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf))]
     hist := Km_HistLoad()
     json := "{`"layers`":["
     for i, ly in layers
@@ -125,7 +127,7 @@ Km_BuildHtml() {
     return StrReplace(FileRead(A_LineFile "\..\keymap_view.html", "UTF-8"), "__DATA__", json)
 }
 
-Km_KeymapDir() => RegExReplace(A_LineFile, "\\Lib\\[^\\]+$") "\keymap"
+Km_KeymapDir() => KP_Dir()
 
 Km_Layer(name, origin, note, parsed) => {name: name, origin: origin, note: note, keys: parsed.keys, extra: parsed.extra, blank: parsed.blank}
 
@@ -136,15 +138,12 @@ Km_Layer(name, origin, note, parsed) => {name: name, origin: origin, note: note,
 ; 各項目に、書かれているファイル名・行番号・元の行を持たせる（編集で使う）。割り当てのない行は blank に入れる
 Km_ParseHold(src, prefix, file) {
     keys := Map(), extra := [], blank := Map()
-    loop parse src, "`n", "`r" {
-        if !RegExMatch(A_LoopField, "^" prefix " & (.+?)::\s*(.*)$", &m)
-            continue
-        Km_SplitComment(m[2], &action, &comment)
-        if (action = "return" || action = "") {
-            Km_AddBlank(blank, m[1], Km_Sc(m[1]), file, A_Index, A_LoopField)
+    for row in KP_HoldRows(src, prefix) {
+        if (row.action = "return" || row.action = "") {
+            Km_AddBlank(blank, row.key, Km_Sc(row.key), file, row.lineNo, row.raw)
             continue
         }
-        Km_Add(keys, extra, m[1], Km_Sc(m[1]), Km_Label(action, comment), action, file, A_Index, A_LoopField)
+        Km_Add(keys, extra, row.key, Km_Sc(row.key), Km_Label(row.action, row.comment), row.action, file, row.lineNo, row.raw)
     }
     Km_DropAssigned(blank, keys)
     return {keys: keys, extra: extra, blank: blank}
@@ -153,30 +152,14 @@ Km_ParseHold(src, prefix, file) {
 ; 関数 fn の中の「"キー", 処理」「0x79, 処理」の行を読む
 Km_ParseLeader(src, fn, file) {
     keys := Map(), extra := [], blank := Map()
-    inFn := false
-    loop parse src, "`n", "`r" {
-        line := A_LoopField
-        if !inFn {
-            inFn := RegExMatch(line, "^" fn "\(\)\s*\{")
+    for row in KP_LeaderRows(src, fn) {
+        sc := row.special ? Km_Hex(Integer(row.key)) : Km_Sc(row.key)
+        comment := row.special ? RegExReplace(row.comment, "^[^：]+：") : row.comment   ; 「Tab：…」の先頭はキー名なので除く
+        if (row.action = "" || row.action = '""') {
+            Km_AddBlank(blank, row.key, sc, file, row.lineNo, row.raw)
             continue
         }
-        if (SubStr(line, 1, 1) = "}")
-            break
-        if RegExMatch(line, '^\s*"(.)",\s*(.*)$', &m)
-            name := m[1], sc := Km_Sc(m[1]), rest := m[2]
-        else if RegExMatch(line, "^\s*(?:static specials := Map\()?(0x[0-9A-Fa-f]+),\s*(.*)$", &m)
-            name := m[1], sc := Km_Hex(Integer(m[1])), rest := m[2]
-        else
-            continue
-        Km_SplitComment(rest, &action, &comment)
-        if (SubStr(name, 1, 2) = "0x")
-            comment := RegExReplace(comment, "^[^：]+：")          ; 「Tab：…」の先頭はキー名なので除く
-        action := Km_TrimAction(action)
-        if (action = "" || action = '""') {
-            Km_AddBlank(blank, name, sc, file, A_Index, line)
-            continue
-        }
-        Km_Add(keys, extra, name, sc, Km_Label(action, comment), action, file, A_Index, line)
+        Km_Add(keys, extra, row.key, sc, Km_Label(row.action, comment), row.action, file, row.lineNo, row.raw)
     }
     Km_DropAssigned(blank, keys)
     return {keys: keys, extra: extra, blank: blank}
@@ -201,34 +184,6 @@ Km_DropAssigned(blank, keys) {
     for sc in keys
         if blank.Has(sc)
             blank.Delete(sc)
-}
-
-; 行末のコメント（空白＋「;」）を分ける。引用符の中の「;」は見ない
-Km_SplitComment(s, &action, &comment) {
-    inQuote := false
-    loop StrLen(s) {
-        ch := SubStr(s, A_Index, 1)
-        if (ch = '"') {
-            if (SubStr(s, A_Index - 1, 1) != "``")
-                inQuote := !inQuote
-        }
-        else if (!inQuote && ch = ";" && (A_Index = 1 || RegExMatch(SubStr(s, A_Index - 1, 1), "\s"))) {
-            action := Trim(SubStr(s, 1, A_Index - 1)), comment := Trim(SubStr(s, A_Index + 1))
-            return
-        }
-    }
-    action := Trim(s), comment := ""
-}
-
-; 入力待ちの表の行から、末尾のカンマと、表を閉じる「)」を除く
-Km_TrimAction(action) {
-    action := RTrim(action)
-    if (SubStr(action, -1) = ",")
-        action := RTrim(SubStr(action, 1, -1))
-    StrReplace(action, "(", , , &open), StrReplace(action, ")", , , &close)
-    if (close > open)
-        action := RTrim(SubStr(action, 1, -1))
-    return action
 }
 
 ; 起点と一緒に書かれたキー名 → スキャンコード（マウスなど、キーボードにないものは ""）
@@ -389,12 +344,7 @@ Km_ShowWindow(path) {
 Km_WorkArea(&l, &t, &r, &b) {
     CoordMode("Mouse", "Screen")
     MouseGetPos(&mx, &my)
-    loop MonitorGetCount() {
-        MonitorGetWorkArea(A_Index, &l, &t, &r, &b)
-        if (mx >= l && mx < r && my >= t && my < b)
-            return
-    }
-    MonitorGetWorkArea(MonitorGetPrimary(), &l, &t, &r, &b)
+    MonitorGetWorkArea(UI_MonitorFromPoint(mx, my), &l, &t, &r, &b)
 }
 
 Km_OnSize(guiObj, minMax, width, height) {
