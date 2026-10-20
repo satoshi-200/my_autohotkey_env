@@ -52,7 +52,7 @@
 <div id="kb"></div>
 <div id="editor"></div>
 <div id="extra"></div>
-<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜6 でレイヤーを切り替えられます。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。</span></div>
+<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜6 でレイヤーを切り替えられます。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。割り当てのないキーも、クリックして行を足せます。</span></div>
 <script>
 var DATA = __DATA__;
 
@@ -154,6 +154,17 @@ function render(i) {
   rows = rows.concat(ly.extra);
   var ex = document.getElementById("extra");
   ex.innerHTML = "";
+  if (host) {
+    var addBtn = document.createElement("button");
+    addBtn.textContent = "キー・組み合わせを追加…";
+    addBtn.style.cssText = "font: inherit; font-size: 13px; padding: 5px 14px; margin: 0 0 10px; border: 1px solid #b8bcc4; border-radius: 6px; background: #fff; cursor: pointer;";
+    addBtn.onclick = function () {
+      selSc = "";
+      Array.prototype.forEach.call(kb.children, function (c) { c.classList.remove("sel"); });
+      showAddEditor(ly, "", "", true);
+    };
+    ex.appendChild(addBtn);
+  }
   if (rows.length > 0) {
     var h = document.createElement("h2");
     h.textContent = "キー配列にない入力（マウス・ホイール・PgUp など）";
@@ -207,12 +218,11 @@ function showEditor(ly, it, sc, face) {
   ed.innerHTML = "";
   if (!host) return;
   ed.style.display = "block";
-  var h = document.createElement("h2");
   if (!it || !it.f) {
-    h.textContent = ly.name + " " + (face || sc) + "　このキーには、編集できる行がありません";
-    ed.appendChild(h);
+    showAddEditor(ly, sc, face, false);
     return;
   }
+  var h = document.createElement("h2");
   h.textContent = ly.name + " " + (face || it.n) + "　（" + it.f + " の " + it.l + " 行目）" + (it.t === "" ? "　※割り当てなし" : "");
   ed.appendChild(h);
 
@@ -266,6 +276,99 @@ function showEditor(ly, it, sc, face) {
     else if (e.key === "Escape") { selSc = ""; setHash(); render(curLayer); }
   });
   input.focus();
+}
+
+// 入力待ちで、特殊キーとして割り当てられるキー（Tab / Space / Caps / 変換 / 無変換 / かな / 左 Shift / 右 Alt）
+var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 1, "02A": 1, "138": 1 };
+
+// 行がまだ無いキーの雛形。{text, cursor}、使えないキーは {err}
+function addTemplate(ly, sc, face) {
+  if (ly.kind === "hold") {
+    if (ly.origin.indexOf(sc) >= 0) return { err: "起点のキー自身には、割り当てられません。" };
+    var tok = /^[A-Z0-9]$/.test(face || "") ? face.toLowerCase() : "sc" + sc;
+    return { text: ly.anchor + " & " + tok + '::  SendInput("")' };
+  }
+  if (LEADER_SPECIAL[sc]) {
+    var n = parseInt(sc, 16).toString(16).toUpperCase();
+    return { text: "0x" + (n.length < 2 ? "0" + n : n) + ', () => SendInput("")' };
+  }
+  var ch = (face === "¥") ? "\\" : (face || "");
+  if (ch.length === 1 && ch.charCodeAt(0) < 128) return { text: '"' + ch.toLowerCase() + '",  ""' };
+  return { err: "この入力待ちでは、このキーは割り当てに使えません。" };
+}
+
+function faceOf(sc) {
+  for (var i = 0; i < L.length; i++) if (L[i].sc === sc) return L[i].f;
+  return "";
+}
+
+// 行がまだ無いキー・組み合わせに、新しい行を足す。free が true のときは、キーを選ばずに自由に書く
+function showAddEditor(ly, sc, face, free) {
+  var ed = document.getElementById("editor");
+  ed.innerHTML = "";
+  ed.style.display = "block";
+  face = face || faceOf(sc);
+  var tpl = free
+    ? { text: ly.kind === "hold" ? ly.anchor + " & " : '"",  ""' }
+    : addTemplate(ly, sc, face);
+  var h = document.createElement("h2");
+  if (tpl.err) {
+    h.textContent = ly.name + " " + (face || sc) + "　" + tpl.err;
+    ed.appendChild(h);
+    return;
+  }
+  h.textContent = ly.name + " " + (free ? "新しい行を追加" : (face || sc))
+    + "　（" + ly.file + " に行を足します。割り当てはまだありません）";
+  ed.appendChild(h);
+
+  var input = document.createElement("input");
+  input.type = "text";
+  input.className = "code";
+  input.spellcheck = false;
+  input.value = tpl.text;
+  ed.appendChild(input);
+
+  var err = document.createElement("div");
+  err.className = "err";
+  var btns = document.createElement("div");
+  btns.className = "btns";
+  function button(label, cls, fn) {
+    var b = document.createElement("button");
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.onclick = fn;
+    btns.appendChild(b);
+    return b;
+  }
+  function add(text) {
+    err.textContent = "ファイルに足して構文を確認しています…";
+    window.KM_current = { err: err };
+    host.postMessage(["add", ly.file, ly.name, ly.kind, ly.anchor, text].join(SEP));
+  }
+  button("確定", "ok", function () { add(input.value); });
+  button("雛形に戻す", "", function () { input.value = tpl.text; input.focus(); });
+  button("閉じる", "", function () { selSc = ""; setHash(); render(curLayer); });
+  ed.appendChild(btns);
+
+  var help = document.createElement("div");
+  help.className = "help";
+  help.textContent = ly.kind === "hold"
+    ? "書き方：「" + ly.anchor + " & キー::  処理」。キーは文字（t）、キー名（WheelUp・RButton・F1・Left）、スキャンコード（sc029）のどれでも書けます。"
+    : "書き方：「\"キー\",  処理」（文字キー）、「0x79,  処理」（特殊キー。Tab 0x0F / Space 0x39 / Caps 0x3A / 変換 0x79 / 無変換 0x7B / かな 0x70）。"
+      + "表の先頭に足します。";
+  help.textContent += "（Enter：確定　Esc：閉じる）。確定すると構文を確認してからファイルに保存します。動いているスクリプトへの反映は、Insert で再読み込みしたあとです。";
+  ed.appendChild(help);
+  ed.appendChild(err);
+
+  input.addEventListener("keydown", function (e) {
+    if (e.isComposing) return;
+    if (e.key === "Enter") { e.preventDefault(); add(input.value); }
+    else if (e.key === "Escape") { selSc = ""; setHash(); render(curLayer); }
+  });
+  input.focus();
+  var q = input.value.lastIndexOf('"');
+  if (!free && q > 0) input.setSelectionRange(q, q);
+  ed.scrollIntoView({ block: "nearest" });
 }
 
 // ホスト（AHK）からの結果

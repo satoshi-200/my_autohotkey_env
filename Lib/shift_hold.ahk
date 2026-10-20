@@ -8,7 +8,7 @@
 ;   ・Enter（Space+g / h、Enter キー）は、モードを終えてから Shift なしで送る（未確定の文字を確定して、モードを抜ける）。
 ;     IME の F8・F9（変換+b / n）は、モードは続けたまま ShiftHold_SendPlain で Shift なしで送る（半角全角変換が効くように）。
 ;   Space + A（左手で文字・記号）は、入力待ちの間だけ ShiftHold_Pause で Shift を離し、送る直前に ShiftHold_Resume で戻す（送る文字にモードが反映される）。
-;   呼び出し：Space+F → Caps（keymap\leader_keys.ahk）
+;   呼び出し：Space+A → Space（keymap\leader_keys.ahk）
 ;   終了：Esc / Caps / Space+Caps、Enter（確定したら抜ける）、キー操作がない状態が SHIFTHOLD_IDLE_MS 続いたとき、Shift キーを物理的に押して離したとき、
 ;         スクリプトの終了・再読み込み。
 ;
@@ -29,7 +29,7 @@ ShiftHold_wasOn := false                           ; 入力待ちを始めたと
 
 ShiftHold_IsOn() => ShiftHold_on
 
-; 入力待ち（Space+F → Caps）からの切り替え。モード中に Caps を押すと終了用のホットキーも同時に働くので、
+; 入力待ち（Space+A → Space）からの切り替え。モード中に Caps を押すと終了用のホットキーも同時に働くので、
 ; 待つ前に ShiftHold_Remember で記録した状態で、入る・抜けるを決める
 ShiftHold_Remember() {
     global ShiftHold_wasOn := ShiftHold_on

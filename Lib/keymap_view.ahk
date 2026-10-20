@@ -38,7 +38,8 @@ KM_FUNC_NAMES := Km_Map(
     "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード",
-    "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード")
+    "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
+    "LastInput_Recall", "直前の入力をもう一度入力", "LastInput_RecallChar", "直前の 1 文字をもう一度入力")
 
 ; SendInput のキー名 → 表示名
 KM_KEY_NAMES := Km_Map(
@@ -113,12 +114,12 @@ Km_BuildHtml() {
     lead := FileRead(dir "\leader_keys.ahk", "UTF-8")
     hf := "hold_keys.ahk", lf := "leader_keys.ahk"
     layers := [
-        Km_Layer("変換 +", ["079"], "変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1C", hf)),
-        Km_Layer("無変換 +", ["07B"], "無変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1D", hf)),
-        Km_Layer("Space +", ["039"], "Space を押しながら押すキー（Space+F / Space+A は入力待ちになる）", Km_ParseHold(hold, "vk20", hf)),
-        Km_Layer("Caps →", ["03A"], "CapsLock を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Caps", lf)),
-        Km_Layer("Space+F →", ["039", "021"], "Space+F を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_SpaceF", lf)),
-        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf))]
+        Km_Layer("変換 +", ["079"], "変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1C", hf), "hold", "vk1C", hf),
+        Km_Layer("無変換 +", ["07B"], "無変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1D", hf), "hold", "vk1D", hf),
+        Km_Layer("Space +", ["039"], "Space を押しながら押すキー（Space+F / Space+A は入力待ちになる）", Km_ParseHold(hold, "vk20", hf), "hold", "vk20", hf),
+        Km_Layer("Caps →", ["03A"], "CapsLock を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Caps", lf), "leader", "Leader_Caps", lf),
+        Km_Layer("Space+F →", ["039", "021"], "Space+F を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_SpaceF", lf), "leader", "Leader_SpaceF", lf),
+        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf), "leader", "Leader_SpaceA", lf)]
     hist := Km_HistLoad()
     json := "{`"layers`":["
     for i, ly in layers
@@ -129,7 +130,9 @@ Km_BuildHtml() {
 
 Km_KeymapDir() => KP_Dir()
 
-Km_Layer(name, origin, note, parsed) => {name: name, origin: origin, note: note, keys: parsed.keys, extra: parsed.extra, blank: parsed.blank}
+; kind："hold"（押しながら）/ "leader"（入力待ち）。anchor：起点（vk1C など）または表の関数名。file：書かれているファイル（行を足すときに使う）
+Km_Layer(name, origin, note, parsed, kind, anchor, file) => {name: name, origin: origin, note: note, keys: parsed.keys, extra: parsed.extra, blank: parsed.blank
+    , kind: kind, anchor: anchor, file: file}
 
 ;------------------------------------------------------------------------------
 ; 読み取り
@@ -271,7 +274,8 @@ Km_LayerJson(ly, hist) {
     origin := ""
     for sc in ly.origin
         origin .= (origin != "" ? "," : "") Km_Q(sc)
-    return "{`"name`":" Km_Q(ly.name) ",`"note`":" Km_Q(ly.note) ",`"origin`":[" origin "],`"keys`":{" keys "},`"blank`":{" blank "},`"extra`":[" extra "]}"
+    return "{`"name`":" Km_Q(ly.name) ",`"note`":" Km_Q(ly.note) ",`"kind`":" Km_Q(ly.kind) ",`"anchor`":" Km_Q(ly.anchor)
+        . ",`"file`":" Km_Q(ly.file) ",`"origin`":[" origin "],`"keys`":{" keys "},`"blank`":{" blank "},`"extra`":[" extra "]}"
 }
 
 ; n・t・s：表示用、f・l・r：書かれているファイルと行番号と元の行、p：1 つ前の内容（なければ空）
@@ -369,9 +373,12 @@ Km_OnMessage(sender, args) {
 
 Km_HandleMessage(msg) {
     parts := StrSplit(msg, KM_SEP)
-    if (parts.Length != 7 || parts[1] != "save")
+    if (parts.Length = 7 && parts[1] = "save")
+        res := Km_Save(parts[2], parts[3], parts[4], Integer(parts[5]), parts[6], parts[7])
+    else if (parts.Length = 6 && parts[1] = "add")
+        res := Km_Insert(parts[2], parts[4], parts[5], parts[6])
+    else
         return
-    res := Km_Save(parts[2], parts[3], parts[4], Integer(parts[5]), parts[6], parts[7])
     if KM_wv
         KM_wv.ExecuteScriptAsync("window.KM_onResult(" (res.ok ? "true" : "false") "," Km_Q(res.msg) ")")
 }
@@ -413,6 +420,108 @@ Km_Save(file, layerName, keyName, lineNo, raw, newText) {
     Km_HistSave(hist)
     try Km_WriteHtml()
     return {ok: true, msg: "保存しました（" file " の " lineNo " 行目）。Insert で再読み込みすると反映されます。"}
+}
+
+; 行がまだ無いキー・組み合わせに、新しい行を足す。結果は {ok, msg}
+;   kind "hold"   … anchor のレイヤー（vk1C など）の最後の行のあとへ。「anchor & キー::  処理」
+;   kind "leader" … anchor の関数（Leader_Caps など）の表の先頭へ。「"キー",  処理」は keys の表、「0x79,  処理」は specials の表
+; 保存後の手順（元のファイルの複製、構文の確認、エラーなら元に戻す）は Km_Save と同じ
+Km_Insert(file, kind, anchor, newText) {
+    ok := false
+    for f in KM_EDITABLE_FILES
+        ok := ok || (f = file)
+    if !ok
+        return {ok: false, msg: "このファイルは編集できません。"}
+    newText := Trim(newText, " `t")
+    if (newText = "" || RegExMatch(newText, "[\r\n]"))
+        return {ok: false, msg: "1 行で、空でない内容を入力してください。"}
+
+    dir := Km_KeymapDir()
+    path := dir "\" file
+    content := FileRead(path, "UTF-8")
+    lines := StrSplit(content, "`n")                       ; 各行の末尾に CR が残ることがある
+    cr := (lines.Length && SubStr(lines[1], -1) = "`r") ? "`r" : ""
+
+    if (kind = "hold") {
+        if !RegExMatch(newText, "i)^" anchor " & (\S+?)::", &nm)
+            return {ok: false, msg: "「" anchor " & キー::  処理」の形で書いてください。"}
+        last := 0
+        for i, l in lines {
+            if RegExMatch(l, "i)^" anchor " & (\S+?)::", &m) {
+                last := i
+                if (m[1] = nm[1])
+                    return {ok: false, msg: "すでに同じキーの行があります（" i " 行目）。"}
+            }
+        }
+        if !last
+            return {ok: false, msg: file " に " anchor " の行が見つかりません。"}
+        at := last + 1, text := newText
+    }
+    else if (kind = "leader") {
+        fnLine := 0
+        for i, l in lines {
+            if RegExMatch(l, "^" anchor "\(\)\s*\{") {
+                fnLine := i
+                break
+            }
+        }
+        if !fnLine
+            return {ok: false, msg: file " に " anchor "() が見つかりません。"}
+        fnEnd := lines.Length
+        for i, l in lines {
+            if (i > fnLine && SubStr(l, 1, 1) = "}") {
+                fnEnd := i
+                break
+            }
+        }
+        if RegExMatch(newText, "^0x([0-9A-Fa-f]+),", &nm)
+            table := "specials", newKey := Integer("0x" nm[1])
+        else if RegExMatch(newText, '^"(.)",', &nm)
+            table := "keys", newKey := StrLower(nm[1])
+        else
+            return {ok: false, msg: '「"キー",  処理」または「0x79,  処理」の形で書いてください。'}
+        head := 0
+        loop fnEnd - fnLine - 1 {
+            i := fnLine + A_Index
+            l := lines[i]
+            if (!head && RegExMatch(l, "^\s*static " table " := " (table = "keys" ? "Leader_Keys" : "Map") "\(\s*$"))
+                head := i
+            else if (table = "keys" && RegExMatch(l, '^\s*"(.)",', &m) && StrLower(m[1]) = newKey)
+                return {ok: false, msg: "すでに同じキーの行があります（" i " 行目）。"}
+            else if (table = "specials" && RegExMatch(l, "^\s*(?:static specials := Map\()?0x([0-9A-Fa-f]+),", &m) && Integer("0x" m[1]) = newKey)
+                return {ok: false, msg: "すでに同じキーの行があります（" i " 行目）。"}
+        }
+        if !head
+            return {ok: false, msg: anchor "() には、" (table = "keys" ? "文字キー" : "特殊キー") "の表がありません。"}
+        ; 表の先頭へ入れるので、後ろに表の行が続くときは末尾にカンマが要る（空の表だけ要らない）
+        needComma := !RegExMatch(lines[head + 1], "^\s*\)")
+        KP_SplitComment(newText, &action, &comment)
+        if (needComma && SubStr(action, -1) != ",")
+            action .= ","
+        else if (!needComma && SubStr(action, -1) = ",")
+            action := RTrim(SubStr(action, 1, -1))
+        at := head + 1
+        text := "        " action (comment != "" ? "  `; " comment : "")
+    }
+    else
+        return {ok: false, msg: "足せない種類のレイヤーです。"}
+
+    lines.InsertAt(at, text cr)
+    out := ""
+    for i, l in lines
+        out .= (i > 1 ? "`n" : "") l
+
+    DirCreate(dir "\.backup")
+    FileCopy(path, dir "\.backup\" file ".bak", true)
+    Km_WriteFile(path, out)
+
+    err := Km_Validate()
+    if (err != "") {
+        Km_WriteFile(path, content)
+        return {ok: false, msg: "構文を確認できなかったので、保存しませんでした。`n" err}
+    }
+    try Km_WriteHtml()
+    return {ok: true, msg: "行を足しました（" file " の " at " 行目）。Insert で再読み込みすると反映されます。"}
 }
 
 ; lineNo 行目が raw と同じなら、その範囲（s ～ e の手前。cr は行末の CR）を返す。

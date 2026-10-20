@@ -27,7 +27,9 @@
 ;       N & ampersaNd(and)  C ^ Caret          T ~ Tilde         B \ Backslash
 ;       V | Vertical bar    A @ At sign        G ` Grave accent  Q ? Question
 ;       P + Plus            M - Minus          X * asterisk(×)   S / Slash
-;     ・↑↓ + Enter、マウスのクリックでも選べる
+;     ・見た目は QM_SYMBOL_UI で切り替える（このファイルの下の方）。既定は "tooltip"（ツールチップ。キーを InputHook で受ける。Lib\symbol_quick.ahk）。
+;       "window" にすると、以前の小窓（下の説明）に戻る
+;     ・小窓版：↑↓ + Enter、マウスのクリックでも選べる
 ;     ・一覧の順番と割り当ては QM_SymbolMenu.Symbols で変更できる
 ;     ・全角／半角の自動切り替え（2026/09/30 追加）
 ;         開く直前に入力先の IME の状態を調べ、
@@ -67,6 +69,8 @@
 
 #Include %A_LineFile%\..\ui_common.ahk
 #Include %A_LineFile%\..\text_ops.ahk
+#Include %A_LineFile%\..\last_input.ahk
+#Include %A_LineFile%\..\symbol_quick.ahk
 #Include %A_LineFile%\..\window_ops.ahk
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
@@ -669,6 +673,7 @@ class QM_SymbolMenu {
     static _Type(ch) {
         QM_BackToTarget(this._target, 30)
         SendText(ch)                                             ; 文字をそのまま入力（キー配列・Shift の影響を受けない）
+        LastInput_NoteText(ch)                                   ; 「直前の 1 文字」に覚える（全角・半角はこの形のまま）
     }
 
     ; Esc・Enter・↑↓ 以外のキー（その 3 つは QM_ListPopup が受ける）。一覧の既定の動きを止めるときは 0 を返す
@@ -816,7 +821,9 @@ QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
 QM_CaptureMenu_Show() => QuickPalette.ShowMenu("C")
-QM_SymbolMenu_Show() => QM_SymbolMenu.Show()
+; 記号メニューの見た目："tooltip"（ツールチップ。キーを InputHook で受ける。軽い。Lib\symbol_quick.ahk）/ "window"（一覧の小窓。矢印 + Enter でも選べる）
+QM_SYMBOL_UI := "tooltip"
+QM_SymbolMenu_Show() => (QM_SYMBOL_UI = "window") ? QM_SymbolMenu.Show() : QM_SymbolQuick_Show()
 
 ;==============================================================================
 ; 開いているときだけ有効なホットキー

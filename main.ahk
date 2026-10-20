@@ -31,6 +31,7 @@
 #Include Lib\ui_common.ahk
 ; 文字入力
 #Include Lib\text_input.ahk
+#Include Lib\last_input.ahk
 #Include Lib\text_ops.ahk
 #Include Lib\oneshot_modifiers.ahk
 #Include Lib\shift_hold.ahk

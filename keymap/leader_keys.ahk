@@ -17,6 +17,7 @@
 #Include %A_LineFile%\..\..\Lib\keymap_parse.ahk
 #Include %A_LineFile%\..\..\Lib\oneshot_modifiers.ahk
 #Include %A_LineFile%\..\..\Lib\text_input.ahk
+#Include %A_LineFile%\..\..\Lib\last_input.ahk
 #Include %A_LineFile%\..\..\Lib\window_switch.ahk
 #Include %A_LineFile%\..\..\Lib\window_ops.ahk
 #Include %A_LineFile%\..\..\Lib\multi_clipboard.ahk
@@ -90,7 +91,7 @@ Leader_Caps() {
         "k",  QM_SymbolMenu_Show,                   ; 記号メニュー
         "l",  Oneshot_CtrlChar,                     ; Ctrl + 文字キー
         ";",  Oneshot_WinChar,                      ; Win + 文字キー
-        ":",  "",
+        ":",  LastInput_RecallChar,                 ; 直前の 1 文字（記号など）をもう一度入力
         "]",  "",
         ; --- 下段 ---
         "z",  "",
@@ -106,8 +107,7 @@ Leader_Caps() {
     static specials := Map(
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
         0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント
-        0x79, Ime_Hiragana,                         ; 変換：IME をひらがなに
-        0x7B, Text_CapitalizeNext)                  ; 無変換：次の 1 文字を大文字に
+        0x79, Ime_Hiragana)                         ; 変換：IME をひらがなに
     Leader_Run("Caps", keys, specials, true)
 }
 
@@ -165,8 +165,7 @@ Leader_SpaceF() {
         ".",  "",
         "/",  "")
     static specials := Map(
-        0x3A, ShiftHold_Toggle)                     ; Caps：Shift 長押しモード
-    ShiftHold_Remember()
+        )
     Leader_Run("Space + F", keys, specials)
 }
 
@@ -224,7 +223,11 @@ Leader_SpaceA() {
         ",",  "",
         ".",  "",
         "/",  "")
-    Leader_Run("Space + A：左手で文字・記号", keys, , , true)
+    static specials := Map(
+        0x39, ShiftHold_Toggle,                     ; Space：Shift 長押しモード
+        0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
+    ShiftHold_Remember()
+    Leader_Run("Space + A：左手で文字・記号", keys, specials, , true)
 }
 
 ;------------------------------------------------------------------------------
@@ -269,8 +272,10 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false, shiftAware := fa
         action := keys[IH_hook.Input]
         if !(action is String)
             action()
-        else if (action != "")
+        else if (action != "") {
             SendInput(action)
+            LastInput_NoteSendInput(action)             ; 送った文字を「直前の 1 文字」に覚える
+        }
     }
     IH_hook.Stop()
 }
