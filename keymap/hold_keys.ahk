@@ -74,7 +74,8 @@ vk1C & 4::      SendInput("{+}")
 ;------------------------------------------------------------------------------
 ; --- ウィンドウ・アプリ ---
 vk1D & LAlt::   return                              ; 左 Alt（未割り当て）
-vk1D & sc00F::  SendInput("#+{Right}")              ; Tab -> ウィンドウを右のモニターへ
+vk1D & sc00F::  SendInput("^{PgUp}")               ; Tab -> 前のページ
+vk1D & t::      SendInput("^{PgDn}")               ; 次のページ
 vk1D & RAlt::   return                              ; 右 Alt（未割り当て）
 vk1D & sc03A::  Mouse_FocusUnderCursor()            ; CapsLock
 vk1D & 1::      SendInput("#{Up}")                  ; 最大化
@@ -193,8 +194,8 @@ vk20 & r::      SendInput("{Tab}")
 vk20 & q::      SendInput("+{Tab}")
 vk20 & e::      SendInput("{F6}")
 vk20 & w::      SendInput("+{F6}")
-vk20 & LShift:: SendInput("^{z}")
-vk20 & RShift:: SendInput("{Blind}+{Space}")
+vk20 & LShift:: return                              ; 左 Shift（未割り当て）
+vk20 & RShift:: return                              ; 右 Shift（未割り当て）
 vk20 & RControl:: SendInput("{Blind}^{Space}")
 vk20 & m::      return
 vk20 & ,::      SendInput("^{WheelUp}")             ; 表示を拡大（Ctrl + ホイール↑）

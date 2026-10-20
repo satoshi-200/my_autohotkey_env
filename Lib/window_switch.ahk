@@ -3,15 +3,15 @@
 ; window_switch.ahk
 ; キーを押すたびにその場で切り替え、ほかのキーで決定するモード
 ;   ・アプリ切り替え（Alt+Tab の一覧を出したまま選ぶ。Caps → e）
-;   ・タブ・ページの連続切り替え（Caps → d）／ウィンドウの大きさ変更（Caps → q）（KeyCycler）
-;   ・ウィンドウを別のモニターへ移す（Caps → r）
+;   ・タブ・ページの連続切り替え（Caps → d）（KeyCycler）
+;   ・ウィンドウを別のモニターへ移す・大きさを変える（Caps → r）
 ; 共通の部品（IH_HotkeyTrigger / IH_ChoiceHook / IH_IsCancelKey）は key_wait.ahk にある
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\key_wait.ahk
 #Include %A_LineFile%\..\ui_common.ahk
 
-; タブ・ページ切り替え、ウィンドウの大きさ、モニター移動で決定するキー（ほかのキーは無視する）
+; タブ・ページ切り替え、モニター移動で決定するキー（ほかのキーは無視する）
 ;   キャプチャの選択の G / H、Space+g / h（Enter）・Space+b / n（クリック）に合わせる。v は b より近いので加える
 SWITCH_DECIDE_KEYS := ["g", "h", "v", "b", "n", "Enter", "NumpadEnter"]
 SWITCH_DECIDE_HINT := "g / h / v / b / n / Enter：決定　Esc / Caps / Space+Caps：元に戻す"
@@ -242,47 +242,12 @@ TABPAGE_ACTIONS := Map(
 
 TabPageSwitcher_Show() => KeyCycler_Show("タブ・ページ切り替え", TABPAGE_ACTIONS)
 
-;--- ウィンドウの大きさ変更（Caps → q）-----------------------------------------
-; Win+↑ / Win+↓ を送る（連打可）。q：最大化、r：最小化
-WINSIZE_ACTIONS := Map(
-    "q", [WinSize_Set.Bind(1),  "", "最大化"],
-    "w", ["#{Up}",   "#{Down}", "大きく（Win+↑）"],
-    "e", ["#{Down}", "#{Up}",   "小さく（Win+↓）"],
-    "r", [WinSize_Set.Bind(-1), "", "最小化"])
-
-WindowResizer_Show() => KeyCycler_Show("ウィンドウの大きさ", WINSIZE_ACTIONS)
-
-; state 1：最大化、-1：最小化。元の状態に戻す関数を返す
-WinSize_Set(state) {
-    if !(hwnd := WinExist("A"))
-        return () => 0
-    prev := WinGetMinMax(hwnd)
-    (state = 1) ? WinMaximize(hwnd) : WinMinimize(hwnd)
-    return WinSize_Restore.Bind(hwnd, prev)
-}
-
-WinSize_Restore(hwnd, prev) {
-    if !WinExist(hwnd)
-        return
-    if (prev = 1)
-        WinMaximize(hwnd)
-    else if (prev = -1)
-        WinMinimize(hwnd)
-    else {
-        WinRestore(hwnd)
-        if (WinGetMinMax(hwnd) = 1)                 ; 最小化前が最大化だと 1 回では戻らない
-            WinRestore(hwnd)
-    }
-    if (prev != -1)
-        WinActivate(hwnd)
-}
-
 ;------------------------------------------------------------------------------
 ; ウィンドウを別のモニターへ移す（Caps → r）
 ;   Win+Shift+→ / ← でアクティブウィンドウを移し、カーソルも移した先のモニターの中央へ動かす。
 ;   WindowMonitor_Show(reverse)
 ;     reverse … false：次のモニターへ、true：前のモニターへ
-;   呼び出しに使ったキー（Caps → Tab なら Tab）で次へ、Shift 付きで前へ。
+;   呼び出した直後は動かさない。呼び出しに使ったキー（Caps → Tab なら Tab）をもう一度押すと次へ、Shift 付きで前へ。
 ;   w：Win+↑、e：Win+↓ で大きさを変える。
 ;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）：決定　Esc / Caps / Space+Caps：元のモニターに戻す
 ;   ほかのキー（Space だけを含む）は無視する。WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
@@ -293,8 +258,8 @@ WindowMonitor_Show(reverse := false) {
     IH_ModeBegin()
     count := MonitorGetCount()
     hwnd := WinExist("A")
-    if (count < 2 || !hwnd) {
-        IH_ModeEnd("🖥 [モニター移動] " (count < 2 ? "モニターが 1 台です" : "対象のウィンドウがありません"))
+    if !hwnd {
+        IH_ModeEnd("🖥 [モニター移動] 対象のウィンドウがありません")
         return
     }
 
@@ -306,8 +271,7 @@ WindowMonitor_Show(reverse := false) {
     DllCall("GetCursorPos", "Ptr", startPt)
     steps := 0                                      ; 次へ +1、前へ -1（元に戻すときに使う）
     sizeUndo := []                                  ; w / e で変えた大きさを戻すための履歴
-    mon := _WinMonitor_Step(hwnd, reverse)
-    steps += reverse ? -1 : 1
+    mon := _WinMonitor_Info(hwnd)                   ; 呼び出した時点では動かさない（キーを押したときに移す）
     result := "決定"
     loop {
         ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
@@ -323,9 +287,11 @@ WindowMonitor_Show(reverse := false) {
         if (vk = 0x20)                              ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
             key := _Switch_SpaceChord(), vk := (key != "") ? GetKeyVK(key) : 0
         if (vk && vk = sameVK) {
-            back := (reverse != GetKeyState("Shift"))   ; Shift 付きなら逆方向
-            mon := _WinMonitor_Step(hwnd, back)
-            steps += back ? -1 : 1
+            if (count > 1) {
+                back := (reverse != GetKeyState("Shift"))   ; Shift 付きなら逆方向
+                mon := _WinMonitor_Step(hwnd, back)
+                steps += back ? -1 : 1
+            }
         }
         else if (key = "w" || key = "e") {
             if (WinGetMinMax(hwnd) = -1) {          ; 最小化中は Win+↑ が効かないので元に戻すだけ

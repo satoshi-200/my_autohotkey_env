@@ -4,7 +4,7 @@
 ; Vimium C 風ヒント：ブラウザ拡張の Vimium C（リンクヒント）と同じ操作を、デスクトップのアプリで行う。
 ; いまのウィンドウの操作できる部品（ボタン・タブ・入力欄・リスト項目など）に
 ; 英字のラベルを重ねて表示し、ラベルを打つとその部品をクリックする
-;   keymap\leader_keys.ahk（Caps → s）から呼ぶ
+;   keymap\leader_keys.ahk から呼ぶ
 ;
 ; Vimium C との対応
 ;   リンクヒントを出してラベルを打つ（f）→ VimiumC_ShowHints（通常のクリック）
@@ -24,7 +24,7 @@
 ; どちらも共通
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
 ;   BackSpace        … 1 文字戻す
-;   Esc / Caps       … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
+;   Esc / Caps / Space+Caps … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
 ;
 ; 仕組み
 ;   部品の一覧は UI Automation（COM を直接呼ぶ最小実装 VimiumCUIA）で取る。

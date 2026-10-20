@@ -5,9 +5,9 @@
 ;   DateInput_Start()  呼ぶと現在の日付を表示する。クイックメニュー N → N、Space+F → i から呼ぶ。
 ;
 ;   1. 日付の調整（初期値は今日）
-;        K：1 日戻る　L：1 日進む　J：10 日戻る　;：10 日進む　H / N：日付を確定
+;        K：1 日戻る　L：1 日進む　J：10 日戻る　;：10 日進む　G / H / V / B / N / Enter：日付を確定
 ;   2. フォーマットの選択（初期値は先頭の yyyy/MM/dd）
-;        L：次　K：前　J：先頭　;：最後　H / N：確定して入力
+;        L：次　K：前　J：先頭　;：最後　G / H / V / B / N / Enter：確定して入力
 ;   Esc / Caps / Space+Caps：キャンセル（DATEINPUT_TIMEOUT_MS 操作がなければ自動でキャンセル）
 ;==============================================================================
 #Include %A_LineFile%\..\key_wait.ahk
@@ -56,7 +56,7 @@ _DateInput_OnKey(h, vk, sc, st) {
     if (key = "")
         return
 
-    if (key = "h" || key = "n") {
+    if (key = "g" || key = "h" || key = "v" || key = "b" || key = "n" || key = "enter") {
         if (st.stage = 1) {
             st.stage := 2
         } else {
@@ -83,8 +83,10 @@ _DateInput_OnKey(h, vk, sc, st) {
     _DateInput_Show(st)
 }
 
-; 英字（小文字）と ; を返す。それ以外は ""（JIS の ; は 0xBB、US は 0xBA）
+; 英字（小文字）と ; と Enter（"enter"）を返す。それ以外は ""（JIS の ; は 0xBB、US は 0xBA）
 _DateInput_KeyName(vk) {
+    if (vk = 0x0D)
+        return "enter"
     if (vk >= 0x41 && vk <= 0x5A)
         return StrLower(Chr(vk))
     if ((vk = 0xBA || vk = 0xBB) && DllCall("MapVirtualKey", "UInt", vk, "UInt", 2, "UInt") = Ord(";"))
@@ -97,12 +99,12 @@ _DateInput_Show(st) {
         text := "📅 [日付入力] 日付を選ぶ`n"
             . FormatTime(st.date, "yyyy/MM/dd(ddd)") "`n"
             . "K：1 日戻る　L：1 日進む　J：" DATEINPUT_DAY_STEP " 日戻る　;：" DATEINPUT_DAY_STEP " 日進む`n"
-            . "H / N：日付を確定　Esc / Caps：キャンセル"
+            . "G / H / V / B / N / Enter：日付を確定　Esc / Caps：キャンセル"
     } else {
         text := "📅 [日付入力] フォーマットを選ぶ"
         for fmt in DATEINPUT_FORMATS
             text .= "`n" (A_Index = st.idx ? "▶ " : "　 ") FormatTime(st.date, fmt)
-        text .= "`nL：次　K：前　J：先頭　;：最後`nH / N：確定して入力　Esc / Caps：キャンセル"
+        text .= "`nL：次　K：前　J：先頭　;：最後`nG / H / V / B / N / Enter：確定して入力　Esc / Caps：キャンセル"
     }
     ToolTip(text)
 }

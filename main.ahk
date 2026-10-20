@@ -4,7 +4,7 @@
 ;
 ; ●ファイル構成
 ;   ・keymap\hold_keys.ahk   : 押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）
-;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A → 何か。かなはカーソル移動モード）
+;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A → 何か）
 ;   ・Lib\                   : 各機能の部品
 ;
 ; ●キー対応表 (JIS キーボード)

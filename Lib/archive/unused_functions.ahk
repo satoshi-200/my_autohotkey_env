@@ -31,3 +31,40 @@ Clip_ClearAll() {
         _Clip_Tip("すべて空にしました！")
     }
 }
+
+;--- ウィンドウの大きさ変更（元は window_switch.ahk。以前は Caps → q。w / e は Caps → r のモニター移動モードにもある）----------
+; 戻すときは window_switch.ahk の TabPageSwitcher_Show の下に貼り、leader_keys.ahk の Leader_Caps で "q",  WindowResizer_Show,  を割り当てる。
+; keymap_view.ahk の KM_FUNC_NAMES に "WindowResizer_Show", "ウィンドウの大きさ" を足す。
+; q：最大化、w：Win+↑、e：Win+↓、r：最小化
+WINSIZE_ACTIONS := Map(
+    "q", [WinSize_Set.Bind(1),  "", "最大化"],
+    "w", ["#{Up}",   "#{Down}", "大きく（Win+↑）"],
+    "e", ["#{Down}", "#{Up}",   "小さく（Win+↓）"],
+    "r", [WinSize_Set.Bind(-1), "", "最小化"])
+
+WindowResizer_Show() => KeyCycler_Show("ウィンドウの大きさ", WINSIZE_ACTIONS)
+
+; state 1：最大化、-1：最小化。元の状態に戻す関数を返す
+WinSize_Set(state) {
+    if !(hwnd := WinExist("A"))
+        return () => 0
+    prev := WinGetMinMax(hwnd)
+    (state = 1) ? WinMaximize(hwnd) : WinMinimize(hwnd)
+    return WinSize_Restore.Bind(hwnd, prev)
+}
+
+WinSize_Restore(hwnd, prev) {
+    if !WinExist(hwnd)
+        return
+    if (prev = 1)
+        WinMaximize(hwnd)
+    else if (prev = -1)
+        WinMinimize(hwnd)
+    else {
+        WinRestore(hwnd)
+        if (WinGetMinMax(hwnd) = 1)                 ; 最小化前が最大化だと 1 回では戻らない
+            WinRestore(hwnd)
+    }
+    if (prev != -1)
+        WinActivate(hwnd)
+}

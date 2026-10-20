@@ -161,7 +161,7 @@ PPT_EDIT_END_SC := [0x01, 0x3A, 0x1C, 0x39, 0x70, 0x22, 0x23, 0x30, 0x31]      ;
 Ppt_EditStart() {
     st := {fine: false, center: false}
     IHM_Run(st, {message: _PptEdit_Message, onKey: _PptEdit_OnKey, onStart: _PptEdit_OnStart
-        , layers: false, tip: PPT_EDIT_TIP, preHeld: [0x1C]})
+        , layers: false, tip: PPT_EDIT_TIP})
 }
 
 _PptEdit_OnStart(st) {

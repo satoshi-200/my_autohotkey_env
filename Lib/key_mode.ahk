@@ -8,6 +8,7 @@
 ; 骨組みがやること
 ;   ・IH_ModeBegin / IH_ModeEnd、InputHook（全キーを通知し、アプリには渡さない）、時間切れ（押すたびに数え直す）、後始末
 ;   ・押しっぱなし（キーリピート）の無視、押しているキーの記録（st.held：スキャンコード → true）
+;     始めたときに押しているキー（起動に使ったキー）も調べて記録するので、割り当てを変えてもこちらは直さなくてよい
 ;   ・親指キーのレイヤー（変換+g など、別のキーを送る割り当て）を、送るキーに読み替える（IH_LayerSc）
 ;   ・Space+A のあとのキー 1 つを、Space+A の表で右手側の文字に直す（IH_SpaceAChar）
 ; 使い方の例：Lib\mouse_grid.ahk
@@ -21,7 +22,6 @@
 ;   layers        false にすると読み替えも Space+A も行わず、すべてのキーをそのまま onKey に渡す（親指キーに独自の意味があるモード用）。
 ;                 このとき k は {sc, vk, name, raw: true}。リピートの無視もしない。既定 true
 ;   keep          Space+A の待ちの間も、文字に直さず通常のキーとして扱うスキャンコード（Esc・Caps・BackSpace・Tab は常に）
-;   preHeld       起動に使ったキーなど、始めに押していればリピートとして無視するスキャンコード
 ;   critical      true にすると、キーの処理の間はタイマーに割り込まれない
 ;   tip           案内（IHM_Tip）の出し方。既定 "cursor"
 ;                   "cursor"：状態と説明を、マウスカーソルの近くに出す
@@ -51,10 +51,7 @@ IHM_Run(st, opts) {
     st.hook.KeyOpt("{All}", "NS")                   ; すべてのキーを通知し、アプリには渡さない
     st.hook.OnKeyDown := _IHM_OnKeyDown.Bind(st, opts, idleMs)
     st.hook.OnKeyUp := _IHM_OnKeyUp.Bind(st, opts)
-    if opts.HasProp("preHeld")
-        for sc in opts.preHeld
-            if GetKeyState(Format("sc{:X}", sc), "P")
-                st.held[sc] := true
+    _IHM_MarkHeld(st)
     try {
         if opts.HasProp("onStart")
             opts.onStart.Call(st)
@@ -128,7 +125,7 @@ _IHM_OnKeyDown(st, opts, idleMs, h, vk, sc) {
         opts.onKey.Call(st, {sc: sc, vk: vk, name: _IHM_KeyName(vk, sc), raw: true})
         return
     }
-    if st.held.Has(sc)                              ; 押しっぱなしのリピートは無視
+    if (st.held.Has(sc) && sc != 0x01 && sc != 0x3A)   ; 押しっぱなしのリピートは無視（取り消しの Esc / Caps は常に受ける）
         return
     k := _IHM_Resolve(st, opts, vk, sc)
     if k
@@ -140,6 +137,27 @@ _IHM_OnKeyUp(st, opts, h, vk, sc) {
         st.held.Delete(sc)
     if opts.HasProp("onKeyUp")
         opts.onKeyUp.Call(st, vk, sc)
+}
+
+; 始めたときに押しているキー（起動に使ったキーなど）を st.held に入れ、離すまでリピートとして無視する
+; Caps・半角/全角・かなは、離しても押したままと返ることがあるので調べない
+_IHM_MarkHeld(st) {
+    static codes := 0
+    if !IsObject(codes) {
+        codes := []
+        for sc in [0x79, 0x7B]                      ; 変換・無変換
+            codes.Push(sc)
+        loop 0x58
+            if !(A_Index = 0x3A || A_Index = 0x29)
+                codes.Push(A_Index)
+        valid := []
+        for sc in codes                             ; キーのないスキャンコードは GetKeyState がエラーになるので除く
+            try GetKeyState(Format("sc{:X}", sc), "P"), valid.Push(sc)
+        codes := valid
+    }
+    for sc in codes
+        if GetKeyState(Format("sc{:X}", sc), "P")
+            st.held[sc] := true
 }
 
 ; 押されたキーを {sc, name, left} にする。渡さないキーは 0
