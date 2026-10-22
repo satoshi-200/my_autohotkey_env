@@ -5,6 +5,7 @@
 ;   KP_Dir() / KP_Read(name)        keymap フォルダ／その中のファイルの中身
 ;   KP_HoldRows(src, prefix)        「prefix & キー::  処理  ; コメント」の行
 ;   KP_LeaderRows(src, fn)          入力待ちの関数 fn の表の「"キー",  処理,  ; コメント」「0x79, 処理」の行
+;   KP_HotkeyRows(src)              起点キーの欄の単独のホットキー（Caps、Ctrl+Shift+Alt+F12 など）の行
 ;   KP_SplitComment / KP_TrimAction 行末のコメントを分ける／表の行の末尾のカンマと閉じ括弧を除く
 ; 使う部品：keymap_view.ahk（割り当て一覧）、key_wait.ahk（モードでのキーの読み替え）、leader_keys.ahk（入力待ちの一覧）
 ; 表の書き方を変えるときは、ここだけを直す
@@ -22,6 +23,26 @@ KP_HoldRows(src, prefix) {
             continue
         KP_SplitComment(m[2], &action, &comment)
         rows.Push({key: m[1], action: action, comment: comment, lineNo: A_Index, raw: A_LoopField})
+    }
+    return rows
+}
+
+; 返す行：{key, action, comment, lineNo, raw}。起点キーの欄（「#HotIf !IH_waiting」から次の「#HotIf」まで）にある、単独のホットキー「キー::  処理  ; コメント」
+;   key は修飾キーを含むホットキーの名前（例：sc03A、^+!F12）
+KP_HotkeyRows(src) {
+    rows := [], inBlock := false
+    loop parse src, "`n", "`r" {
+        line := A_LoopField
+        if !inBlock {
+            inBlock := RegExMatch(line, "^#HotIf !IH_waiting\s*$")
+            continue
+        }
+        if RegExMatch(line, "^#HotIf\b")
+            break
+        if !RegExMatch(line, "^(\S+?)::\s*(.*)$", &m)
+            continue
+        KP_SplitComment(m[2], &action, &comment)
+        rows.Push({key: m[1], action: action, comment: comment, lineNo: A_Index, raw: line})
     }
     return rows
 }

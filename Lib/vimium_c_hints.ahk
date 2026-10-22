@@ -24,7 +24,8 @@
 ; どちらも共通
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
 ;   BackSpace        … 1 文字戻す
-;   Esc / Caps / Space+Caps … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
+;   Esc / Space+Caps        … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
+;   Caps                     … カーソル移動モード（Lib\mouse_grid.ahk）へ切り替え（Caps → Caps → Caps）
 ;
 ; 仕組み
 ;   部品の一覧は UI Automation（COM を直接呼ぶ最小実装 VimiumCUIA）で取る。
@@ -36,6 +37,7 @@
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\key_wait.ahk
 #Include %A_LineFile%\..\key_mode.ahk
+#Include %A_LineFile%\..\mouse_grid.ahk
 
 VIMIUMC_ALPHABET := "asdfjklghweruio"        ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる。q・p は遠いので使わない）
 VIMIUMC_LABEL_BG := "FFE066"                 ; ラベルの背景色
@@ -54,23 +56,34 @@ VIMIUMC_TIP := "corner"
 vk1D:: _VimiumC_Thumb(VimiumC_session, 0x1D)
 #HotIf
 
+; 部品を取得している間は InputHook がまだ無いので、Caps はホットキーで受けて、取得後にカーソル移動モードへ切り替える
+#HotIf IsObject(VimiumC_session) && VimiumC_session.loading
+sc03A:: VimiumC_session.gridPending := true
+#HotIf
+
 ;------------------------------------------------------------------------------
 ; モード本体
 ;------------------------------------------------------------------------------
 VimiumC_ShowHints() {
     global VimiumC_session
-    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map()}
+    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map(), loading: true, gridPending: false}
     VimiumC_session := st
     IHM_Run(st, {message: _VimiumC_Message, onKey: _VimiumC_OnKey, onTip: _VimiumC_Tip, onStart: _VimiumC_OnStart
         , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp, tip: VIMIUMC_TIP
         , layers: !VIMIUMC_THUMB_CLICK})            ; 旧の動作では親指キー自体に意味があるので、読み替えをしない
+    if (st.result = "grid")
+        MouseGrid_Start()                           ; Caps → Caps → Caps
 }
 
 _VimiumC_OnStart(st) {
     for vk in [0x20, 0x1C]                          ; 起動時にすでに押している親指キーは、離すまで無視する（旧の動作用）
         if GetKeyState(Format("vk{:X}", vk), "P")
             st.thumbHeld[vk] := true
-    if !_VimiumC_Load(st)
+    found := _VimiumC_Load(st)
+    st.loading := false
+    if st.gridPending
+        IHM_Finish(st, "grid")
+    else if !found
         IHM_Finish(st, "none")
 }
 
@@ -84,6 +97,7 @@ _VimiumC_OnEnd(st) {
 _VimiumC_Message(st) {
     switch st.result {
         case "pick":    return _VimiumC_Act(st.pick, st.mode)
+        case "grid":    return ""
         case "timeout": return "❌ [Vimium C ヒント] タイムアウト"
         case "none":    return "❌ [Vimium C ヒント] 操作できる部品が見つかりません"
         case "error":   return "⚠️ [Vimium C ヒント] 取得に失敗：" st.err
@@ -101,7 +115,9 @@ _VimiumC_OnKey(st, k) {
         return
     }
     switch k.sc {
-        case 0x01, 0x3A:                            ; Esc / Caps
+        case 0x3A:                                  ; Caps：カーソル移動モードへ（Space+Caps はキャンセル）
+            IHM_Finish(st, st.held.Has(0x39) ? "cancel" : "grid")
+        case 0x01:                                  ; Esc
             IHM_Finish(st, "cancel")
         case 0x0F:                                  ; Tab
             st.scope := (st.scope = "window") ? "taskbar" : "window"
@@ -203,7 +219,7 @@ _VimiumC_Tip(st) {
     now := (st.scope = "window") ? "ウィンドウ" : "タスクバー"
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
     typed := (st.typed != "") ? "　入力：" StrUpper(st.typed) : ""
-    cancel := "`nBS：1 文字戻す　Esc / Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
+    cancel := "`nBS：1 文字戻す　Esc：キャンセル　Caps：カーソル移動モード（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
     if !VIMIUMC_THUMB_CLICK {
         IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed
                 . (st.leftHand ? "　左手入力：次のキーを右手側の文字に" : "")

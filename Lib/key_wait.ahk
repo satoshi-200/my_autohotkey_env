@@ -38,7 +38,7 @@ IH_TipWaiting(mode, hint := "") {
     global IH_waiting := true
     global IH_forcedKey := ""
     SetTimer(UI_TipClear, 0)              ; 前のモードの「消去タイマー」で待ち表示が消えないように
-    ToolTip("⌨️ [" mode "] 次のキー待ち..." (hint != "" ? "`n" hint : "")
+    UI_ToolTip("⌨️ [" mode "] 次のキー待ち..." (hint != "" ? "`n" hint : "")
         "`nEsc / Caps / Space+Caps：キャンセル（" IH_TIMEOUT_SEC " 秒で自動キャンセル）")
 }
 

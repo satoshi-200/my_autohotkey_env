@@ -5,7 +5,7 @@
 ;   CapsLock          … Leader_Caps()
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
-;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント）
+;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中にもう一度 Caps で Caps → Caps → Caps = カーソル移動モード）
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
@@ -32,6 +32,7 @@
 ;------------------------------------------------------------------------------
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
+^+!F12:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ）
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
@@ -82,9 +83,9 @@ Leader_Caps() {
         "[",  "",
         ; --- 中段 ---
         "a",  "",
-        "s",  MouseGrid_Start,                      ; カーソル移動モード
+        "s",  "",
         "d",  TabPageSwitcher_Show,                 ; タブ・ページ切り替え
-        "f",  Oneshot_Fn,                           ; Fn キー
+        "f",  Oneshot_FnOrCtrlNum,                  ; Fn キー（左手）/ Ctrl + 数字キー（右手）
         "g",  "{Enter}",
         "h",  "{Enter}",
         "j",  QuickMenu_Show,                       ; クイックメニュー
@@ -106,7 +107,7 @@ Leader_Caps() {
         "/",  "")
     static specials := Map(
         0x39, Ime_Alnum,                            ; Space：IME を半角英数に
-        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント
+        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中にもう一度 Caps でカーソル移動モード）
         0x79, Ime_Hiragana)                         ; 変換：IME をひらがなに
     Leader_Run("Caps", keys, specials, true)
 }
@@ -134,7 +135,7 @@ Leader_SpaceF() {
         "r",  "^{End}",                             ; 文書の末尾
         "t",  "",
         "y",  "",
-        "u",  QM_DateMenu_Show,                     ; 日付・時刻のメニュー（時刻の書式も選べる）
+        "u",  QM_DateQuick_Show,                    ; 日付・時刻の一覧（ツールチップ。ファイル名の変更中にも使える）
         "i",  DateInput_Start,                      ; 日付入力（日付を調整 → フォーマットを選ぶ）
         "o",  () => Text_InsertDate("yyyy/MM/dd"),
         "p",  () => Text_InsertDate("yyMMdd_"),     ; Obsidian のページ名用
@@ -165,7 +166,8 @@ Leader_SpaceF() {
         ".",  "",
         "/",  "")
     static specials := Map(
-        )
+        0x79, ShiftHold_Toggle)                     ; 変換：Shift 長押しモード（Space+A → Space と同じ）
+    ShiftHold_Remember()
     Leader_Run("Space + F", keys, specials)
 }
 
@@ -193,11 +195,11 @@ Leader_SpaceA() {
         "r",  "{u}",
         "t",  "{y}",
         "y",  "",
-        "u",  "{|}",
-        "i",  "{~}",
-        "o",  "{!}",
-        "p",  "{^}",
-        "@",  "{\}",
+        "u",  "{``}",
+        "i",  "{^}",
+        "o",  "{|}",
+        "p",  "{\}",
+        "@",  "",
         "[",  "",
         ; --- 中段 ---
         "a",  "{;}",
@@ -210,7 +212,7 @@ Leader_SpaceA() {
         "k",  "{$}",
         "l",  "{%}",
         ";",  "{&}",
-        ":",  "{~}",
+        ":",  "",
         "]",  "",
         ; --- 下段 ---
         "z",  "{/}",
@@ -266,7 +268,7 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false, shiftAware := fa
         if (specials && specials.Has(sc))
             specials[sc]()
         else if LEADER_KEY_NAMES.Has(sc)
-            ToolTip(LEADER_KEY_NAMES[sc] "検知")    ; 未割り当ての特殊キー（動作確認用）
+            UI_ToolTip(LEADER_KEY_NAMES[sc] "検知")    ; 未割り当ての特殊キー（動作確認用）
     }
     else if keys.Has(IH_hook.Input) {
         action := keys[IH_hook.Input]
@@ -283,28 +285,59 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false, shiftAware := fa
 ; 割り当て一覧をツールチップで表示する
 Leader_ShowHelp(mode, funcName) {
     if IH_hook.InProgress
-        ToolTip("⌨️ [" mode "] 次のキー待ち...（Esc / Caps：キャンセル）`n" Leader_HelpText(funcName))
+        UI_ToolTip("⌨️ [" mode "] 次のキー待ち...（Esc / Caps：キャンセル）`n" Leader_HelpText(funcName))
 }
 
 ; 割り当て表の関数（funcName）のソースを読み、割り当て済みの行から一覧の文字列を作る（行の読み取りは Lib\keymap_parse.ahk）
+; キーボードの段（数字列・上段・中段・下段）ごとにまとめ、1 行に LEADER_HELP_PER_LINE 個ずつ、短くしたラベルで並べる
+LEADER_HELP_PER_LINE := 3                 ; 割り当て一覧の 1 行に並べる個数
+LEADER_HELP_LABEL_MAX := 13               ; 割り当て一覧のラベルの最大文字数（それより長いものは切る）
+
 Leader_HelpText(funcName) {
     static cache := Map()
+    static rowKeys := ["1234567890-^\", "qwertyuiop@[", "asdfghjkl;:]", "zxcvbnm,./"]
     if cache.Has(funcName)
         return cache[funcName]
-    lines := "", specialLines := ""
+    rows := [[], [], [], [], []], specialItems := []
     for row in KP_LeaderRows(FileRead(A_LineFile, "UTF-8"), funcName) {
         if (row.action = "" || row.action = '""')
             continue
-        label := row.comment != "" ? row.comment
-            : RegExReplace(RegExReplace(row.action, '^"\{(.)\}"$|^"(.*)"$', "$1$2"), "^\(\) => ")
+        label := Km_Label(row.action, row.comment)         ; 割り当て一覧の画面（Lib\keymap_view.ahk）と同じ表記
         if row.special {
             sc := Integer(row.key)
             label := RegExReplace(label, "^[^：]+：")      ; コメント先頭の「Tab：」などを除く
-            specialLines .= "`n" (LEADER_KEY_NAMES.Has(sc) ? LEADER_KEY_NAMES[sc] : row.key) "：" label
+            name := LEADER_KEY_NAMES.Has(sc) ? RegExReplace(LEADER_KEY_NAMES[sc], "キー$") : row.key
+            specialItems.Push(name "：" Leader_ShortLabel(label))
+            continue
         }
-        else
-            lines .= "`n" StrUpper(row.key) "：" label
+        at := 5
+        for i, keys in rowKeys
+            if InStr(keys, row.key) {
+                at := i
+                break
+            }
+        rows[at].Push(StrUpper(row.key) "：" Leader_ShortLabel(label))
     }
-    return cache[funcName] := LTrim(lines specialLines, "`n")
+    rows.Push(specialItems)
+    blocks := []
+    for items in rows {
+        text := ""
+        for item in items
+            text .= (A_Index = 1 ? "" : Mod(A_Index - 1, LEADER_HELP_PER_LINE) = 0 ? "`n" : "　") item
+        if (text != "")
+            blocks.Push(text)
+    }
+    out := ""
+    for b in blocks
+        out .= (A_Index = 1 ? "" : "`n`n") b
+    return cache[funcName] := out
+}
+
+; 説明の最初の部分（括弧より前）を、最大 LEADER_HELP_LABEL_MAX 文字にする
+Leader_ShortLabel(label) {
+    s := Trim(RegExReplace(label, "[（(].*$"))
+    if (s = "")
+        s := label
+    return StrLen(s) > LEADER_HELP_LABEL_MAX ? SubStr(s, 1, LEADER_HELP_LABEL_MAX) "…" : s
 }
 

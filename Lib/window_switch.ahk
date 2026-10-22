@@ -71,7 +71,7 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
     posUnknown := false                             ; 矢印で動かす・閉じると、steps では判断できなくなる
     result := "決定"
     loop {
-        ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / Space / :：キャンセル"
+        UI_ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / Space / :：キャンセル"
             . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -188,7 +188,7 @@ KeyCycler_Show(title, actions) {
     undo := []                                      ; Esc で戻すための履歴
     result := "決定"
     loop {
-        ToolTip("📑 [" title "] " hint "`n" SWITCH_DECIDE_HINT
+        UI_ToolTip("📑 [" title "] " hint "`n" SWITCH_DECIDE_HINT
             . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -274,7 +274,7 @@ WindowMonitor_Show(reverse := false) {
     mon := _WinMonitor_Info(hwnd)                   ; 呼び出した時点では動かさない（キーを押したときに移す）
     result := "決定"
     loop {
-        ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
+        UI_ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
             . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
             . "`n" SWITCH_DECIDE_HINT
             . "`n（" WINMONITOR_IDLE_SEC " 秒操作しなければ決定）")

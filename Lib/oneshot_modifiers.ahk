@@ -13,6 +13,12 @@ ONESHOT_FN_KEYS := Map(
     "w", 7,  "e", 8,  "r", 9,
     "z", 10, "a", 11, "q", 12)
 ONESHOT_FN_HINT := "q:F12  w:F7  e:F8  r:F9`na:F11  s:F4  d:F5  f:F6`nz:F10  x:F1  c:F2  v:F3"
+    . "`nj:Ctrl+1  k:Ctrl+2  l:Ctrl+3  `;:Ctrl+4`nu:Ctrl+5  i:Ctrl+6  o:Ctrl+7  p:Ctrl+8"
+
+; 右手側のキー → Ctrl + 数字（Fn キーの表と重ならない）
+ONESHOT_FN_CTRLNUM_KEYS := Map(
+    "j", 1, "k", 2, "l", 3, ";", 4,
+    "u", 5, "i", 6, "o", 7, "p", 8)
 
 ; 数字キーの配置（テンキー風）
 ONESHOT_NUM_KEYS := Map(
@@ -22,10 +28,12 @@ ONESHOT_NUM_KEYS := Map(
     "z", 0)
 ONESHOT_NUM_HINT := "w:7  e:8  r:9`ns:4  d:5  f:6`nx:1  c:2  v:3`nz:0"
 
-Oneshot_Fn() {
-    k := _Oneshot_Wait("Fn キー", ONESHOT_FN_HINT)
+Oneshot_FnOrCtrlNum() {
+    k := _Oneshot_Wait("Fn キー / Ctrl + 数字キー", ONESHOT_FN_HINT)
     if ONESHOT_FN_KEYS.Has(k)
         SendInput("{F" ONESHOT_FN_KEYS[k] "}")
+    else if ONESHOT_FN_CTRLNUM_KEYS.Has(k)
+        _Oneshot_SendCtrl(String(ONESHOT_FN_CTRLNUM_KEYS[k]))
 }
 
 Oneshot_CtrlNum() {

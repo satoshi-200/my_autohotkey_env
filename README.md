@@ -48,7 +48,7 @@
 | **CapsLock** | 下の表を参照 |
 | **Space + F** | 文書の先頭 / 末尾・行頭 / 行末への移動、修飾キー付き Enter、日付の入力（o p）、日付・時刻メニュー（u）、日付入力（i）、Win / Alt / Ctrl キー、ウィンドウを閉じる |
 | **Space + A** | 右手側の文字・記号を左手で入力する（Shift 長押しモード中も使え、送る文字に Shift が反映される）、`Space`：Shift 長押しモード（Shift を押したままの状態にする。もう一度、Esc / Caps / Space+Caps / Enter で終了。`Lib/shift_hold.ahk`）、`変換`：次に打つ 1 文字を大文字にする |
-| **Caps → s** | カーソル移動モード（`Lib/mouse_grid.ahk`）。キーボードの配置（`q`〜`p` / `a`〜`;` / `z`〜`/` の 10 × 3）を画面の地図にして、打ったキーの位置へカーソルを飛ばして終了（1 階層。`MOUSEGRID_MAX_DEPTH` を 2 にすると、そのマスの中へもう 1 回絞り込める）。BS：1 段戻る、Space+A → キー：左手だけで右手側のマスを指す、Tab：領域を替える（モニター・ウィンドウ）、半角/全角：開始位置へ戻る、Esc / Caps / Space+Caps / かな：終了。赤ポチを動かすか、ボタンを押すと自動で終了 |
+| **Caps → Caps → Caps** | カーソル移動モード（`Lib/mouse_grid.ahk`）。Caps → Caps の Vimium C 風ヒントの表示中（取得中を含む）にもう一度 Caps を押すと切り替わる。キーボードの配置（`q`〜`p` / `a`〜`;` / `z`〜`/` の 10 × 3）を画面の地図にして、打ったキーの位置へカーソルを飛ばして終了（1 階層。`MOUSEGRID_MAX_DEPTH` を 2 にすると、そのマスの中へもう 1 回絞り込める）。BS：1 段戻る、Space+A → キー：左手だけで右手側のマスを指す、Tab：領域を替える（モニター・ウィンドウ）、半角/全角：開始位置へ戻る、Esc / Caps / Space+Caps / かな：終了。赤ポチを動かすか、ボタンを押すと自動で終了 |
 
 **CapsLock → 次のキー**
 | キー | 機能 |
@@ -62,8 +62,8 @@
 | `w` | 仮想デスクトップメニュー |
 | `d` | タブ・ページ切り替え（f / a：次 / 前のタブ、d / s：次 / 前のページ。w / e / r：タブを閉じる / 新しいタブ / 閉じたタブを復元、t / Tab：タブごと右 / 左へ移動。右手は j / ;：前 / 次のタブ、k / l・i / o：前 / 次のページ。連打で移動、g / h / v / b / n / Enter で決定（ほかのキーは無視）、Esc / Caps / Space+Caps で元に戻る） |
 | `r` / `Tab` | ウィンドウを別のモニターへ移動（呼び出した直後は動かさず、同じキーをもう一度押すと次、Shift 付きで前。カーソルも移動先の中央へ。w：Win+↑ / e：Win+↓ で大きさも変えられる。g / h / v / b / n / Enter で決定、Esc / Caps / Space+Caps で元に戻す。ほかのキーは無視、3 秒操作がなければ決定） |
-| `f` | Fn キー入力モード（下の配置で F1〜F12） |
-| `l` / `o` / `i` / `;` | Ctrl / Ctrl+Shift / Alt / Win ＋ 文字キー |
+| `f` | Fn キー / Ctrl ＋ 数字キー入力モード（左手で F1〜F12、右手で Ctrl+1〜8。下の配置を参照） |
+| `l` / `o` / `i` / `;` | Ctrl / Ctrl+Shift / Alt / Win ＋ 文字キー（Ctrl は Ctrl+Shift+Alt+F12 でも呼べる。Logi Options のボタンなどに、このキーの組み合わせを割り当てて使う） |
 | `s` | カーソル移動モード（上の表を参照） |
 | `Caps` | Vimium C 風ヒント（下の説明を参照） |
 | `.` / `,` | Ctrl ＋ 数字キー（左手で入力。w e r：7 8 9 / s d f：4 5 6 / x c v：1 2 3 / z：0） |
@@ -76,10 +76,10 @@
 
 割り当ては `keymap/leader_keys.ahk` の各関数（`Leader_Caps()` など）の表に「キー, 送るキーまたは関数」の形で書く。
 
-Fn キー入力モードのキー配置：
+Fn キー / Ctrl ＋ 数字キー入力モード（Caps → f）のキー配置：
 ```
-q:F12  w:F7  e:F8  r:F9
-a:F11  s:F4  d:F5  f:F6
+q:F12  w:F7  e:F8  r:F9      u:Ctrl+5  i:Ctrl+6  o:Ctrl+7  p:Ctrl+8
+a:F11  s:F4  d:F5  f:F6      j:Ctrl+1  k:Ctrl+2  l:Ctrl+3  ;:Ctrl+4
 z:F10  x:F1  c:F2  v:F3
 ```
 
@@ -122,12 +122,12 @@ Vimium C 風ヒント（Caps → Caps、`Lib/vimium_c_hints.ahk`）：
 | W ウィンドウ | 最前面、半透明、中央へ移動、ウィンドウ情報のコピー |
 | D 仮想デスクトップ | 作成・削除、前後への切り替え、ウィンドウを連れて移動（Caps → w で直接開く） |
 | G 検索・翻訳 | Google 検索、日本語・英語への翻訳 |
-| S システム | クリップボード履歴、画面キャプチャ（Win+Shift+S）、PC のロック、画面を消す、再読み込み、キー割り当て一覧（S → K。キーをクリックすると、その行を書き換えて保存できる。割り当てのないキーや、マウス・ホイールなどとの組み合わせも、行を足して割り当てられる。保存前に構文を確認し、1 つ前の内容に戻せる。反映は Insert のあと） など |
+| S システム | クリップボード履歴、画面キャプチャ（Win+Shift+S）、PC のロック、画面を消す、再読み込み、キー割り当て・設定（S → K。キーをクリックすると、その行を書き換えて保存できる。割り当てのないキーや、マウス・ホイールなどとの組み合わせも、行を足して割り当てられる。「設定」タブでは、ツールチップの文字の大きさや待ち時間などの設定値を変えられる。保存前に構文を確認し、1 つ前の内容に戻せる。反映は Insert のあと） など |
 | C 画面キャプチャ | 範囲指定（ドラッグ）、範囲指定のあと端の余計な細い帯を自動で切り落とす「端を自動トリミング」（C → T。上限など設定は `Lib/screen_capture.ahk` 冒頭の `CAP_TRIM_*`）、ウィンドウを選んで全体、ウィンドウ内のクリックした領域。領域では K / ホイール↑で外側、L / ホイール↓で内側の部品へ。いまのウィンドウ・モニター・全モニター・フォーカス中の部品は、あまり使わないので外した（`Lib/archive/capture_extras.ahk` に残してある）。Caps → t でこのメニューを直接開く。PNG 保存＋クリップボードにコピー（設定は `Lib/screen_capture.ahk` 冒頭） |
 | M マルチクリップボード | 箱にコピー保存・切り取り保存、箱から貼り付け、中身を見る、空にする（箱は一覧から選ぶ） |
 | A アプリ・フォルダ | ダウンロード、スクリプトのフォルダ、VS Code、メモ帳、電卓、Windows の設定 |
 | V VS Code | 折りたたみ・展開（切り替え / 再帰的 / すべて） |
-| P PowerPoint | 図形の整列・等間隔・大きさをそろえる・位置の入れ替え、画像として貼り付け（`Lib/powerpoint_pack.ahk`。PowerPoint が前面のときだけ動く） |
+| O Office | 図形編集モード（F。PowerPoint・Word・Excel で選択中の図形を、ホームポジションのまま動かす・大きさを変える・回転する。Word は浮動図形のみ）。アプリ専用の機能は、前面のアプリの分だけこのカテゴリに出る（`Lib/office_common.ahk`、`Lib/powerpoint_pack.ahk`） |
 
 Esc・CapsLock・ほかの場所のクリックで閉じる。機能の追加方法はファイル冒頭のコメントを参照。
 
@@ -159,9 +159,11 @@ Lib/
   quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ。小窓の一覧は QM_ListPopup が共通。処理の本体は text_ops / window_ops など）
   multi_clipboard.ahk    マルチクリップボード（キーごとに文字列を保存・貼り付け。quick_menu から呼ぶ）
   screen_capture.ahk     画面キャプチャ（範囲・端の自動トリミング・ウィンドウ・領域。quick_menu から呼ぶ）
-  powerpoint_pack.ahk    PowerPoint 用の詰め合わせ（図形の整列など。PowerPoint が前面のときだけ動く。quick_menu から呼ぶ）
-  keymap_view.ahk        キー割り当て一覧（keymap のファイルを読んで JIS 配列の図を作り、WebView2 のウィンドウで開く。キーをクリックして行を編集できる）
-  keymap_view.html       キー割り当て一覧の画面のひな形
+  office_common.ahk      Office（PowerPoint・Word・Excel）共通の機能（図形編集モード。Office が前面のときだけ動く。quick_menu から呼ぶ）
+  powerpoint_pack.ahk    PowerPoint 専用の機能（図形の整列などの従来機能。メニューには出さない。PowerPoint が前面のときだけ動く）
+  keymap_view.ahk        キー割り当て・設定の画面（keymap のファイルを読んで JIS 配列の図を作り、WebView2 のウィンドウで開く。キーをクリックして行を編集できる）
+  settings_view.ahk      設定値（各部品の冒頭の大文字の変数）を上の画面の「設定」タブで確認・編集する部品（出す設定の一覧 SET_DEFS を持つ）
+  keymap_view.html       キー割り当て・設定の画面のひな形
   webview2/              WebView2 を AHK で使う外部の部品（thqby/ahk2_lib の WebView2.ahk と、Microsoft の WebView2Loader.dll）。変更しない
   ComVar.ahk, Promise.ahk  WebView2.ahk が読み込む外部の部品（thqby/ahk2_lib）。変更しない
   archive/               使わなくなったスクリプトの保管場所（読み込まれない）

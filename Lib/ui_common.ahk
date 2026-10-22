@@ -8,17 +8,29 @@
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 
+; ToolTip と同じ引数・戻り値で、文字を TOOLTIP_FONT_SIZE にして出す
+UI_ToolTip(text := "", x?, y?, id?) {
+    static hFont := DllCall("CreateFontW", "Int", -Round(TOOLTIP_FONT_SIZE * A_ScreenDPI / 72), "Int", 0, "Int", 0, "Int", 0
+        , "Int", 400, "UInt", 0, "UInt", 0, "UInt", 0, "UInt", 1, "UInt", 0, "UInt", 0, "UInt", 5, "UInt", 0, "Str", "Yu Gothic UI", "Ptr")
+    hwnd := ToolTip(text, x?, y?, id?)
+    if (hwnd && text != "" && SendMessage(0x31, 0, 0, , hwnd) != hFont) {   ; WM_GETFONT
+        SendMessage(0x30, hFont, 0, , hwnd)                                 ; WM_SETFONT
+        ToolTip(text, x?, y?, id?)                                          ; 大きさを測り直させる
+    }
+    return hwnd
+}
+
 ; ツールチップを一定時間表示する（InputHook 側のツールチップと干渉しないよう TIP_ID_UI を使う）
 UI_Tip(msg, ms := 1500) {
-    static clear := () => ToolTip(, , , TIP_ID_UI)      ; 同じ関数にして、前の消去の予約を上書きする
-    ToolTip(msg, , , TIP_ID_UI)
+    static clear := () => UI_ToolTip(, , , TIP_ID_UI)      ; 同じ関数にして、前の消去の予約を上書きする
+    UI_ToolTip(msg, , , TIP_ID_UI)
     SetTimer(clear, -ms)
 }
 
 ; 既定のツールチップ（1 番。入力待ちやモードの表示と共通）を ms 後に消す。
 ; 消す関数を 1 つにしているので、新しい表示や SetTimer(UI_TipClear, 0) で、前の消去の予約が取り消される
 UI_TipFlash(msg, ms := TOOLTIP_DURATION_MS) {
-    ToolTip(msg)
+    UI_ToolTip(msg)
     SetTimer(UI_TipClear, -ms)
 }
 

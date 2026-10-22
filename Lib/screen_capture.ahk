@@ -114,7 +114,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
     WinSetTransparent(CAP_DIM_ALPHA, dim)
     dim.Show("NA x" vx " y" vy " w" vw " h" vh)
     MouseGetPos(&mx, &my)
-    ToolTip("ドラッグで範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, TIP_ID_CAPTURE)
+    UI_ToolTip("ドラッグで範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, TIP_ID_CAPTURE)
     while (!st.down && !st.cancel)
         Sleep(15)
     if st.cancel
@@ -130,7 +130,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
             last := key
             _Cap_Hole(dim, rc, vx, vy, vw, vh)
             _Cap_FrameSet(st.frame, rc)
-            ToolTip((rc.r - rc.l) "×" (rc.b - rc.t), x + 16, y + 16, TIP_ID_CAPTURE)
+            UI_ToolTip((rc.r - rc.l) "×" (rc.b - rc.t), x + 16, y + 16, TIP_ID_CAPTURE)
         }
         Sleep(10)
     }
@@ -155,7 +155,7 @@ _Cap_PickHover(st, keyFn, rectFn, hint) {
             else
                 st.frame.Hide()
             MouseGetPos(&tx, &ty)
-            ToolTip((rc ? (rc.r - rc.l) "×" (rc.b - rc.t) "`n" : "") hint, tx + 16, ty + 16, TIP_ID_CAPTURE)
+            UI_ToolTip((rc ? (rc.r - rc.l) "×" (rc.b - rc.t) "`n" : "") hint, tx + 16, ty + 16, TIP_ID_CAPTURE)
         }
         Sleep(40)
     }

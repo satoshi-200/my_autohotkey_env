@@ -97,7 +97,7 @@ vk1D & b::      SendInput("^{LButton}")
 vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
 vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
 vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
-vk1D & sc070::  MouseNav_WarpMonitor()              ; かな -> 次のモニターの中央へ移動し、カーソル下をアクティブに
+vk1D & sc070::  MouseNav_WarpVertical()             ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
 vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は Lib\archive\mouse_nav_timer.ahk にある）
 vk1D & 8::      return                              ; 未割り当て
 vk1D & 9::      return                              ; 未割り当て
@@ -135,10 +135,10 @@ vk1D & /::      SendInput("{&}")
 vk1D & *::      SendInput("{?}")
 vk1D & @::      SendInput("{!}")
 vk1D & y::      SendInput("{~}")
-vk1D & _::      SendInput("{~}")
-vk1D & RShift:: SendInput("{|}")
+vk1D & _::      return                              ; 未割り当て
+vk1D & RShift::      return                              ; 未割り当て
 vk1D & h::      Text_BulletPoint()                  ; 箇条書きの「- 」
-vk1D & sc07D::  SendInput("{- 30}")                 ; ￥ -> コメント用の区切り線
+vk1D & sc07D::  return
 vk1D & sc00D::  return
 
 ;------------------------------------------------------------------------------

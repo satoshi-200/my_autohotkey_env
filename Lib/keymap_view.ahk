@@ -2,7 +2,7 @@
 ;==============================================================================
 ; keymap_view.ahk
 ; キー割り当ての見える化：keymap\hold_keys.ahk と keymap\leader_keys.ahk を読み、
-; JIS 配列のキーボード図の上に、レイヤーごとの割り当てを表示する HTML を作ってブラウザで開く
+; JIS 配列のキーボード図の上に、レイヤーごとの割り当てを表示する HTML を作ってブラウザで開く。同じ画面の「設定」タブで、設定値（settings_view.ahk）も確認・編集できる
 ;   Keymap_Show()  … クイックメニューの「システム → キー割り当て一覧」から呼ぶ
 ;   起動時（Insert での再読み込みを含む）にも HTML を作り直すので、開いたままのブラウザは F5 で最新になる
 ;
@@ -15,6 +15,7 @@
 ; 行の読み取り（コメントの分離など）は keymap_parse.ahk と共通（モードのキーの読み替えや入力待ちの一覧も同じものを使う）。
 ;==============================================================================
 #Include %A_LineFile%\..\keymap_parse.ahk
+#Include %A_LineFile%\..\settings_view.ahk
 #Include %A_LineFile%\..\ui_common.ahk
 
 ; 関数名 → 表示名（キー割り当てに出てくるもの）
@@ -23,19 +24,19 @@ KM_FUNC_NAMES := Km_Map(
     "MousePlain_ScrollUp", "スクロール ↑", "MousePlain_ScrollDown", "スクロール ↓",
     "MousePlain_ScrollLeft", "スクロール ←", "MousePlain_ScrollRight", "スクロール →",
     "MouseNav_WarpWindow", "ウィンドウの中央へ", "MouseNav_WarpCenter", "モニターの中央へ",
-    "MouseNav_WarpExternalCenter", "外付けモニターの中央へ", "MouseNav_WarpMonitor", "次のモニターへ",
+    "MouseNav_WarpExternalCenter", "外付けモニターの中央へ", "MouseNav_WarpVertical", "縦のモニターへ",
     "MouseClick", "クリック", "Mouse_ToggleDrag", "ドラッグ開始／解除", "Mouse_FocusUnderCursor", "カーソル下をアクティブに",
     "Mouse_ContextMenu", "右クリックメニュー", "Text_WheelCursor", "ホイールでカーソル移動",
     "Text_BulletPoint", "箇条書き「- 」", "Text_CapitalizeNext", "次の 1 文字を大文字に", "Text_InsertDate", "日付の入力",
     "AltTab", "次のアプリへ", "ShiftAltTab", "前のアプリへ", "ScreenSaver_Toggle", "スクリーンセーバー回避の切り替え",
     "ScreenSaver_Off", "スクリーンセーバー回避を解除",
-    "Leader_SpaceF", "Space+F の入力待ち", "Leader_SpaceA", "Space+A の入力待ち",
+    "Leader_SpaceF", "Space+F の入力待ち", "Leader_SpaceA", "Space+A の入力待ち", "Leader_Caps", "Caps の入力待ち",
     "WindowMonitor_Show", "ウィンドウを別のモニターへ",
     "AppSwitcher_Show", "アプリ切り替え", "TabPageSwitcher_Show", "タブ・ページ切り替え",
     "QuickPalette_Show", "コマンドパレット", "QuickMenu_Show", "クイックメニュー", "QM_SymbolMenu_Show", "記号メニュー",
-    "QM_DesktopMenu_Show", "仮想デスクトップメニュー", "QM_DateMenu_Show", "日付・時刻メニュー",
+    "QM_DesktopMenu_Show", "仮想デスクトップメニュー", "QM_DateMenu_Show", "日付・時刻メニュー", "QM_DateQuick_Show", "日付・時刻の一覧",
     "QM_CaptureMenu_Show", "画面キャプチャメニュー", "VimiumC_ShowHints", "Vimium C 風ヒント",
-    "Oneshot_Fn", "Fn キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
+    "Oneshot_FnOrCtrlNum", "Fn キー / Ctrl + 数字キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード",
     "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
@@ -89,7 +90,7 @@ Keymap_Show() {
     try
         path := Km_WriteHtml()
     catch as e {
-        MsgBox("キー割り当て一覧を作れませんでした。`n" e.Message, "キー割り当て一覧")
+        MsgBox("キー割り当て・設定の画面を作れませんでした。`n" e.Message, "キー割り当て・設定")
         return
     }
     try
@@ -119,12 +120,13 @@ Km_BuildHtml() {
         Km_Layer("Space +", ["039"], "Space を押しながら押すキー（Space+F / Space+A は入力待ちになる）", Km_ParseHold(hold, "vk20", hf), "hold", "vk20", hf),
         Km_Layer("Caps →", ["03A"], "CapsLock を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Caps", lf), "leader", "Leader_Caps", lf),
         Km_Layer("Space+F →", ["039", "021"], "Space+F を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_SpaceF", lf), "leader", "Leader_SpaceF", lf),
-        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf), "leader", "Leader_SpaceA", lf)]
+        Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf), "leader", "Leader_SpaceA", lf),
+        Km_Layer("特殊", [], "基本のキーボード入力では使わない、単独で働くキー（修飾キーとの組み合わせを含む）。Logi Options+ などの外部ツールのボタンから呼ぶ用の押しにくい組み合わせ。Caps は入力待ちの起点", Km_ParseHotkeys(lead, lf), "hotkey", "", lf)]
     hist := Km_HistLoad()
     json := "{`"layers`":["
     for i, ly in layers
         json .= (i > 1 ? "," : "") Km_LayerJson(ly, hist)
-    json .= "]}"
+    json .= "],`"settings`":" Set_Json(hist) "}"
     return StrReplace(FileRead(A_LineFile "\..\keymap_view.html", "UTF-8"), "__DATA__", json)
 }
 
@@ -166,6 +168,23 @@ Km_ParseLeader(src, fn, file) {
     }
     Km_DropAssigned(blank, keys)
     return {keys: keys, extra: extra, blank: blank}
+}
+
+; 起点キーの欄の「キー::  処理  ; コメント」を読む（Caps、Ctrl+Shift+Alt+F12 など）。修飾キーを除いたキーの位置に表示する
+Km_ParseHotkeys(src, file) {
+    keys := Map(), extra := []
+    for row in KP_HotkeyRows(src) {
+        base := RegExReplace(row.key, "^[\^+!#*~$<>]+")
+        prefix := SubStr(row.key, 1, StrLen(row.key) - StrLen(base))
+        mods := ""
+        for pair in [["^", "Ctrl+"], ["+", "Shift+"], ["!", "Alt+"], ["#", "Win+"]]
+            mods .= InStr(prefix, pair[1]) ? pair[2] : ""
+        shown := RegExMatch(base, "i)^(sc|vk)[0-9a-f]+$") ? GetKeyName(base) : base
+        if (shown = "")
+            shown := (Km_Sc(base) = "03A") ? "Caps" : base
+        Km_Add(keys, extra, mods shown, Km_Sc(base), Km_Label(row.action, row.comment), row.action, file, row.lineNo, row.raw)
+    }
+    return {keys: keys, extra: extra, blank: Map()}
 }
 
 Km_Add(keys, extra, name, sc, label, src, file, lineNo, raw) {
@@ -235,7 +254,7 @@ Km_CleanComment(c) {
 
 ; SendInput("^{Left}") などの文字列を「Ctrl+←」のような表示にする（最初のキーだけ）
 Km_Keys(s) {
-    s := StrReplace(s, "``")
+    s := RegExReplace(s, "``(.)", "$1")                           ; AutoHotkey のエスケープ（`; や ``）を外す
     s := RegExReplace(s, "i)^\{Blind\}")
     mods := ""
     while (s != "" && InStr("^+!#", SubStr(s, 1, 1))) {
@@ -315,9 +334,10 @@ KM_win := 0
 KM_wvc := 0
 KM_wv := 0
 KM_msgToken := 0
+KM_navToken := 0
 
 Km_ShowWindow(path) {
-    global KM_win, KM_wvc, KM_wv, KM_msgToken
+    global KM_win, KM_wvc, KM_wv, KM_msgToken, KM_navToken
     url := "file:///" StrReplace(path, "\", "/")
     if (KM_win && WinExist("ahk_id " KM_win.Hwnd)) {
         KM_wv.Navigate(url)
@@ -327,7 +347,7 @@ Km_ShowWindow(path) {
     }
     Km_WorkArea(&l, &t, &r, &b)
     w := (r - l) * 9 // 10, h := (b - t) * 9 // 10
-    g := Gui("+Resize -DPIScale", "キー割り当て一覧")
+    g := Gui("+Resize -DPIScale", "キー割り当て・設定")
     g.OnEvent("Size", Km_OnSize)
     g.OnEvent("Close", Km_CloseWindow)
     g.Show("x" (l + (r - l - w) // 2) " y" (t + (b - t - h) // 2) " w" w " h" h)
@@ -341,7 +361,18 @@ Km_ShowWindow(path) {
     KM_win := g, KM_wvc := wvc, KM_wv := wvc.CoreWebView2
     wvc.Fill()
     KM_msgToken := KM_wv.WebMessageReceived(Km_OnMessage)
+    KM_navToken := KM_wv.NavigationCompleted(Km_OnNavDone)
     KM_wv.Navigate(url)
+}
+
+; 読み込みが終わってもページにキーボードフォーカスがないと、クリックするまで数字キー・Ctrl+Tab が届かない
+Km_OnNavDone(sender, args) {
+    SetTimer(Km_FocusPage, -1)
+}
+
+Km_FocusPage() {
+    if (KM_wvc && KM_win && WinActive("ahk_id " KM_win.Hwnd))
+        KM_wvc.MoveFocus(0)
 }
 
 ; カーソルのあるモニターの作業領域
@@ -357,8 +388,8 @@ Km_OnSize(guiObj, minMax, width, height) {
 }
 
 Km_CloseWindow(*) {
-    global KM_win, KM_wvc, KM_wv, KM_msgToken
-    KM_msgToken := 0
+    global KM_win, KM_wvc, KM_wv, KM_msgToken, KM_navToken
+    KM_msgToken := 0, KM_navToken := 0
     try KM_wvc.Close()
     KM_wvc := 0, KM_wv := 0
     KM_win.Destroy()
@@ -377,6 +408,8 @@ Km_HandleMessage(msg) {
         res := Km_Save(parts[2], parts[3], parts[4], Integer(parts[5]), parts[6], parts[7])
     else if (parts.Length = 6 && parts[1] = "add")
         res := Km_Insert(parts[2], parts[4], parts[5], parts[6])
+    else if (parts.Length = 6 && parts[1] = "setsave")
+        res := Set_Save(parts[2], parts[3], Integer(parts[4]), parts[5], parts[6])
     else
         return
     if KM_wv
@@ -388,10 +421,7 @@ Km_HandleMessage(msg) {
 ;------------------------------------------------------------------------------
 ; file の lineNo 行目（元の内容 raw）を newText に置き換える。結果は {ok, msg}
 Km_Save(file, layerName, keyName, lineNo, raw, newText) {
-    ok := false
-    for f in KM_EDITABLE_FILES
-        ok := ok || (f = file)
-    if !ok
+    if !(Km_IsKeymapFile(file) || Set_IsEditableFile(file))
         return {ok: false, msg: "このファイルは編集できません。"}
     newText := RTrim(newText, " `t")
     if (newText = "" || RegExMatch(newText, "[\r\n]"))
@@ -400,13 +430,13 @@ Km_Save(file, layerName, keyName, lineNo, raw, newText) {
         return {ok: false, msg: "変更がありません。"}
 
     dir := Km_KeymapDir()
-    path := dir "\" file
+    path := Km_FilePath(file)
     content := FileRead(path, "UTF-8")
     if !Km_FindLine(content, lineNo, raw, &s, &e, &cr)
         return {ok: false, msg: "ファイルがほかで書き換えられています。F5 で更新してから、やり直してください。"}
 
     DirCreate(dir "\.backup")
-    FileCopy(path, dir "\.backup\" file ".bak", true)
+    FileCopy(path, dir "\.backup\" StrReplace(file, "\", "_") ".bak", true)
     Km_WriteFile(path, SubStr(content, 1, s - 1) newText cr SubStr(content, e))
 
     err := Km_Validate()
@@ -427,10 +457,7 @@ Km_Save(file, layerName, keyName, lineNo, raw, newText) {
 ;   kind "leader" … anchor の関数（Leader_Caps など）の表の先頭へ。「"キー",  処理」は keys の表、「0x79,  処理」は specials の表
 ; 保存後の手順（元のファイルの複製、構文の確認、エラーなら元に戻す）は Km_Save と同じ
 Km_Insert(file, kind, anchor, newText) {
-    ok := false
-    for f in KM_EDITABLE_FILES
-        ok := ok || (f = file)
-    if !ok
+    if !Km_IsKeymapFile(file)
         return {ok: false, msg: "このファイルは編集できません。"}
     newText := Trim(newText, " `t")
     if (newText = "" || RegExMatch(newText, "[\r\n]"))
@@ -523,6 +550,16 @@ Km_Insert(file, kind, anchor, newText) {
     try Km_WriteHtml()
     return {ok: true, msg: "行を足しました（" file " の " at " 行目）。Insert で再読み込みすると反映されます。"}
 }
+
+; keymap\ の編集できるファイル名。設定のファイルは「Lib\config.ahk」のようにリポジトリの直下からのパスで渡される
+Km_IsKeymapFile(file) {
+    for f in KM_EDITABLE_FILES
+        if (f = file)
+            return true
+    return false
+}
+
+Km_FilePath(file) => Km_IsKeymapFile(file) ? Km_KeymapDir() "\" file : Set_Root() "\" file
 
 ; lineNo 行目が raw と同じなら、その範囲（s ～ e の手前。cr は行末の CR）を返す。
 ; 行番号がずれていたときは、同じ内容の行がちょうど 1 つだけなら、それを使う

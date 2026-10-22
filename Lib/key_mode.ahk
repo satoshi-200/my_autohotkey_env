@@ -88,7 +88,7 @@ IHM_Tip(st, status, help := "") {
     st.tipText := [status, help]
     switch st.tipPos {
         case "cursor":
-            ToolTip(status (help != "" ? "`n" help : ""))
+            UI_ToolTip(status (help != "" ? "`n" help : ""))
             return
         case "hidden":
             ToolTip()
@@ -109,7 +109,7 @@ _IHM_TipCorner(text) {
     CoordMode("Mouse", "Screen"), CoordMode("ToolTip", "Screen")
     MouseGetPos(&mx, &my)
     MonitorGetWorkArea(UI_MonitorFromPoint(mx, my), &l, &t, &r, &b)
-    if !(hwnd := ToolTip(text, l + 12, b - 60))
+    if !(hwnd := UI_ToolTip(text, l + 12, b - 60))
         return
     WinGetPos(, , , &h, hwnd)
     WinMove(l + 12, b - h - 12, , , hwnd)

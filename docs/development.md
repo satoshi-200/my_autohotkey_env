@@ -13,12 +13,12 @@
 - `quick_menu.ahk` はメニューの登録と画面だけを置き、メニューから呼ぶ処理の本体はそれぞれの部品（`text_ops` / `window_ops` / `screen_capture` など）に置く。
 
 ## 命名
-- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち。共有の InputHook は `IH_hook`、待機中フラグは `IH_waiting`）、`KP_`（割り当て表の読み取り。`keymap_parse.ahk`）、`UI_`（表示の共通部品。`ui_common.ahk`）など。`text_ops.ahk` / `window_ops.ahk` の関数は、クイックメニューから呼ぶものなので `QM_` のまま。
+- 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち。共有の InputHook は `IH_hook`、待機中フラグは `IH_waiting`）、`KP_`（割り当て表の読み取り。`keymap_parse.ahk`）、`UI_`（表示の共通部品。`ui_common.ahk`）、`Office_` / `OFFICE_`（Office 共通。`office_common.ahk`）、`Ppt_` / `PPT_`（PowerPoint 専用。`powerpoint_pack.ahk`）など。`text_ops.ahk` / `window_ops.ahk` の関数は、クイックメニューから呼ぶものなので `QM_` のまま。
 - AutoHotkey v2 は変数名・関数名・メソッド名の大文字小文字を区別しない。ローカル変数が同名のクラス・関数・static 変数を隠さないよう、別の名前にする（例：`gui := Gui(...)` は不可、`log` は `Log()` と衝突）。
-- 設定値は部品の冒頭に大文字の変数で置く（例：`CAP_SAVE_DIR`）。
+- 設定値は部品の冒頭に大文字の変数で置く（例：`CAP_SAVE_DIR`）。キー割り当て一覧の「設定」タブで直すものは、`名前 := 値  ; 説明` の 1 行で書き、`Lib/settings_view.ahk` の `SET_DEFS` に 1 行（グループ・表示名・種類・範囲）足す。対応表（`Map`）や状態の変数は出さない。
 
 ## 機能の足し方
-- クイックメニューへの追加：`QuickPalette._Init()` に `this.Add(...)` を 1 行足す（書き方は `Lib/quick_menu.ahk` 冒頭）。カテゴリのキーを足すときは `Cats` にも書く。
+- クイックメニューへの追加：`QuickPalette._Init()` に `this.Add(...)` を 1 行足す（書き方は `Lib/quick_menu.ahk` 冒頭）。カテゴリのキーを足すときは `Cats` にも書く。アプリ専用の項目は、`this.Add(...)` の最後の引数に対象アプリ（`"office"` = Office のどれでも、`"ppt"` / `"word"` / `"excel"`）を渡すと、メニューを開いたときに前面だったアプリの項目だけが出る（項目が空のカテゴリは出ない）。
 - 入力待ち（Caps → ○ など）への追加：`keymap/leader_keys.ahk` の表に書く。空き（`""`）を探して地価の高い順に置く（`principles.md`）。
 - キー割り当ての書き方は、`Lib/keymap_view.ahk`（キー割り当て一覧）が読めるように、既存の行と同じ形にする：`起点 & キー::  処理  ; コメント`、`"キー",  処理,  ; コメント`。新しい関数を割り当てたら、一覧に日本語で出るよう `KM_FUNC_NAMES` に足すか、行末にコメントを付ける。
 - 選択中だけ有効にするホットキーは `#HotIf IsObject(状態)` で囲み、最後に `#HotIf` で戻す（例：`Cap_session`、`VimiumC_session`）。

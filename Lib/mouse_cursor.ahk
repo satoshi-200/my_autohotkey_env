@@ -4,7 +4,7 @@
 ; キーボードでのマウス操作
 ;   MousePlain … カーソル移動（1 回押すごとに固定量、押しっぱなしで加速。移動量はモニターの画素数に連動）と
 ;                スクロール（1 回押すごとに 1 ノッチ）。キーリピート駆動
-;   MouseNav   … ワープ（アクティブウィンドウ・モニターの中央、次のモニター、外付けモニターの中央）
+;   MouseNav   … ワープ（アクティブウィンドウ・モニターの中央、縦に並んだモニター、外付けモニターの中央）
 ;   Mouse_*    … 右クリックメニュー、カーソル下をアクティブに、ドラッグ開始／解除
 ; 使っていなかったタイマー駆動のなめらかな移動・スクロール、2 分割ジャンプ、四隅へのワープ、微小移動は
 ; Lib\archive\mouse_nav_timer.ahk に移した（設計の経緯の説明もそこにある）。
@@ -102,6 +102,58 @@ class MouseNav {
 
     ;=== 内部処理 ===============================================================
 
+    ; 縦に並んだモニターへ移動：下にモニターがあれば下へ、なければ上へ（上下 2 段の配置で、上下を行き来する）。
+    ; 上が複数あるとき（メインの上にサブ 2 台など）、下へ行く前にいたモニターに戻る。初めてなら、横方向の重なりが最も大きいもの
+    ; center = true：モニターの中央へ、false：同じ相対位置へ
+    static WarpVertical(center := true) {
+        mons := this._Monitors()
+        if (mons.Length < 2)
+            return
+        this._GetPos(&x, &y)
+        a := ""
+        for m in mons {
+            if (x >= m.L && x < m.R && y >= m.T && y < m.B) {
+                a := m
+                break
+            }
+        }
+        if !IsObject(a)
+            return
+        b := this._VerticalNeighbor(mons, a, 1)
+        if IsObject(b)
+            this._cameFrom := a
+        else
+            b := this._VerticalNeighbor(mons, a, -1)
+        if !IsObject(b)
+            return
+        if center {
+            nx := (b.L + b.R) // 2
+            ny := (b.T + b.B) // 2
+        } else {
+            nx := b.L + Round((x - a.L) / (a.R - a.L) * (b.R - b.L))
+            ny := b.T + Round((y - a.T) / (a.B - a.T) * (b.B - b.T))
+        }
+        DllCall(this._pSet, "Int", nx, "Int", ny, "Int")
+    }
+
+    ; a の下（dir = 1）または上（dir = -1）にあるモニターのうち、横方向の重なりが最も大きいもの（同じなら縦の距離、横の距離が近い順）。なければ ""
+    static _VerticalNeighbor(mons, a, dir) {
+        ay := (a.T + a.B) / 2, ax := (a.L + a.R) / 2
+        best := "", bo := -1, bv := 0, bh := 0
+        for m in mons {
+            my := (m.T + m.B) / 2
+            if ((my - ay) * dir <= 0)
+                continue
+            if (dir < 0 && IsObject(this._cameFrom) && m.L = this._cameFrom.L && m.T = this._cameFrom.T)
+                return m
+            ov := Max(0, Min(a.R, m.R) - Max(a.L, m.L))
+            vd := Abs(my - ay), hd := Abs((m.L + m.R) / 2 - ax)
+            if (ov > bo || (ov = bo && (vd < bv || (vd = bv && hd < bh))))
+                best := m, bo := ov, bv := vd, bh := hd
+        }
+        return best
+    }
+    static _cameFrom := ""
     static _GetPos(&x, &y) {
         DllCall(this._pGet, "Ptr", this._pt, "Int")
         x := NumGet(this._pt, 0, "Int"), y := NumGet(this._pt, 4, "Int")
@@ -232,8 +284,9 @@ class MousePlain {
 ;--- MouseNav（ワープ）--------------------------------------------------------
 MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
 MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()
-MouseNav_WarpMonitor() {
-    MouseNav.WarpToNextMonitor(true)
+MOUSENAV_VERTICAL_CENTER := true                        ; true：縦のモニターの中央へ、false：同じ相対位置へ
+MouseNav_WarpVertical() {
+    MouseNav.WarpVertical(MOUSENAV_VERTICAL_CENTER)
     Mouse_FocusUnderCursor()
 }
 MouseNav_WarpExternalCenter() {

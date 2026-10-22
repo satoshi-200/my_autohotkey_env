@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>キー割り当て（JIS 配列）</title>
+<title>キー割り当て・設定（JIS 配列）</title>
 <style>
   body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 16px 20px; background: #f4f5f7; color: #222; }
   h1 { font-size: 18px; margin: 0 0 10px; }
@@ -39,20 +39,50 @@
   #editor button { font: inherit; font-size: 13px; padding: 5px 16px; margin-right: 8px; border: 1px solid #b8bcc4; border-radius: 6px; background: #fff; cursor: pointer; }
   #editor button.ok { background: #1a56db; border-color: #1a56db; color: #fff; }
   #editor button:disabled { opacity: .4; cursor: default; }
-  #editor .help { margin-top: 6px; font-size: 12px; color: #666; }
+  #editor .help { margin-top: 6px; font-size: 12px; color: #666; white-space: pre-line; }
   #editor .prev { margin-top: 6px; font: 12px Consolas, "MS Gothic", monospace; color: #555; white-space: pre-wrap; word-break: break-all; }
   #editor .err { margin-top: 6px; font-size: 13px; color: #c92a2a; white-space: pre-wrap; }
+  #extra.set { max-width: 1147px; margin-top: 14px; }
+  #extra.set .bar { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  #extra.set .bar input { width: 300px; font: inherit; font-size: 13px; padding: 7px 12px; border: 1px solid #cfd4dc; border-radius: 8px; background: #fff; }
+  #extra.set .bar input:focus { outline: 2px solid #b2ccff; border-color: #1a56db; }
+  #extra.set .bar .cnt { font-size: 12px; color: #667085; }
+  #extra.set .card { background: #fff; border: 1px solid #e2e5ea; border-radius: 10px; margin: 0 0 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+  #extra.set .card h2 { display: flex; justify-content: space-between; margin: 0; padding: 9px 14px; font-size: 13px; font-weight: 600; color: #344054; background: #f8f9fb; border-bottom: 1px solid #e9ecf0; }
+  #extra.set .card h2 span { font-weight: 400; font-size: 12px; color: #98a2b3; }
+  #extra.set table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+  #extra.set td { padding: 7px 14px; border-top: 1px solid #f0f2f5; vertical-align: middle; color: #344054; }
+  #extra.set tr:first-child td { border-top: 0; }
+  #extra.set td.lbl { width: 32%; }
+  #extra.set td.val { width: 170px; text-align: right; font: 600 13px Consolas, "MS Gothic", monospace; font-variant-numeric: tabular-nums; color: #101828; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #extra.set td.unit { width: 56px; padding-left: 0; font-size: 12px; color: #98a2b3; }
+  #extra.set td.desc { font-size: 12px; color: #667085; }
+  #extra.set td.nm { width: 220px; text-align: right; font: 11px Consolas, monospace; color: #a0a7b4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .can-edit #extra.set tr.srow { cursor: pointer; }
+  .can-edit #extra.set tr.srow:hover td { background: #f5f8ff; }
+  #extra.set tr.srow.sel td { background: #eaf1ff; }
+  #extra.set tr.srow.sel td.lbl { box-shadow: inset 3px 0 0 #1a56db; }
+  #extra.set .pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font: 600 12px "Yu Gothic UI", "Meiryo", sans-serif; }
+  #extra.set .pill.on { background: #dcfae6; color: #067647; }
+  #extra.set .pill.off { background: #eef0f3; color: #667085; }
+  #extra.set .pill.ch { background: #eaf1ff; color: #1a56db; }
+  #extra.set .sw { display: inline-block; width: 12px; height: 12px; border: 1px solid #98a2b3; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+  body.setmode #editor { box-sizing: border-box; position: sticky; top: 8px; z-index: 5; box-shadow: 0 6px 20px rgba(16, 24, 40, .14); border-radius: 10px; }
+  #editor select, #editor input.num { font: 13px Consolas, "MS Gothic", monospace; padding: 6px 8px; border: 1px solid #7aa2f7; border-radius: 4px; }
+  #editor input.num { width: 160px; }
+  #editor input.hex { width: 90px; font: 13px Consolas, "MS Gothic", monospace; padding: 6px 8px; border: 1px solid #7aa2f7; border-radius: 4px; margin-left: 8px; }
+  #editor input[type=color] { width: 44px; height: 32px; padding: 0; vertical-align: middle; }
 </style>
 </head>
 <body>
-<h1>キー割り当て（JIS 配列）</h1>
+<h1>キー割り当て・設定（JIS 配列）</h1>
 <div id="flash"></div>
 <div id="tabs"></div>
 <div id="note"></div>
 <div id="kb"></div>
 <div id="editor"></div>
 <div id="extra"></div>
-<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜6 でレイヤーを切り替えられます。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。割り当てのないキーも、クリックして行を足せます。</span></div>
+<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜7 でレイヤー・設定を切り替えられます。Ctrl+数字・Ctrl+Tab（Shift で逆順）でも切り替えられます（入力欄の中では Ctrl 付きだけ）。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。割り当てのないキーも、クリックして行を足せます。「設定」タブでは、設定値をクリックして変更できます。</span></div>
 <script>
 var DATA = __DATA__;
 
@@ -126,10 +156,15 @@ function itemAt(ly, sc) {
 
 function render(i) {
   curLayer = i;
-  var ly = DATA.layers[i];
+  var isSet = (i >= DATA.layers.length);
+  kb.style.display = isSet ? "none" : "block";
+  document.body.classList.toggle("setmode", isSet);
+  document.getElementById("extra").className = isSet ? "set" : "";
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b, j) {
     b.className = (j === i) ? "active" : "";
   });
+  if (isSet) { renderSettings(); return; }
+  var ly = DATA.layers[i];
   document.getElementById("note").textContent = ly.note;
   kb.innerHTML = "";
   L.forEach(function (k) {
@@ -154,7 +189,7 @@ function render(i) {
   rows = rows.concat(ly.extra);
   var ex = document.getElementById("extra");
   ex.innerHTML = "";
-  if (host) {
+  if (host && ly.kind !== "hotkey") {
     var addBtn = document.createElement("button");
     addBtn.textContent = "キー・組み合わせを追加…";
     addBtn.style.cssText = "font: inherit; font-size: 13px; padding: 5px 14px; margin: 0 0 10px; border: 1px solid #b8bcc4; border-radius: 6px; background: #fff; cursor: pointer;";
@@ -213,6 +248,30 @@ function closeEditor() {
   document.getElementById("editor").style.display = "none";
 }
 
+// 割り当てを解除した行（hold は「return」、入力待ちの文字キーは「""」）。解除できない・すでに解除済みなら ""
+function unassignedLine(ly, it) {
+  if (!it || !it.f || it.t === "") return "";
+  var m;
+  if (ly.kind === "hold") {
+    m = /^(\S+ & \S+?::)/.exec(it.r);
+    return m ? m[1] + "      return                              ; 未割り当て" : "";
+  }
+  if (ly.kind !== "leader") return "";
+  m = /^(\s*"[^"]",\s*)/.exec(it.r);                 // 特殊キー（0x79, …）は、空にすると呼び出しで失敗するので対象外
+  if (!m) return "";
+  // 表の最後の行は、行末の「)」を残す
+  var depth = 0, q = false;
+  for (var i = 0; i < it.r.length; i++) {
+    var c = it.r[i];
+    if (c === "`") { i++; continue; }
+    if (c === '"') q = !q;
+    else if (!q && c === ";" && /\s/.test(it.r[i - 1] || "")) break;
+    else if (!q && c === "(") depth++;
+    else if (!q && c === ")") depth--;
+  }
+  return m[1] + '""' + (depth < 0 ? ")" : ",");
+}
+
 function showEditor(ly, it, sc, face) {
   var ed = document.getElementById("editor");
   ed.innerHTML = "";
@@ -252,6 +311,8 @@ function showEditor(ly, it, sc, face) {
   }
   button("確定", "ok", function () { save(input.value); });
   button("元の行に戻す", "", function () { input.value = it.r; input.focus(); });
+  var unassign = button("割り当てを解除", "", function () { save(unassignedLine(ly, it)); });
+  unassign.disabled = !unassignedLine(ly, it);
   var undo = button("1 つ前に戻す", "", function () { save(it.p); });
   undo.disabled = !it.p;
   button("閉じる", "", function () { selSc = ""; setHash(); render(curLayer); });
@@ -283,6 +344,7 @@ var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 
 
 // 行がまだ無いキーの雛形。{text, cursor}、使えないキーは {err}
 function addTemplate(ly, sc, face) {
+  if (ly.kind === "hotkey") return { err: "この層には、ここから行を足せません。keymap/leader_keys.ahk の起点キーの欄に直接書いてください。" };
   if (ly.kind === "hold") {
     if (ly.origin.indexOf(sc) >= 0) return { err: "起点のキー自身には、割り当てられません。" };
     var tok = /^[A-Z0-9]$/.test(face || "") ? face.toLowerCase() : "sc" + sc;
@@ -371,6 +433,241 @@ function showAddEditor(ly, sc, face, free) {
   ed.scrollIntoView({ block: "nearest" });
 }
 
+// 「設定」タブ：設定値をグループごとのカードにして、行をクリックすると編集する。検索欄で絞り込める
+var setQuery = "";
+
+// 表示名末尾の「 [ms]」などを単位の列に分ける
+function splitUnit(label) {
+  var m = /^(.*?)\s*\[([^\]]+)\]\s*$/.exec(label);
+  return m ? [m[1], m[2]] : [label, ""];
+}
+
+function settingValueCell(s) {
+  var td = document.createElement("td");
+  td.className = "val";
+  if (s.type === "bool") {
+    var p = document.createElement("span");
+    p.className = "pill " + (s.v === "true" ? "on" : "off");
+    p.textContent = s.v === "true" ? "ON" : "OFF";
+    td.appendChild(p);
+  } else if (s.type === "choice") {
+    var c = document.createElement("span");
+    c.className = "pill ch";
+    c.textContent = s.v;
+    td.appendChild(c);
+  } else if (s.type === "color") {
+    var sw = document.createElement("span");
+    sw.className = "sw";
+    sw.style.background = "#" + s.v;
+    td.appendChild(sw);
+    td.appendChild(document.createTextNode(s.v));
+  } else {
+    td.textContent = (s.type === "int" && Math.abs(+s.v) >= 10000) ? (+s.v).toLocaleString("en-US") : s.v;
+    td.title = s.v;
+  }
+  return td;
+}
+
+function renderSettings() {
+  document.getElementById("note").textContent = "各部品の冒頭にある設定値です。変えるとスクリプトの行を書き換え、Insert（再読み込み）のあとに反映されます。";
+  var ex = document.getElementById("extra");
+  ex.innerHTML = "";
+  var bar = document.createElement("div");
+  bar.className = "bar";
+  var q = document.createElement("input");
+  q.type = "search";
+  q.placeholder = "設定を検索（名前・説明・変数名）";
+  q.value = setQuery;
+  var cnt = document.createElement("span");
+  cnt.className = "cnt";
+  bar.appendChild(q);
+  bar.appendChild(cnt);
+  ex.appendChild(bar);
+
+  var groups = [], byGroup = {};
+  DATA.settings.forEach(function (s) {
+    if (!byGroup[s.g]) { byGroup[s.g] = []; groups.push(s.g); }
+    byGroup[s.g].push(s);
+  });
+  var cards = [], sel = null;
+  groups.forEach(function (g) {
+    var card = document.createElement("div");
+    card.className = "card";
+    var h = document.createElement("h2");
+    h.textContent = g;
+    var gc = document.createElement("span");
+    h.appendChild(gc);
+    card.appendChild(h);
+    var t = document.createElement("table");
+    var trs = [];
+    byGroup[g].forEach(function (s) {
+      var tr = document.createElement("tr");
+      tr.className = "srow" + (s.name === selSc ? " sel" : "");
+      tr.dataset.name = s.name;
+      if (s.name === selSc) sel = s;
+      var lu = splitUnit(s.label);
+      var cells = [["lbl", lu[0]]];
+      cells.forEach(function (c) {
+        var td = document.createElement("td");
+        td.className = c[0];
+        td.textContent = c[1];
+        tr.appendChild(td);
+      });
+      tr.appendChild(settingValueCell(s));
+      [["unit", lu[1]], ["desc", s.c], ["nm", s.name]].forEach(function (c) {
+        var td = document.createElement("td");
+        td.className = c[0];
+        td.textContent = c[1];
+        if (c[0] === "desc") td.title = c[1];
+        tr.appendChild(td);
+      });
+      tr.hay = (s.label + " " + s.name + " " + s.c + " " + s.g + " " + s.v).toLowerCase();
+      if (host) tr.onclick = function () { selectSetting(s); };
+      t.appendChild(tr);
+      trs.push(tr);
+    });
+    card.appendChild(t);
+    ex.appendChild(card);
+    cards.push({ el: card, rows: trs, count: gc });
+  });
+
+  function applyFilter() {
+    var words = setQuery.toLowerCase().split(/\s+/).filter(Boolean), shown = 0;
+    cards.forEach(function (c) {
+      var n = 0;
+      c.rows.forEach(function (tr) {
+        var hit = words.every(function (w) { return tr.hay.indexOf(w) >= 0; });
+        tr.style.display = hit ? "" : "none";
+        if (hit) n++;
+      });
+      c.el.style.display = n ? "" : "none";
+      c.count.textContent = n + " 件";
+      shown += n;
+    });
+    cnt.textContent = shown + " / " + DATA.settings.length + " 件";
+  }
+  q.oninput = function () { setQuery = q.value; applyFilter(); };
+  applyFilter();
+  if (sel) showSettingEditor(sel);
+  else closeEditor();
+}
+
+function selectSetting(s) {
+  selSc = s.name;
+  setHash();
+  Array.prototype.forEach.call(document.querySelectorAll("#extra tr.srow"), function (tr) {
+    tr.classList.toggle("sel", tr.dataset.name === s.name);
+  });
+  showSettingEditor(s);
+}
+
+// 設定値の編集欄（種類に合わせた入力欄。確定するとホストが種類で確かめて行を書き換える）
+function showSettingEditor(s) {
+  var ed = document.getElementById("editor");
+  ed.innerHTML = "";
+  if (!host) return;
+  ed.style.display = "block";
+  var h = document.createElement("h2");
+  h.textContent = s.g + "　" + s.label + "　（" + s.file.replace(/\\/g, "/") + " の " + s.l + " 行目　" + s.name + "）";
+  ed.appendChild(h);
+
+  var get, set, ctl;
+  var wrap = document.createElement("div");
+  if (s.type === "bool" || s.type === "choice") {
+    ctl = document.createElement("select");
+    (s.type === "bool" ? ["true", "false"] : s.opts).forEach(function (o) {
+      var op = document.createElement("option");
+      op.value = op.textContent = o;
+      ctl.appendChild(op);
+    });
+    get = function () { return ctl.value; };
+    set = function (v) { ctl.value = v; };
+    wrap.appendChild(ctl);
+  } else if (s.type === "int" || s.type === "float") {
+    ctl = document.createElement("input");
+    ctl.type = "number";
+    ctl.className = "num";
+    ctl.min = s.min;
+    ctl.max = s.max;
+    ctl.step = s.type === "int" ? 1 : "any";
+    get = function () { return ctl.value.trim(); };
+    set = function (v) { ctl.value = v; };
+    wrap.appendChild(ctl);
+  } else if (s.type === "color") {
+    var pick = document.createElement("input");
+    pick.type = "color";
+    ctl = document.createElement("input");
+    ctl.type = "text";
+    ctl.className = "hex";
+    ctl.maxLength = 6;
+    ctl.spellcheck = false;
+    pick.oninput = function () { ctl.value = pick.value.slice(1).toUpperCase(); };
+    ctl.oninput = function () { if (/^[0-9A-Fa-f]{6}$/.test(ctl.value)) pick.value = "#" + ctl.value; };
+    get = function () { return ctl.value.trim(); };
+    set = function (v) { ctl.value = v; ctl.oninput(); };
+    wrap.appendChild(pick);
+    wrap.appendChild(ctl);
+  } else {
+    ctl = document.createElement("input");
+    ctl.type = "text";
+    ctl.className = "code";
+    ctl.spellcheck = false;
+    get = function () { return ctl.value; };
+    set = function (v) { ctl.value = v; };
+    wrap.appendChild(ctl);
+  }
+  set(s.v);
+  ed.appendChild(wrap);
+
+  var err = document.createElement("div");
+  err.className = "err";
+  var btns = document.createElement("div");
+  btns.className = "btns";
+  function button(label, cls, fn) {
+    var b = document.createElement("button");
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.onclick = fn;
+    btns.appendChild(b);
+    return b;
+  }
+  function save(v) {
+    err.textContent = "保存して構文を確認しています…";
+    window.KM_current = { err: err };
+    host.postMessage(["setsave", s.file, s.name, s.l, s.r, v].join(SEP));
+  }
+  function close() { selSc = ""; setHash(); render(curLayer); }
+  button("確定", "ok", function () { save(get()); });
+  button("現在の値に戻す", "", function () { set(s.v); ctl.focus(); });
+  var undo = button("1 つ前に戻す", "", function () { save(s.p); });
+  undo.disabled = !s.hasPrev;
+  button("閉じる", "", close);
+  ed.appendChild(btns);
+
+  var help = document.createElement("div");
+  help.className = "help";
+  var range = (s.type === "int" || s.type === "float") ? "範囲：" + s.min + " 〜 " + s.max + "。" : "";
+  help.textContent = (s.c ? s.c + "。" : "") + range
+    + (s.type === "expr" ? "AutoHotkey の式をそのまま書き換えます。" : "")
+    + "\nEnter：確定　Esc：閉じる　確定すると構文を確認してからファイルに保存します。反映は、Insert で再読み込みしたあとです。";
+  ed.appendChild(help);
+  if (s.hasPrev) {
+    var prev = document.createElement("div");
+    prev.className = "prev";
+    prev.textContent = "1 つ前の値：" + s.p;
+    ed.appendChild(prev);
+  }
+  ed.appendChild(err);
+
+  wrap.addEventListener("keydown", function (e) {
+    if (e.isComposing) return;
+    if (e.key === "Enter") { e.preventDefault(); save(get()); }
+    else if (e.key === "Escape") close();
+  });
+  ctl.focus();
+  ed.scrollIntoView({ block: "nearest" });
+}
+
 // ホスト（AHK）からの結果
 window.KM_onResult = function (ok, msg) {
   if (ok) {
@@ -382,21 +679,40 @@ window.KM_onResult = function (ok, msg) {
 };
 
 var tabs = document.getElementById("tabs");
+var TAB_COUNT = DATA.layers.length + 1;
+function goTab(i) {
+  i = (i + TAB_COUNT) % TAB_COUNT;
+  selSc = "";
+  setHash();
+  render(i);
+}
 DATA.layers.forEach(function (ly, i) {
   var b = document.createElement("button");
   b.textContent = (i + 1) + "  " + ly.name;
-  b.onclick = function () { selSc = ""; setHash(); render(i); };
+  b.title = "Ctrl+" + (i + 1);
+  b.onclick = function () { goTab(i); };
   tabs.appendChild(b);
 });
+var sb = document.createElement("button");
+sb.textContent = TAB_COUNT + "  設定";
+sb.title = "Ctrl+" + TAB_COUNT;
+sb.onclick = function () { goTab(TAB_COUNT - 1); };
+tabs.appendChild(sb);
+var footEl = document.getElementById("foot");
+footEl.innerHTML = footEl.innerHTML.replace(/1.\d+ でレイヤー/, "1\u301c" + TAB_COUNT + " でレイヤー");
+// タブの切り替え：Ctrl+数字・Ctrl+Tab / Ctrl+Shift+Tab・Ctrl+PageDown / PageUp（入力欄の中でも効く）。数字キーだけは、入力欄にいないときだけ
 document.addEventListener("keydown", function (e) {
-  if (e.target && e.target.tagName === "INPUT") return;
-  var n = parseInt(e.key, 10);
-  if (n >= 1 && n <= DATA.layers.length) { selSc = ""; setHash(); render(n - 1); }
+  if (e.isComposing || e.altKey || e.metaKey) return;
+  var typing = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT");
+  var d = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+  if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); goTab(curLayer + (e.shiftKey ? -1 : 1)); }
+  else if (e.ctrlKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); goTab(curLayer + (e.key === "PageDown" ? 1 : -1)); }
+  else if (d && !e.shiftKey && +d[1] <= TAB_COUNT && (e.ctrlKey || !typing)) { e.preventDefault(); goTab(+d[1] - 1); }
 });
 
 // 再読み込み（保存後・F5）のあとも、同じレイヤーとキーを開く
 var m = location.hash.match(/^#(\d+)(?:,(\w+))?/);
-if (m && +m[1] < DATA.layers.length) {
+if (m && +m[1] <= DATA.layers.length) {
   curLayer = +m[1];
   selSc = m[2] || "";
 }

@@ -8,7 +8,7 @@
 ;   ・Enter（Space+g / h、Enter キー）は、モードを終えてから Shift なしで送る（未確定の文字を確定して、モードを抜ける）。
 ;     IME の F8・F9（変換+b / n）は、モードは続けたまま ShiftHold_SendPlain で Shift なしで送る（半角全角変換が効くように）。
 ;   Space + A（左手で文字・記号）は、入力待ちの間だけ ShiftHold_Pause で Shift を離し、送る直前に ShiftHold_Resume で戻す（送る文字にモードが反映される）。
-;   呼び出し：Space+A → Space（keymap\leader_keys.ahk）
+;   呼び出し：Space+A → Space、Space+F → 変換（keymap\leader_keys.ahk）
 ;   終了：Esc / Caps / Space+Caps、Enter（確定したら抜ける）、キー操作がない状態が SHIFTHOLD_IDLE_MS 続いたとき、Shift キーを物理的に押して離したとき、
 ;         スクリプトの終了・再読み込み。
 ;
@@ -116,7 +116,7 @@ _ShiftHold_Watch() {
 _ShiftHold_Tip() {
     CoordMode("ToolTip", "Screen")
     MonitorGetWorkArea(MonitorGetPrimary(), &l, &t, &r, &b)
-    ToolTip("⇧ [Shift 長押しモード] Shift を押したままの状態です`nEsc / Caps / Space+Caps：終了", l + 12, b - 56, TIP_ID_SHIFTHOLD)
+    UI_ToolTip("⇧ [Shift 長押しモード] Shift を押したままの状態です`nEsc / Caps / Space+Caps：終了", l + 12, b - 56, TIP_ID_SHIFTHOLD)
 }
 
 OnExit((*) => ShiftHold_Stop())

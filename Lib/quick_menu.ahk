@@ -75,6 +75,7 @@
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
 #Include %A_LineFile%\..\keymap_view.ahk
+#Include %A_LineFile%\..\office_common.ahk
 #Include %A_LineFile%\..\powerpoint_pack.ahk
 #Include %A_LineFile%\..\date_input.ahk
 
@@ -95,13 +96,14 @@ class QuickPalette {
         {key: "M", name: "マルチクリップボード"},
         {key: "A", name: "アプリ・フォルダ"},
         {key: "V", name: "VS Code"},
-        {key: "P", name: "PowerPoint"}]
+        {key: "O", name: "Office"}]
 
     static Items := []
     static _inited := false
     static _used   := Map()     ; 表示名 → 最後に使った時刻（最近使った順の並べ替え用）
     static _view   := []        ; パレットの ListView の行番号 → 項目
     static _target := 0         ; パレット／メニューを開く前にアクティブだったウィンドウ
+    static _hostId := ""       ; そのウィンドウが Office のアプリなら "ppt" / "word" / "excel"（項目をアプリで絞る用）
 
     ; クイックメニューの状態（画面は QM_ListPopup）
     static _menu   := 0         ; QM_ListPopup
@@ -136,7 +138,7 @@ class QuickPalette {
         this.Add("I", "K", "symbols",      "記号メニュー（! # $ % & …）",   (*) => QM_SymbolMenu_Show(), "kigou symbol")
 
         ;--- 日付・時刻（上段 y u i o p：日付、中段 h j k l：時刻、下段：曜日・ファイル名用）----------
-        ; Space+F の u で日付・時刻メニュー、i で日付入力、o で yyyy/MM/dd、p で yyMMdd_ を直接呼べる
+        ; Space+F の u で日付・時刻の一覧（ツールチップ。QM_DateQuick_Show）、i で日付入力、o で yyyy/MM/dd、p で yyMMdd_ を直接呼べる
         this.Add("N", "N", "date-pick",    "日付を選んで入力（日付 → フォーマットの順に選ぶ）", (*) => DateInput_Start(), "hiduke nyuuryoku select")
         this.Add("N", "Y", "date-full",    "日時（yyyy/MM/dd HH:mm:ss）",      (*) => QM_InsertTime("yyyy/MM/dd HH:mm:ss"), "hiduke jikoku nichiji")
         this.Add("N", "U", "date-ymd",     "日付（yyyy/MM/dd）",               (*) => QM_InsertTime("yyyy/MM/dd"), "hiduke")
@@ -184,7 +186,7 @@ class QuickPalette {
         this.Add("S", "L", "lock",         "PC をロック",                   (*) => DllCall("LockWorkStation"), "")
         this.Add("S", "O", "monitoroff",   "画面を消す",                    (*) => QM_DisplayOff(), "display off")
         this.Add("S", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
-        this.Add("S", "K", "keymap",       "キー割り当て一覧（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate")
+        this.Add("S", "K", "keymap",       "キー割り当て・設定（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate settei config")
 
         ;--- 画面キャプチャ（Lib\screen_capture.ahk。使わない撮り方は Lib\archive\capture_extras.ahk に移した）----------------
         this.Add("C", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
@@ -214,22 +216,23 @@ class QuickPalette {
         this.Add("V", "W", "fold-all",         "すべて折りたたむ",           (*) => QM_VSCodeChord("^0"), "vscode tatami")
         this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
 
-        ;--- PowerPoint（Lib\powerpoint_pack.ahk。PowerPoint が前面にあるときだけ動く）---------
-        this.Add("P", "F", "ppt-edit-mode", "図形編集モード（大きさ・移動・回転）", (*) => Ppt_EditStart(), "powerpoint slide shape edit zukei henshu")
+        ;--- Office（Lib\office_common.ahk と powerpoint_pack.ahk。前面のアプリのものだけがメニューに出る）---------
+        ; 最後の引数が対象アプリ："office"（Office のどれでも）/ "ppt" / "word" / "excel"。省くとどこでも
+        this.Add("O", "F", "office-shape-edit", "図形編集モード（大きさ・移動・回転）", (*) => Office_EditStart(), "office powerpoint word excel slide shape edit zukei henshu", "office")
         if PPT_SHOW_LEGACY {
-        this.Add("P", "L", "ppt-left",      "左にそろえる",                  (*) => Ppt_Align("left"), "powerpoint slide align seiretsu")
-        this.Add("P", "R", "ppt-right",     "右にそろえる",                  (*) => Ppt_Align("right"), "powerpoint slide align seiretsu")
-        this.Add("P", "T", "ppt-top",       "上にそろえる",                  (*) => Ppt_Align("top"), "powerpoint slide align seiretsu")
-        this.Add("P", "B", "ppt-bottom",    "下にそろえる",                  (*) => Ppt_Align("bottom"), "powerpoint slide align seiretsu")
-        this.Add("P", "C", "ppt-center",    "左右の中央にそろえる",          (*) => Ppt_Align("center"), "powerpoint slide align seiretsu")
-        this.Add("P", "M", "ppt-middle",    "上下の中央にそろえる",          (*) => Ppt_Align("middle"), "powerpoint slide align seiretsu")
-        this.Add("P", "D", "ppt-dist-h",    "横に等間隔に並べる",            (*) => Ppt_Distribute("h"), "powerpoint slide distribute toukankaku")
-        this.Add("P", "E", "ppt-dist-v",    "縦に等間隔に並べる",            (*) => Ppt_Distribute("v"), "powerpoint slide distribute toukankaku")
-        this.Add("P", "W", "ppt-same-w",    "幅を最初の図形にそろえる",      (*) => Ppt_MatchSize("w"), "powerpoint slide size haba")
-        this.Add("P", "H", "ppt-same-h",    "高さを最初の図形にそろえる",    (*) => Ppt_MatchSize("h"), "powerpoint slide size takasa")
-        this.Add("P", "S", "ppt-same-size", "幅と高さを最初の図形にそろえる", (*) => Ppt_MatchSize("wh"), "powerpoint slide size ookisa")
-        this.Add("P", "X", "ppt-swap",      "2 つの図形の位置を入れ替え",    (*) => Ppt_Swap(), "powerpoint slide swap exchange irekae")
-        this.Add("P", "I", "ppt-paste-pic", "画像として貼り付け",            (*) => Ppt_PastePicture(), "powerpoint slide paste picture image gazou")
+        this.Add("O", "L", "ppt-left",      "左にそろえる",                  (*) => Ppt_Align("left"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "R", "ppt-right",     "右にそろえる",                  (*) => Ppt_Align("right"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "T", "ppt-top",       "上にそろえる",                  (*) => Ppt_Align("top"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "B", "ppt-bottom",    "下にそろえる",                  (*) => Ppt_Align("bottom"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "C", "ppt-center",    "左右の中央にそろえる",          (*) => Ppt_Align("center"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "M", "ppt-middle",    "上下の中央にそろえる",          (*) => Ppt_Align("middle"), "powerpoint slide align seiretsu", "ppt")
+        this.Add("O", "D", "ppt-dist-h",    "横に等間隔に並べる",            (*) => Ppt_Distribute("h"), "powerpoint slide distribute toukankaku", "ppt")
+        this.Add("O", "E", "ppt-dist-v",    "縦に等間隔に並べる",            (*) => Ppt_Distribute("v"), "powerpoint slide distribute toukankaku", "ppt")
+        this.Add("O", "W", "ppt-same-w",    "幅を最初の図形にそろえる",      (*) => Ppt_MatchSize("w"), "powerpoint slide size haba", "ppt")
+        this.Add("O", "H", "ppt-same-h",    "高さを最初の図形にそろえる",    (*) => Ppt_MatchSize("h"), "powerpoint slide size takasa", "ppt")
+        this.Add("O", "S", "ppt-same-size", "幅と高さを最初の図形にそろえる", (*) => Ppt_MatchSize("wh"), "powerpoint slide size ookisa", "ppt")
+        this.Add("O", "X", "ppt-swap",      "2 つの図形の位置を入れ替え",    (*) => Ppt_Swap(), "powerpoint slide swap exchange irekae", "ppt")
+        this.Add("O", "I", "ppt-paste-pic", "画像として貼り付け",            (*) => Ppt_PastePicture(), "powerpoint slide paste picture image gazou", "ppt")
         }
 
         this._BuildGui()
@@ -237,9 +240,9 @@ class QuickPalette {
     }
 
     ; 機能を 1 つ登録する
-    static Add(catKey, key, tag, name, fn, keywords := "") {
+    static Add(catKey, key, tag, name, fn, keywords := "", app := "") {
         catName := this._CatName(catKey)
-        it := {cat: catName, catKey: catKey, key: key, tag: StrLower(tag), name: name, fn: fn}
+        it := {cat: catName, catKey: catKey, key: key, tag: StrLower(tag), name: name, fn: fn, app: app}
         it.hint := catKey "→" key
         it.hay  := StrLower(tag " " name " " catName " " keywords)
         this.Items.Push(it)
@@ -250,6 +253,23 @@ class QuickPalette {
             if (c.key = catKey)
                 return c.name
         return ""
+    }
+
+    ; メニュー・パレットを開く前のウィンドウを記憶し、それが Office のアプリかを調べる
+    static _SetTarget(hwnd) {
+        this._target := hwnd
+        h := Office_HostOf(hwnd)
+        this._hostId := IsObject(h) ? h.id : ""
+    }
+
+    ; 項目を出すか。対象アプリを指定した項目は、そのアプリが前面だったときだけ
+    static _Visible(it) => it.app = "" || it.app = this._hostId || (it.app = "office" && this._hostId != "")
+
+    static _CatVisible(catKey) {
+        for it in this.Items
+            if (it.catKey = catKey && this._Visible(it))
+                return true
+        return false
     }
 
     ;=== 共通 ===================================================================
@@ -316,7 +336,7 @@ class QuickPalette {
     static Show(target := 0) {
         this._Init()
         this._menu.Close(false)
-        this._target := target || WinExist("A")
+        this._SetTarget(target || WinExist("A"))
         this._edit.Value := ""
         this._Filter()
 
@@ -338,7 +358,8 @@ class QuickPalette {
     static _SortedItems() {
         cand := []
         for i, it in this.Items
-            cand.Push({it: it, s: this._used.Get(it.name, 0), i: i})
+            if this._Visible(it)
+                cand.Push({it: it, s: this._used.Get(it.name, 0), i: i})
         loop cand.Length - 1 {                                   ; 挿入ソート
             j := A_Index + 1, x := cand[j]
             while (j > 1 && (cand[j - 1].s < x.s || (cand[j - 1].s = x.s && cand[j - 1].i > x.i))) {
@@ -477,8 +498,9 @@ class QuickPalette {
             this._menu.Close()
             return
         }
-        this._target := this._menu.target := WinExist("A")
-        this._mLevel := (this._CatName(level) != "") ? level : ""
+        this._SetTarget(WinExist("A"))
+        this._menu.target := this._target
+        this._mLevel := (this._CatName(level) != "" && this._CatVisible(level)) ? level : ""
         this._MenuRender()
         this._menu.Open()
     }
@@ -492,6 +514,8 @@ class QuickPalette {
         if (this._mLevel = "") {
             this._menu.title.Value := "クイックメニュー"
             for c in this.Cats {
+                if !this._CatVisible(c.key)
+                    continue
                 lv.Add(, c.key, c.name "  ▸")
                 this._mView.Push({type: "cat", key: c.key})
             }
@@ -500,7 +524,7 @@ class QuickPalette {
         } else {
             this._menu.title.Value := "クイックメニュー ▸ " this._CatName(this._mLevel)
             for it in this.Items
-                if (it.catKey = this._mLevel) {
+                if (it.catKey = this._mLevel && this._Visible(it)) {
                     lv.Add(, it.key, it.name)
                     this._mView.Push({type: "item", key: it.key, it: it})
                 }
