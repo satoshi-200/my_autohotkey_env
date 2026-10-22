@@ -844,7 +844,7 @@ QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
-QM_CaptureMenu_Show() => QuickPalette.ShowMenu("C")
+QM_CaptureMenu_Show() => CaptureQuick_Show()
 ; 記号メニューの見た目："tooltip"（ツールチップ。キーを InputHook で受ける。軽い。Lib\symbol_quick.ahk）/ "window"（一覧の小窓。矢印 + Enter でも選べる）
 QM_SYMBOL_UI := "tooltip"
 QM_SymbolMenu_Show() => (QM_SYMBOL_UI = "window") ? QM_SymbolMenu.Show() : QM_SymbolQuick_Show()

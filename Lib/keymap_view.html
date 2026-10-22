@@ -82,7 +82,7 @@
 <div id="kb"></div>
 <div id="editor"></div>
 <div id="extra"></div>
-<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜7 でレイヤー・設定を切り替えられます。Ctrl+数字・Ctrl+Tab（Shift で逆順）でも切り替えられます（入力欄の中では Ctrl 付きだけ）。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。割り当てのないキーも、クリックして行を足せます。「設定」タブでは、設定値をクリックして変更できます。</span></div>
+<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜7 でレイヤー・設定を切り替えられます。Ctrl+数字・Ctrl+Tab（Shift で逆順）でも切り替えられます（入力欄の中では Ctrl 付きだけ）。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。「割り当てをコピー」で選んだキーの内容を覇え、別のキーを選んで「コピーした割り当てを貼り付け」で当てはめられます（確定するまでは保存しません）。割り当てのないキーも、クリックして行を足せます。「設定」タブでは、設定値をクリックして変更できます。</span></div>
 <script>
 var DATA = __DATA__;
 
@@ -272,6 +272,128 @@ function unassignedLine(ly, it) {
   return m[1] + '""' + (depth < 0 ? ")" : ",");
 }
 
+// 割り当て内容のコピー・貼り付け（行の「処理」とコメントを、選んでいるキーの行へ移す。ページを更新しても残す）
+var clip = null;
+try { clip = JSON.parse(sessionStorage.getItem("kmClip") || "null"); } catch (e) { clip = null; }
+
+var HEAD_RE = {
+  hold: /^(\S+ & \S+?::)(\s*)(.*)$/,
+  hotkey: /^(\S+?::)(\s*)(.*)$/,
+  leader: /^(\s*(?:"[^"]*"|0x[0-9A-Fa-f]+),)(\s*)(.*)$/
+};
+
+// 行を「キーの部分（head）、間の空白（gap）、処理（action）、表の区切り（tail。入力待ちの行末の , や )）、コメント」に分ける
+function rowParts(kind, raw) {
+  var m = HEAD_RE[kind].exec(raw);
+  if (!m) return null;
+  var rest = m[3], q = false, cut = rest.length;
+  for (var i = 0; i < rest.length; i++) {
+    var c = rest[i];
+    if (c === "`") { i++; continue; }
+    if (c === '"') q = !q;
+    else if (!q && c === ";" && (i === 0 || /\s/.test(rest[i - 1]))) { cut = i; break; }
+  }
+  var body = rest.slice(0, cut).replace(/\s+$/, "");
+  var comment = cut < rest.length ? rest.slice(cut + 1).trim() : "";
+  var tail = "";
+  if (kind === "leader") {
+    var depth = 0;
+    q = false;
+    for (var j = 0; j < body.length; j++) {
+      var d = body[j];
+      if (d === "`") { j++; continue; }
+      if (d === '"') q = !q;
+      else if (!q && d === "(") depth++;
+      else if (!q && d === ")") depth--;
+    }
+    if (/,$/.test(body) || depth < 0) {
+      tail = body.slice(-1);
+      body = body.slice(0, -1).replace(/\s+$/, "");
+    }
+  }
+  return { head: m[1], gap: m[2], action: body, tail: tail, comment: comment };
+}
+
+// 入力待ちの表の処理（"送るキー" / 関数名 / () => 式）と、ホールド・ホットキーの処理（SendInput("…") / 関数名()）を相互に変える
+function convertAction(from, to, a) {
+  var m;
+  if ((from === "leader") === (to === "leader")) return a;
+  if (to === "leader") {
+    if ((m = /^SendInput\(("(?:[^"`]|`.)*")\)$/.exec(a))) return m[1];
+    if ((m = /^([A-Za-z_]\w*)\(\)$/.exec(a))) return m[1];
+    return "() => " + (a.indexOf(",") >= 0 ? "(" + a + ")" : a);
+  }
+  if (/^"(?:[^"`]|`.)*"$/.test(a)) return "SendInput(" + a + ")";
+  if (/^[A-Za-z_]\w*$/.test(a)) return a + "()";
+  if ((m = /^\(\)\s*=>\s*(.+)$/.exec(a))) return m[1];
+  return a;
+}
+
+function isSpecialHead(kind, head) {
+  return kind === "leader" && /^0x/i.test(head.trim());
+}
+
+function copyAssign(ly, it) {
+  var p = rowParts(ly.kind, it.r);
+  if (!p || it.t === "") return false;
+  var comment = isSpecialHead(ly.kind, p.head) ? p.comment.replace(/^[^：]+：/, "") : p.comment;
+  clip = { kind: ly.kind, action: p.action, comment: comment };
+  try { sessionStorage.setItem("kmClip", JSON.stringify(clip)); } catch (e) { }
+  return true;
+}
+
+// コピーした内容を、対象のキーの行（なければ雛形）へ当てはめた行。{text} または {err}
+function pasteLine(ly, it, sc, face) {
+  if (!clip) return { err: "コピーした割り当てがありません。" };
+  var base;
+  if (it && it.f) base = it.r;
+  else {
+    var tpl = addTemplate(ly, sc, face);
+    if (tpl.err) return { err: tpl.err };
+    base = tpl.text;
+  }
+  var p = rowParts(ly.kind, base);
+  if (!p) return { err: "この行の形式を読み取れませんでした。" };
+  var comment = clip.comment;
+  if (isSpecialHead(ly.kind, p.head)) {
+    var pre = /^[^：]+：/.exec(p.comment);
+    comment = (pre ? pre[0] : "") + comment;
+  }
+  return { text: p.head + (p.gap || "  ") + convertAction(clip.kind, ly.kind, clip.action) + p.tail + (comment ? "  ; " + comment : "") };
+}
+
+// 編集欄のボタン（コピー・貼り付け）を btns に足し、コピー中の内容を示す行を返す。it が null ならコピーボタンは出さない。free（キーを選ばず自由に足す）では貼り付けない
+function clipControls(btns, err, ly, it, sc, face, input, free) {
+  var info = document.createElement("div");
+  info.className = "prev";
+  var pasteBtn = document.createElement("button");
+  function refresh() {
+    info.textContent = clip ? "コピー中の割り当て：" + clip.action + (clip.comment ? "　（" + clip.comment + "）" : "") : "";
+    pasteBtn.disabled = !clip || free;
+  }
+  if (it) {
+    var cp = document.createElement("button");
+    cp.textContent = "割り当てをコピー";
+    cp.disabled = !rowParts(ly.kind, it.r) || it.t === "";
+    cp.onclick = function () {
+      err.textContent = copyAssign(ly, it) ? "コピーしました。貼り付けたいキーを選んで「貼り付け」を押してください。" : "";
+      refresh();
+    };
+    btns.appendChild(cp);
+  }
+  pasteBtn.textContent = "コピーした割り当てを貼り付け";
+  pasteBtn.onclick = function () {
+    var r = pasteLine(ly, it, sc, face);
+    if (r.err) { err.textContent = r.err; return; }
+    input.value = r.text;
+    input.focus();
+    err.textContent = "貼り付けました。内容を確かめて「確定」を押してください。";
+  };
+  btns.appendChild(pasteBtn);
+  refresh();
+  return info;
+}
+
 function showEditor(ly, it, sc, face) {
   var ed = document.getElementById("editor");
   ed.innerHTML = "";
@@ -315,6 +437,7 @@ function showEditor(ly, it, sc, face) {
   unassign.disabled = !unassignedLine(ly, it);
   var undo = button("1 つ前に戻す", "", function () { save(it.p); });
   undo.disabled = !it.p;
+  var clipInfo = clipControls(btns, err, ly, it, sc, face, input, false);
   button("閉じる", "", function () { selSc = ""; setHash(); render(curLayer); });
   ed.appendChild(btns);
 
@@ -323,6 +446,7 @@ function showEditor(ly, it, sc, face) {
   help.textContent = "行をそのまま書き換えます（Enter：確定　Esc：閉じる）。確定すると構文を確認してからファイルに保存します。"
     + "動いているスクリプトへの反映は、Insert で再読み込みしたあとです。";
   ed.appendChild(help);
+  ed.appendChild(clipInfo);
   if (it.p) {
     var prev = document.createElement("div");
     prev.className = "prev";
@@ -409,6 +533,7 @@ function showAddEditor(ly, sc, face, free) {
   }
   button("確定", "ok", function () { add(input.value); });
   button("雛形に戻す", "", function () { input.value = tpl.text; input.focus(); });
+  var clipInfo = clipControls(btns, err, ly, null, sc, face, input, free);
   button("閉じる", "", function () { selSc = ""; setHash(); render(curLayer); });
   ed.appendChild(btns);
 
@@ -420,6 +545,7 @@ function showAddEditor(ly, sc, face, free) {
       + "表の先頭に足します。";
   help.textContent += "（Enter：確定　Esc：閉じる）。確定すると構文を確認してからファイルに保存します。動いているスクリプトへの反映は、Insert で再読み込みしたあとです。";
   ed.appendChild(help);
+  ed.appendChild(clipInfo);
   ed.appendChild(err);
 
   input.addEventListener("keydown", function (e) {

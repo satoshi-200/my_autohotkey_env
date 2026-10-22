@@ -38,6 +38,7 @@ SET_DEFS := [
     Set_Def("カーソル移動モード", "Lib\mouse_grid.ahk", "MOUSEGRID_TIP", "案内の出し方", "choice", SET_TIP_OPTS),
     Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_ALPHABET", "ラベルに使う文字", "text"),
     Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_LABEL_BG", "ラベルの背景色", "color"),
+    Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_LABEL_BG_RIGHT", "右クリックモード中のラベルの背景色", "color"),
     Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_LABEL_FG", "ラベルの文字色", "color"),
     Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_LABEL_ALPHA", "ラベルの不透明度", "int", 0, 255),
     Set_Def("Vimium C 風ヒント", "Lib\vimium_c_hints.ahk", "VIMIUMC_THUMB_CLICK", "親指キーでクリックの種類を選ぶ", "bool", , , "true：Space＝ダブルクリック、変換＝右クリック、無変換＝ホバー。false：Space+A で左手だけのラベル入力"),

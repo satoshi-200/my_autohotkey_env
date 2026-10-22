@@ -1,7 +1,10 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; screen_capture.ahk
-; 画面キャプチャ（Snipping Tool 相当）。quick_menu.ahk の「C 画面キャプチャ」から呼ぶ（Caps → t でこのメニューを直接開く）
+; 画面キャプチャ（Snipping Tool 相当）。Caps → t / Ctrl+Shift+Alt+F11 でツールチップのメニュー（CaptureQuick_Show。InputHook でキーを受ける）を開く。クイックメニューの「C 画面キャプチャ」からも呼べる
+;
+; 撮り方の選択（CaptureQuick_Show）
+;   f / d / s / a：その撮り方で始める　↑ ↓（Space+k / l）：選ぶ　G / H / V / B / N / Enter：▶ の撮り方で始める　Esc / Caps / Space+Caps：キャンセル
 ;
 ; 種類
 ;   Cap_Region()     … ドラッグで範囲を指定（画面を暗くし、選んだ範囲だけ明るく表示）
@@ -11,13 +14,14 @@
 ;   使っていない撮り方（フォーカス中の部品・いまのウィンドウ全体・モニター・全モニター）は Lib\archive\capture_extras.ahk に移した
 ;
 ; 操作（範囲・ウィンドウ・領域の選択中）
-;   左クリック / ドラッグ / Enter / G / H … 決定（範囲はドラッグ）　　右クリック・Esc・Caps・Space+Caps … 取り消し
+;   左クリック / ドラッグ / Enter / G / H / Space+G / Space+H / Space+N / Space+B … 決定（範囲はドラッグ。Space+N / B は押している間がドラッグ）　　右クリック・Esc・Caps・Space+Caps … 取り消し
 ;   ホイール↑ / K … 外側（親）の部品へ　　ホイール↓ / L … 内側（子）の部品へ（領域）
 ;
 ; 結果は PNG で保存し（CAP_SAVE_DIR）、クリップボードにも画像でコピーする（CAP_COPY）
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\ui_common.ahk
+#Include %A_LineFile%\..\key_mode.ahk
 
 CAP_SAVE_DIR    := EnvGet("USERPROFILE") "\Pictures\Screenshots"   ; 保存先（"" なら保存しない）
 CAP_COPY        := true                    ; クリップボードにコピーするか
@@ -34,9 +38,13 @@ OnMessage(0x20, _Cap_OnSetCursor)          ; WM_SETCURSOR
 
 #HotIf IsObject(Cap_session)
 LButton::    _Cap_OnDown()
+vk20 & n::   _Cap_OnDown(true)                                  ; Space+N / B：クリックと同じ（hold_keys の MouseClick は自分のホットキーに届かないのでここで受ける）
+vk20 & b::   _Cap_OnDown(true)
 Enter::      _Cap_OnEnter()
 g::          _Cap_OnEnter()
 h::          _Cap_OnEnter()
+vk20 & g::   _Cap_OnEnter()                                     ; Space+G / H：Enter と同じ
+vk20 & h::   _Cap_OnEnter()
 RButton::    Cap_session.cancel := true
 Esc::        Cap_session.cancel := true
 sc03A::      Cap_session.cancel := true
@@ -56,6 +64,71 @@ Cap_Window()  => _Cap_Run("window")
 Cap_Area()    => _Cap_Run("area")
 
 ;------------------------------------------------------------------------------
+; 撮り方を選ぶメニュー（ツールチップ + InputHook）
+;------------------------------------------------------------------------------
+CAPTURE_QUICK_ITEMS := [
+    {key: "f", label: "範囲を指定（ドラッグ）",              fn: Cap_Region},
+    {key: "d", label: "範囲を指定（端を自動トリミング）",    fn: Cap_RegionTrim},
+    {key: "s", label: "ウィンドウを選んで全体",              fn: Cap_Window},
+    {key: "a", label: "ウィンドウ内のクリックした領域",      fn: Cap_Area}]
+
+CaptureQuick_Show() {
+    if (IH_waiting || IsObject(Cap_session))
+        return
+    st := {idx: 1, fn: ""}
+    ; layers 既定：Space+j/k/l/; を矢印、Space+g/h を Enter として受ける
+    IHM_Run(st, {message: _CaptureQuick_Message, onKey: _CaptureQuick_OnKey, onStart: _CaptureQuick_Tip, tip: "cursor"})
+    if (st.result = "pick")
+        st.fn.Call()
+}
+
+_CaptureQuick_Message(st) {
+    switch st.result {
+        case "pick":    return ""                                ; 撮影の選択画面に移るので、表示は消す
+        case "timeout": return "❌ [画面キャプチャ] タイムアウト"
+        case "error":   return "⚠️ [画面キャプチャ] 失敗：" st.err
+        default:        return "❌ [画面キャプチャ] キャンセル"
+    }
+}
+
+_CaptureQuick_Tip(st) {
+    rows := ""
+    for i, it in CAPTURE_QUICK_ITEMS
+        rows .= "`n" (i = st.idx ? "▶ " : "　 ") "[" StrUpper(it.key) "] " it.label
+    IHM_Tip(st, "📸 [画面キャプチャ] 撮り方を選ぶ" rows
+        , "キー：その撮り方で撮影　↑ ↓：選ぶ`nG / H / V / B / N / Enter：▶ で撮影　Esc / Caps：キャンセル")
+}
+
+_CaptureQuick_Pick(st, idx) {
+    st.fn := CAPTURE_QUICK_ITEMS[idx].fn
+    IHM_Finish(st, "pick")
+}
+
+_CaptureQuick_OnKey(st, k) {
+    if (k.sc = 0x01 || k.sc = 0x3A) {               ; Esc / Caps（Space+Caps もこの Caps）
+        IHM_Finish(st, "cancel")
+        return
+    }
+    key := k.name
+    if (key = "g" || key = "h" || key = "v" || key = "b" || key = "n" || key = "enter") {
+        _CaptureQuick_Pick(st, st.idx)
+        return
+    }
+    for i, it in CAPTURE_QUICK_ITEMS {
+        if (key = it.key) {
+            _CaptureQuick_Pick(st, i)
+            return
+        }
+    }
+    switch key {
+        case "down": st.idx := Min(st.idx + 1, CAPTURE_QUICK_ITEMS.Length)
+        case "up":   st.idx := Max(st.idx - 1, 1)
+        default:     return
+    }
+    _CaptureQuick_Tip(st)
+}
+
+;------------------------------------------------------------------------------
 ; 範囲の選択（region / window / area）
 ;------------------------------------------------------------------------------
 _Cap_Run(mode, trim := false) {
@@ -67,16 +140,16 @@ _Cap_Run(mode, trim := false) {
     vx := SysGet(76), vy := SysGet(77), vw := SysGet(78), vh := SysGet(79)
     live := (mode = "window")                                   ; 選ぶ間に画面が変わるモードは、決定後に撮り直す
     snap := live ? 0 : _Cap_Grab(vx, vy, vw, vh)                ; それ以外は、見ていた状態を撮る
-    st := {mode: mode, down: false, cancel: false, wheel: 0, x0: 0, y0: 0, hwnd: 0, dim: 0, frame: _Cap_FrameNew()}
+    st := {mode: mode, down: false, keyDown: false, cancel: false, wheel: 0, x0: 0, y0: 0, hwnd: 0, dim: 0, frame: _Cap_FrameNew()}
     Cap_session := st
     rc := 0
     try {
         switch mode {
             case "region": rc := _Cap_PickRegion(st, vx, vy, vw, vh)
             case "window": rc := _Cap_PickHover(st, _Cap_KeyMouse, _Cap_HoverWindow
-                , "クリック / Enter / G / H：このウィンドウを撮影")
+                , "クリック / Enter / G / H（Space+）：このウィンドウを撮影")
             case "area":   rc := _Cap_PickHover(st, _Cap_KeyMouse, _Cap_HoverArea
-                , "クリック / Enter / G / H：この領域を撮影　K / ホイール↑：外側へ　L / ホイール↓：内側へ")
+                , "クリック / Enter / G / H（Space+）：この領域を撮影　K / ホイール↑：外側へ　L / ホイール↓：内側へ")
         }
     } finally {
         Cap_session := ""
@@ -95,13 +168,16 @@ _Cap_Run(mode, trim := false) {
     _Cap_Finish(rc, snap, vx, vy, trim)
 }
 
-_Cap_OnDown() {
+_Cap_OnDown(byKey := false) {
     st := Cap_session
     if st.down
         return
     MouseGetPos(&x, &y)
-    st.x0 := x, st.y0 := y, st.down := true
+    st.x0 := x, st.y0 := y, st.down := true, st.keyDown := byKey
 }
+
+; ボタンまたは Space+N / B を押している間は true
+_Cap_Pressed(st) => GetKeyState("LButton", "P") || (st.keyDown && (GetKeyState("n", "P") || GetKeyState("b", "P")))
 
 _Cap_OnEnter() {
     if (Cap_session.mode != "region")                           ; 範囲指定はドラッグで決める
@@ -114,7 +190,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
     WinSetTransparent(CAP_DIM_ALPHA, dim)
     dim.Show("NA x" vx " y" vy " w" vw " h" vh)
     MouseGetPos(&mx, &my)
-    UI_ToolTip("ドラッグで範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, TIP_ID_CAPTURE)
+    UI_ToolTip("ドラッグ（Space+N / B を押す間も可）で範囲を選択　右クリック / Esc：取消", mx + 16, my + 16, TIP_ID_CAPTURE)
     while (!st.down && !st.cancel)
         Sleep(15)
     if st.cancel
@@ -122,7 +198,7 @@ _Cap_PickRegion(st, vx, vy, vw, vh) {
 
     last := ""
     rc := 0
-    while (GetKeyState("LButton", "P") && !st.cancel) {
+    while (_Cap_Pressed(st) && !st.cancel) {
         MouseGetPos(&x, &y)
         rc := {l: Min(st.x0, x), t: Min(st.y0, y), r: Max(st.x0, x), b: Max(st.y0, y)}
         key := rc.l "," rc.t "," rc.r "," rc.b
@@ -161,7 +237,7 @@ _Cap_PickHover(st, keyFn, rectFn, hint) {
     }
     if (st.cancel || !rc)
         return 0
-    while (GetKeyState("LButton", "P") && !st.cancel)           ; クリックを最後まで消費する
+    while (_Cap_Pressed(st) && !st.cancel)           ; クリックを最後まで消費する
         Sleep(10)
     return st.cancel ? 0 : rc
 }

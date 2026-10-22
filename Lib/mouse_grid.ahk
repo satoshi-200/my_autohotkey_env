@@ -24,7 +24,7 @@ MOUSEGRID_MANUAL_PX := 3                     ; 飛んだ位置からこの px �
 MOUSEGRID_LINE_COLOR := "F0A0A0"             ; 枠・区切り線の色（薄い赤）
 MOUSEGRID_LABEL_BG := "FFE066"               ; ラベルの背景色
 MOUSEGRID_LABEL_FG := "000000"               ; ラベルの文字色
-MOUSEGRID_ALPHA := 200                       ; 表示の不透明度（0〜255。小さいほど下の画面が見える）
+MOUSEGRID_ALPHA := 230                       ; 表示の不透明度（0〜255。小さいほど下の画面が見える）
 MOUSEGRID_TIP := "corner"                    ; 案内の出し方（"corner"：左下に状態だけ、手が止まったら説明も / "hidden" / "cursor"。Lib\key_mode.ahk）
 MouseGrid_session := ""                      ; 実行中のモードの状態（動作確認用。実行していなければ ""）
 

@@ -23,9 +23,10 @@
 ;   無変換 → ラベル … マウスカーソルを移動するだけ（ホバー）
 ; どちらも共通
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
+;   Caps             … 右クリックに切り替え（ラベルを打つと部品へ移動して右クリック。もう一度押すと通常に戻る）
 ;   BackSpace        … 1 文字戻す
 ;   Esc / Space+Caps        … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
-;   Caps                     … カーソル移動モード（Lib\mouse_grid.ahk）へ切り替え（Caps → Caps → Caps）
+;   LShift                  … カーソル移動モード（Lib\mouse_grid.ahk）へ切り替え（Caps → Caps → LShift）
 ;
 ; 仕組み
 ;   部品の一覧は UI Automation（COM を直接呼ぶ最小実装 VimiumCUIA）で取る。
@@ -41,8 +42,9 @@
 
 VIMIUMC_ALPHABET := "asdfjklghweruio"        ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる。q・p は遠いので使わない）
 VIMIUMC_LABEL_BG := "FFE066"                 ; ラベルの背景色
+VIMIUMC_LABEL_BG_RIGHT := "7DD3FC"           ; 右クリックモード中のラベルの背景色
 VIMIUMC_LABEL_FG := "000000"                 ; ラベルの文字色
-VIMIUMC_LABEL_ALPHA := 140                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
+VIMIUMC_LABEL_ALPHA := 255                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
 VimiumC_session := ""                        ; 実行中のモードの状態（動作確認用。実行していなければ ""）
 ; true：親指キーでクリックの種類を選ぶ（Space＝ダブルクリック、変換＝右クリック、無変換＝ホバー）
 ; false：これらをやめ、Space+A で左手だけのラベル入力にする（右手でマウスを持つとき用）
@@ -56,23 +58,35 @@ VIMIUMC_TIP := "corner"
 vk1D:: _VimiumC_Thumb(VimiumC_session, 0x1D)
 #HotIf
 
-; 部品を取得している間は InputHook がまだ無いので、Caps はホットキーで受けて、取得後にカーソル移動モードへ切り替える
+; 部品を取得している間は InputHook がまだ無いので、Caps（右クリック）と Shift（カーソル移動モード）はホットキーで受ける
 #HotIf IsObject(VimiumC_session) && VimiumC_session.loading
-sc03A:: VimiumC_session.gridPending := true
+sc03A:: _VimiumC_LoadCaps()
+sc03A up:: VimiumC_session.capsDown := false
+~*LShift:: VimiumC_session.gridPending := true
 #HotIf
+
+; 取得中に打った Caps。押しっぱなしのリピートでは動かすのを繰り返さない
+_VimiumC_LoadCaps() {
+    st := VimiumC_session
+    if st.capsDown
+        return
+    st.capsDown := true
+    st.mode := "right"
+}
 
 ;------------------------------------------------------------------------------
 ; モード本体
 ;------------------------------------------------------------------------------
 VimiumC_ShowHints() {
     global VimiumC_session
-    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map(), loading: true, gridPending: false}
+    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map(), loading: true, gridPending: false, painted: ""
+        , capsDown: true}                           ; 起動に使った Caps を離すまでは、リピートを無視する
     VimiumC_session := st
     IHM_Run(st, {message: _VimiumC_Message, onKey: _VimiumC_OnKey, onTip: _VimiumC_Tip, onStart: _VimiumC_OnStart
         , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp, tip: VIMIUMC_TIP
         , layers: !VIMIUMC_THUMB_CLICK})            ; 旧の動作では親指キー自体に意味があるので、読み替えをしない
     if (st.result = "grid")
-        MouseGrid_Start()                           ; Caps → Caps → Caps
+        MouseGrid_Start()                           ; Caps → Caps → LShift
 }
 
 _VimiumC_OnStart(st) {
@@ -81,6 +95,7 @@ _VimiumC_OnStart(st) {
             st.thumbHeld[vk] := true
     found := _VimiumC_Load(st)
     st.loading := false
+    _VimiumC_Recolor(st)                            ; 取得中に右クリックへ切り替えていた分
     if st.gridPending
         IHM_Finish(st, "grid")
     else if !found
@@ -115,10 +130,19 @@ _VimiumC_OnKey(st, k) {
         return
     }
     switch k.sc {
-        case 0x3A:                                  ; Caps：カーソル移動モードへ（Space+Caps はキャンセル）
-            IHM_Finish(st, st.held.Has(0x39) ? "cancel" : "grid")
+        case 0x3A:                                  ; Caps：右クリックと通常のクリックを切り替える（Space+Caps はキャンセル。Caps はリピートも届くので capsDown で止める）
+            if st.held.Has(0x39)
+                IHM_Finish(st, "cancel")
+            else if !st.capsDown {
+                st.capsDown := true
+                st.mode := (st.mode = "right") ? "left" : "right"
+                _VimiumC_Recolor(st)
+                _VimiumC_Tip(st)
+            }
         case 0x01:                                  ; Esc
             IHM_Finish(st, "cancel")
+        case 0x2A:                                  ; LShift：カーソル移動モードへ
+            IHM_Finish(st, "grid")
         case 0x0F:                                  ; Tab
             st.scope := (st.scope = "window") ? "taskbar" : "window"
             try
@@ -164,6 +188,8 @@ _VimiumC_TypeLabel(st, name) {
 }
 
 _VimiumC_OnKeyUp(st, vk, sc) {
+    if (sc = 0x3A)
+        st.capsDown := false
     if st.thumbHeld.Has(vk)
         st.thumbHeld.Delete(vk)
 }
@@ -184,8 +210,10 @@ _VimiumC_Load(st) {
     st.typed := ""
     IHM_Tip(st, "🎯 [Vimium C ヒント] 部品を取得中...")           ; 初めて開くアプリは数秒かかることがある
     st.items := _VimiumC_Gather(st.scope)
-    if st.items.Length
-        st.ov := _VimiumC_Overlay(st.items)
+    if st.items.Length {
+        st.painted := _VimiumC_Color(st)
+        st.ov := _VimiumC_Overlay(st.items, st.painted)
+    }
     _VimiumC_Tip(st)
     return st.items.Length
 }
@@ -219,11 +247,11 @@ _VimiumC_Tip(st) {
     now := (st.scope = "window") ? "ウィンドウ" : "タスクバー"
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
     typed := (st.typed != "") ? "　入力：" StrUpper(st.typed) : ""
-    cancel := "`nBS：1 文字戻す　Esc：キャンセル　Caps：カーソル移動モード（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
+    cancel := "`nBS：1 文字戻す　Esc：キャンセル　LShift：カーソル移動モード（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
     if !VIMIUMC_THUMB_CLICK {
-        IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed
+        IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed (st.mode = "right" ? "　動作：右クリック" : "")
                 . (st.leftHand ? "　左手入力：次のキーを右手側の文字に" : "")
-            , "Space+A → キー：左手だけで右手側の文字を入力　Tab：" other "へ" cancel)
+            , "Space+A → キー：左手だけで右手側の文字を入力　Caps：右クリック　Tab：" other "へ" cancel)
         return
     }
     static names := Map("left", "クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "カーソル移動")
@@ -333,7 +361,7 @@ _VimiumC_MakeLabels(n) {
 ; ラベルの表示（クリックを通すウィンドウを、ラベルの形だけに切り抜いて部品の位置へ並べる）
 ; 全画面のウィンドウを色抜きで透かす方式は、表示の直後に画面全体が一瞬暗くなるので使わない
 ;------------------------------------------------------------------------------
-_VimiumC_Overlay(items) {
+_VimiumC_Overlay(items, bg) {
     scale := A_ScreenDPI / 96
     vx := SysGet(76), vy := SysGet(77)
     ov := Gui("+AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x20 +E0x08000000")   ; クリックを通す・アクティブにならない
@@ -344,12 +372,26 @@ _VimiumC_Overlay(items) {
         lw := Round((StrLen(it.label) * 9 + 8) * scale)
         it.rc := {l: it.x - vx - lw // 2, t: it.y - vy - lh // 2, w: lw, h: lh}
         it.ctrl := ov.AddText(Format("x{} y{} w{} h{} 0x201 Border Background{}"
-            , it.rc.l, it.rc.t, lw, lh, VIMIUMC_LABEL_BG), StrUpper(it.label))
+            , it.rc.l, it.rc.t, lw, lh, bg), StrUpper(it.label))
     }
     _VimiumC_SetShape(ov, items)
     WinSetTransparent(VIMIUMC_LABEL_ALPHA, ov)
     ov.Show("NA x" vx " y" vy " w" SysGet(78) " h" SysGet(79))
     return ov
+}
+
+_VimiumC_Color(st) => (st.mode = "right") ? VIMIUMC_LABEL_BG_RIGHT : VIMIUMC_LABEL_BG
+
+; モードに合わせて、表示中のラベルの背景色を変える（透明度などは共通）
+_VimiumC_Recolor(st) {
+    color := _VimiumC_Color(st)
+    if (!st.ov || color = st.painted)
+        return
+    st.painted := color
+    for it in st.items {
+        it.ctrl.Opt("Background" color)
+        it.ctrl.Redraw()
+    }
 }
 
 ; 表示中のラベルの矩形だけを、ウィンドウの形にする

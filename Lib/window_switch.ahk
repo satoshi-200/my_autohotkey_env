@@ -38,7 +38,8 @@ _Switch_SpaceChord() {
 ;   呼び出しに使ったキーは自動で調べ、そのキーで同じ方向へ続けて動かせる。
 ;     例：Caps → e で AppSwitcher_Show(false, "w") … e：次、w：前
 ;   j k l ; / a s d f：一覧の中で ← / ↑ / ↓ / → に動かす
-;   変換や v など他のキー：決定　Delete / x / c：選択中のウィンドウを閉じる　Esc / Caps / Space / :：キャンセル
+;   変換や v など他のキー：決定　Delete / x / c：選択中のウィンドウを閉じる　Esc / Caps / :：キャンセル
+;   Space を押したまま：j k l ;＝←↑↓→、g / h＝決定、Caps＝キャンセル（Space だけなら無視。ほかのキーも無視）
 ;   APPSWITCH_IDLE_SEC 秒操作がなければ、そのとき選んでいるアプリに決定する。
 ;   決定後はマウスカーソルをそのウィンドウの中央へ移し、Ctrl を押して位置を表示する
 ;   （Windows の「Ctrl キーを押すとポインターの位置を表示する」をオンにしておくこと）。
@@ -48,6 +49,7 @@ APPSWITCH_ARROWS := Map(
     "j", "Left", "k", "Up", "l", "Down", ";", "Right",
     "a", "Left", "s", "Up", "d", "Down", "f", "Right")
 APPSWITCH_CLOSE_KEYS := ["Delete", "x", "c"]   ; 選択中のウィンドウを閉じるキー
+APPSWITCH_SPACE_ARROWS := Map("j", "Left", "k", "Up", "l", "Down", ";", "Right")   ; Space を押したまま打つ矢印
 
 AppSwitcher_Show(reverse := false, pairKey := "") {
     global IH_waiting
@@ -71,12 +73,31 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
     posUnknown := false                             ; 矢印で動かす・閉じると、steps では判断できなくなる
     result := "決定"
     loop {
-        UI_ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / Space / :：キャンセル"
+        UI_ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / :：キャンセル"
+            . "`nSpace+j k l `;：←↑↓→　Space+g / h：決定　Space+Caps：キャンセル"
             . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
         key := h.EndKey
         vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
+        if (vk = 0x20) {                            ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
+            key := IH_KeyWhileSpaceHeld()
+            if (key = "")
+                continue
+            dir := _AppSwitcher_SpaceArrow(key)
+            if (dir != "") {
+                Send("{Blind}{" dir "}")
+                posUnknown := true
+            }
+            else if (key = "Escape" || IH_IsCapsKey(key)) {
+                Send("{Blind}{Esc}")
+                result := "キャンセル"
+                break
+            }
+            else if _Switch_IsDecideKey(key)
+                break
+            continue
+        }
         if (vk && vk = sameVK) {
             Send(reverse ? "{Blind}+{Tab}" : "{Blind}{Tab}")
             steps += reverse ? -1 : 1
@@ -94,7 +115,7 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
             posUnknown := true
         }
         else {
-            if (key = "Escape" || IH_IsCapsKey(key) || vk = 0x20  ; Esc / Caps / Space / :（JIS）
+            if (key = "Escape" || IH_IsCapsKey(key)  ; Esc / Caps / :（JIS）
                 || (vk && DllCall("MapVirtualKey", "UInt", vk, "UInt", 2, "UInt") = Ord(":"))) {
                 Send("{Blind}{Esc}")
                 result := "キャンセル"
@@ -111,6 +132,15 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
         Send("{LCtrl}")
     }
     IH_ModeEnd((result = "決定" ? "✅" : "❌") " [アプリ切り替え] " result)
+}
+
+; Space を押したまま打ったキーが矢印の割り当てなら、その矢印のキー名。なければ ""（キー名は VK で比べる。JIS の ; は名前が違うことがある）
+_AppSwitcher_SpaceArrow(key) {
+    vk := GetKeyVK(key)
+    for k, dir in APPSWITCH_SPACE_ARROWS
+        if (vk && vk = GetKeyVK(k))
+            return dir
+    return ""
 }
 
 _AppSwitcher_IsCloseKey(key) {

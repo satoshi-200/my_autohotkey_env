@@ -113,10 +113,10 @@ vk1D & z::      SendInput("{Left}")
 vk1D & x::      SendInput("{Up}")
 vk1D & c::      SendInput("{Down}")
 vk1D & v::      SendInput("{Right}")
-vk1D & Left::   SendInput("^{Left}")
-vk1D & Up::     SendInput("^{Up}")
-vk1D & Down::   SendInput("^{Down}")
-vk1D & Right::  SendInput("^{Right}")
+vk1D & Left::      return                              ; 未割り当て
+vk1D & Up::      return                              ; 未割り当て
+vk1D & Down::      return                              ; 未割り当て
+vk1D & Right::      return                              ; 未割り当て
 vk1D & 6::      return
 
 ; --- 記号・入力 ---
@@ -167,10 +167,10 @@ vk20 & 8::      SendInput("{Blind}^{Left}")
 vk20 & 9::      SendInput("{Blind}^{Right}")
 vk20 & 7::      SendInput("{Blind}^{Home}")
 vk20 & 0::      SendInput("{Blind}^{End}")
-vk20 & Up::     SendInput("+{Up}")
-vk20 & Down::   SendInput("+{Down}")
-vk20 & Right::  SendInput("+{Right}")
-vk20 & Left::   SendInput("+{Left}")
+vk20 & Up::      return                              ; 未割り当て
+vk20 & Down::      return                              ; 未割り当て
+vk20 & Right::      return                              ; 未割り当て
+vk20 & Left::      return                              ; 未割り当て
 
 ; --- マウス・スクロール ---
 vk20 & i::      MousePlain_ScrollUp()
@@ -195,9 +195,9 @@ vk20 & q::      SendInput("+{Tab}")
 vk20 & e::      SendInput("{F6}")
 vk20 & w::      SendInput("+{F6}")
 vk20 & LShift:: return                              ; 左 Shift（未割り当て）
-vk20 & RShift:: return                              ; 右 Shift（未割り当て）
+vk20 & RShift::  SendInput("{Blind}+{Space}")
 vk20 & RControl:: SendInput("{Blind}^{Space}")
-vk20 & m::      return
+vk20 & m::      LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
 vk20 & ,::      SendInput("^{WheelUp}")             ; 表示を拡大（Ctrl + ホイール↑）
 vk20 & .::      SendInput("^{WheelDown}")           ; 表示を縮小（Ctrl + ホイール↓）
 vk20 & /::      return

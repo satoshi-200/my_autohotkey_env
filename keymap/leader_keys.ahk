@@ -5,7 +5,7 @@
 ;   CapsLock          … Leader_Caps()
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
-;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中にもう一度 Caps で Caps → Caps → Caps = カーソル移動モード）
+;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、Caps で右クリック）
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
@@ -33,6 +33,7 @@
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
 ^+!F12:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ）
+^+!F11:: QM_CaptureMenu_Show()                      ; 画面キャプチャメニュー（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる。Caps → t と同じ）
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
@@ -92,7 +93,7 @@ Leader_Caps() {
         "k",  QM_SymbolMenu_Show,                   ; 記号メニュー
         "l",  Oneshot_CtrlChar,                     ; Ctrl + 文字キー
         ";",  Oneshot_WinChar,                      ; Win + 文字キー
-        ":",  LastInput_RecallChar,                 ; 直前の 1 文字（記号など）をもう一度入力
+        ":",  "",
         "]",  "",
         ; --- 下段 ---
         "z",  "",
@@ -102,13 +103,13 @@ Leader_Caps() {
         "b",  Mouse_ToggleDrag,                     ; ドラッグ開始／解除
         "n",  Mouse_ToggleDrag,
         "m",  "",
-        ",",  Oneshot_CtrlNum,                      ; Ctrl + 数字キー（左手で入力）
-        ".",  Oneshot_CtrlNum,
+        ",",  "",
+        ".",  "",
         "/",  "")
     static specials := Map(
-        0x39, Ime_Alnum,                            ; Space：IME を半角英数に
-        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中にもう一度 Caps でカーソル移動モード）
-        0x79, Ime_Hiragana)                         ; 変換：IME をひらがなに
+        0x39, () => (ShiftHold_Stop(), Ime_AlnumCommit()),   ; Space：IME を半角英数に（未確定の文字は確定。Shift 長押しモードも終える）
+        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中に左 Shift でカーソル移動モード、Caps で右クリック）
+        0x79, () => (ShiftHold_Stop(), Ime_Hiragana()))   ; 変換：IME をひらがなに（Shift 長押しモードも終える）
     Leader_Run("Caps", keys, specials, true)
 }
 
@@ -166,6 +167,7 @@ Leader_SpaceF() {
         ".",  "",
         "/",  "")
     static specials := Map(
+        0x3A, Reload,                               ; Caps：スクリプトを再読み込み
         0x79, ShiftHold_Toggle)                     ; 変換：Shift 長押しモード（Space+A → Space と同じ）
     ShiftHold_Remember()
     Leader_Run("Space + F", keys, specials)
