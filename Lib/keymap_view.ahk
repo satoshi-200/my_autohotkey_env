@@ -1,14 +1,15 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; keymap_view.ahk
-; キー割り当ての見える化：keymap\hold_keys.ahk と keymap\leader_keys.ahk を読み、
+; キー割り当ての見える化：keymap\ の hold_keys.ahk・leader_keys.ahk・chord_keys.ahk を読み、
 ; JIS 配列のキーボード図の上に、レイヤーごとの割り当てを表示する HTML を作ってブラウザで開く。同じ画面の「設定」タブで、設定値（settings_view.ahk）も確認・編集できる
 ;   Keymap_Show()  … クイックメニューの「システム → キー割り当て一覧」から呼ぶ
 ;   起動時（Insert での再読み込みを含む）にも HTML を作り直すので、開いたままのブラウザは F5 で最新になる
 ;
-; 読み取る形式（上の 2 ファイルの書き方に合わせてある）
-;   押しながら使うレイヤー： 起点 & キー::  処理  ; コメント
-;   入力待ちの表：           "キー",  処理,  ; コメント   ／   0x0F, 処理)  ; コメント
+; 読み取る形式（上の 3 ファイルの書き方に合わせてある）
+;   押しながら使うレイヤー： 起点 & キー::  処理  ; コメント（chord_keys.ahk は、無変換側の行を読む）
+;   単独のホットキー（短押し・特殊）： キー::  処理  ; コメント（処理が return なら割り当てなし）
+;   入力待ちの表：           "キー",  処理,  ; コメント   ／   0x0F, 処理)  ; コメント（処理が "" なら割り当てなし）
 ; 表示する文字は、コメントがあればコメント、なければ処理から作る（SendInput の中身はキー名に直す）。
 ; 関数名だけの処理は KM_FUNC_NAMES で日本語にする。載っていない関数は関数名のまま表示する。
 ; 画面のひな形は keymap_view.html（__DATA__ の部分に割り当てのデータを入れる）。
@@ -38,7 +39,8 @@ KM_FUNC_NAMES := Km_Map(
     "QM_CaptureMenu_Show", "画面キャプチャメニュー", "VimiumC_ShowHints", "Vimium C 風ヒント",
     "Oneshot_FnOrCtrlNum", "Fn キー / Ctrl + 数字キー", "Oneshot_AltChar", "Alt + 文字キー", "Oneshot_CtrlChar", "Ctrl + 文字キー",
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
-    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード",
+    "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード", "ShiftHold_Start", "Shift 長押しモード",
+    "Ime_AlnumCommit", "IME 半角英数（未確定は確定）", "LastInput_SpaceTap", "空白を入力",
     "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
     "LastInput_Recall", "直前の入力をもう一度入力", "LastInput_RecallChar", "直前の 1 文字をもう一度入力")
 
@@ -113,14 +115,19 @@ Km_BuildHtml() {
     dir := Km_KeymapDir()
     hold := FileRead(dir "\hold_keys.ahk", "UTF-8")
     lead := FileRead(dir "\leader_keys.ahk", "UTF-8")
-    hf := "hold_keys.ahk", lf := "leader_keys.ahk"
+    chord := FileRead(dir "\chord_keys.ahk", "UTF-8")
+    chordo := FileRead(dir "\chord_ordered_keys.ahk", "UTF-8")
+    hf := "hold_keys.ahk", lf := "leader_keys.ahk", cf := "chord_keys.ahk", cof := "chord_ordered_keys.ahk"
     layers := [
         Km_Layer("変換 +", ["079"], "変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1C", hf), "hold", "vk1C", hf),
         Km_Layer("無変換 +", ["07B"], "無変換キーを押しながら押すキー", Km_ParseHold(hold, "vk1D", hf), "hold", "vk1D", hf),
         Km_Layer("Space +", ["039"], "Space を押しながら押すキー（Space+F / Space+A は入力待ちになる）", Km_ParseHold(hold, "vk20", hf), "hold", "vk20", hf),
+        Km_Layer("変換→無変換 +", ["079", "07B"], "変換を先に押して、押したまま無変換を押し、さらに押すキー（同じ処理を 2 つの起点に書くので、表示は無変換側の行。割り当てのないキーは何も起きない）", Km_ParseHold(chord, "vk1D", cf), "hold", "vk1D", cf),
+        Km_Layer("無変換→変換 +", ["07B", "079"], "無変換を先に押して、押したまま変換を押し、さらに押すキー（表示は無変換側の行。割り当てのないキーは何も起きない）", Km_ParseHold(chordo, "vk1D", cof), "hold", "vk1D", cof),
         Km_Layer("Caps →", ["03A"], "CapsLock を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_Caps", lf), "leader", "Leader_Caps", lf),
         Km_Layer("Space+F →", ["039", "021"], "Space+F を押して離したあと、次に押すキー", Km_ParseLeader(lead, "Leader_SpaceF", lf), "leader", "Leader_SpaceF", lf),
         Km_Layer("Space+A →", ["039", "01E"], "Space+A を押して離したあと、次に押すキー（右手側の文字を左手で入力）", Km_ParseLeader(lead, "Leader_SpaceA", lf), "leader", "Leader_SpaceA", lf),
+        Km_Layer("短押し", [], "変換・無変換・Space を単独で押して離したとき（押している間に組み合わせを使わなかったとき）に働く。元のキーの働きは置き換わる", Km_ParseHotkeys(hold, hf), "hotkey", "", hf),
         Km_Layer("特殊", [], "基本のキーボード入力では使わない、単独で働くキー（修飾キーとの組み合わせを含む）。Logi Options+ などの外部ツールのボタンから呼ぶ用の押しにくい組み合わせ。Caps は入力待ちの起点", Km_ParseHotkeys(lead, lf), "hotkey", "", lf)]
     hist := Km_HistLoad()
     json := "{`"layers`":["
@@ -170,21 +177,28 @@ Km_ParseLeader(src, fn, file) {
     return {keys: keys, extra: extra, blank: blank}
 }
 
-; 起点キーの欄の「キー::  処理  ; コメント」を読む（Caps、Ctrl+Shift+Alt+F12 など）。修飾キーを除いたキーの位置に表示する
+; 起点キーの欄の「キー::  処理  ; コメント」を読む（Caps、Ctrl+Shift+Alt+F12、変換・無変換・Space の短押しなど）。修飾キーを除いたキーの位置に表示する
+;   処理が return の行は、割り当てなし
 Km_ParseHotkeys(src, file) {
-    keys := Map(), extra := []
+    static vkNames := Km_Map("vk1C", "変換", "vk1D", "無変換", "vk20", "Space")
+    keys := Map(), extra := [], blank := Map()
     for row in KP_HotkeyRows(src) {
         base := RegExReplace(row.key, "^[\^+!#*~$<>]+")
         prefix := SubStr(row.key, 1, StrLen(row.key) - StrLen(base))
         mods := ""
         for pair in [["^", "Ctrl+"], ["+", "Shift+"], ["!", "Alt+"], ["#", "Win+"]]
             mods .= InStr(prefix, pair[1]) ? pair[2] : ""
-        shown := RegExMatch(base, "i)^(sc|vk)[0-9a-f]+$") ? GetKeyName(base) : base
+        shown := vkNames.Get(base, RegExMatch(base, "i)^(sc|vk)[0-9a-f]+$") ? GetKeyName(base) : base)
         if (shown = "")
             shown := (Km_Sc(base) = "03A") ? "Caps" : base
+        if (row.action = "return" || row.action = "") {
+            Km_AddBlank(blank, mods shown, Km_Sc(base), file, row.lineNo, row.raw)
+            continue
+        }
         Km_Add(keys, extra, mods shown, Km_Sc(base), Km_Label(row.action, row.comment), row.action, file, row.lineNo, row.raw)
     }
-    return {keys: keys, extra: extra, blank: Map()}
+    Km_DropAssigned(blank, keys)
+    return {keys: keys, extra: extra, blank: blank}
 }
 
 Km_Add(keys, extra, name, sc, label, src, file, lineNo, raw) {
@@ -327,7 +341,7 @@ Km_Q(s) {
 #Include %A_LineFile%\..\webview2\WebView2.ahk
 
 KM_SEP := Chr(31)                                  ; ページから届く文字列の区切り
-KM_EDITABLE_FILES := ["hold_keys.ahk", "leader_keys.ahk"]
+KM_EDITABLE_FILES := ["hold_keys.ahk", "leader_keys.ahk", "chord_keys.ahk", "chord_ordered_keys.ahk"]
 KM_VALIDATE_TIMEOUT_MS := 8000
 
 KM_win := 0
@@ -483,6 +497,8 @@ Km_Insert(file, kind, anchor, newText) {
         if !last
             return {ok: false, msg: file " に " anchor " の行が見つかりません。"}
         at := last + 1, text := newText
+        if RegExMatch(file, "^chord\w*\.ahk$")            ; 3 キーの割り当ては、もう一方の起点を上の行に重ねて書く（同じ処理が 2 つの起点で働く）
+            text := "vk1C & " nm[1] "::" cr "`n" newText
     }
     else if (kind = "leader") {
         fnLine := 0

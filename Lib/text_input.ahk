@@ -6,18 +6,33 @@
 ;==============================================================================
 #Include %A_LineFile%\..\IME.ahk
 #Include %A_LineFile%\..\key_wait.ahk
+#Include %A_LineFile%\..\ui_common.ahk
 
 ;------------------------------------------------------------------------------
 ; IME の切り替え
 ;   VK_IME_ON / VK_IME_OFF：現在の状態に関係なく ON / OFF にする（Microsoft IME など対応 IME のみ）
 ;------------------------------------------------------------------------------
-Ime_Hiragana() => SendInput("{vk16}")
+Ime_Hiragana() {
+    SendInput("{vk16}")
+    _Ime_Tip("あ ひらがな")
+}
 Ime_Alnum()    => SendInput("{vk1A}")
 
 ; 未確定の文字があると VK_IME_OFF は無視される（確定もされない）ので、先に IME_SET で確定してオフにする
 Ime_AlnumCommit() {
     try IME_SET(0)
     SendInput("{vk1A}")
+    _Ime_Tip("A 半角英数")
+}
+
+; 切り替えた結果を、文字カーソルの下（取れなければマウスの位置）に短く出す
+_Ime_Tip(text) {
+    static clear := () => UI_ToolTip(, , , TIP_ID_UI)
+    if (IME_TIP_MS <= 0)
+        return
+    UI_PopupPos(&x, &y)
+    UI_ToolTip(text, x, y, TIP_ID_UI)
+    SetTimer(clear, -IME_TIP_MS)
 }
 
 ;------------------------------------------------------------------------------

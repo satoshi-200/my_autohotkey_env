@@ -18,6 +18,7 @@ DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")  ; Per-Monitor v2：�
 ;--- 共通の定数 -----------------------------------------------------------------
 TOOLTIP_DURATION_MS := 500                ; 完了・状態表示のツールチップを消すまでの時間
 TOOLTIP_FONT_SIZE   := 9                  ; ツールチップの文字の大きさ（pt。Windows 標準は 9）
+IME_TIP_MS          := 700                ; 変換・無変換で IME を切り替えたときの表示を消すまでの時間（0 で表示しない）
 
 ; ツールチップの番号（同時に出る表示が消し合わないように分ける。1 は入力待ちなどの一時表示）
 TIP_ID_SHIFTHOLD := 18                    ; Shift 長押しモードの表示（出し続ける）

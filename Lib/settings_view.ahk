@@ -20,6 +20,7 @@ Set_Def(group, file, name, label, type, a := "", b := "", note := "") => {group:
 SET_DEFS := [
     Set_Def("表示・案内", "Lib\config.ahk", "TOOLTIP_FONT_SIZE", "ツールチップの文字の大きさ [pt]", "int", 8, 40),
     Set_Def("表示・案内", "Lib\config.ahk", "TOOLTIP_DURATION_MS", "ツールチップを消すまでの時間 [ms]", "int", 100, 10000),
+    Set_Def("表示・案内", "Lib\config.ahk", "IME_TIP_MS", "IME 切り替えの表示を消すまでの時間 [ms]（0 で表示しない）", "int", 0, 5000),
     Set_Def("表示・案内", "Lib\key_mode.ahk", "IHM_HELP_DELAY_MS", "モードの説明を出すまでの待ち [ms]", "int", 0, 10000),
     Set_Def("入力待ち", "keymap\leader_keys.ahk", "LEADER_HELP_DELAY_MS", "割り当て一覧を出すまでの待ち [ms]", "int", 0, 10000),
     Set_Def("入力待ち", "Lib\key_wait.ahk", "IH_TIMEOUT_SEC", "キー入力がなければキャンセルするまで [秒]", "int", 1, 300),
@@ -60,6 +61,8 @@ SET_DEFS := [
     Set_Def("ウィンドウ操作", "Lib\window_switch.ahk", "WINMONITOR_IDLE_SEC", "モニター移動：操作がなければ決定するまで [秒]", "int", 1, 60),
     Set_Def("マウス", "Lib\mouse_cursor.ahk", "MOUSENAV_VERTICAL_CENTER", "縦のモニターへの移動で、中央へ行く（OFF：同じ相対位置）", "bool"),
     Set_Def("Shift 長押しモード", "Lib\shift_hold.ahk", "SHIFTHOLD_IDLE_MS", "操作がなければ終了するまで [ms]（0 で無効）", "int", 0, 3600000),
+    Set_Def("Shift 長押しモード", "Lib\shift_hold.ahk", "SHIFTHOLD_BAR_HEIGHT", "モード中にモニター上端へ出す帯の高さ [px]（0 で出さない）", "int", 0, 100),
+    Set_Def("Shift 長押しモード", "Lib\shift_hold.ahk", "SHIFTHOLD_BAR_COLOR", "帯の色", "color"),
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_REQUIRE_ACTIVE", "Office のアプリが前面のときだけ動かす", "bool"),
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_EDIT_STEP", "図形編集モードの刻み [pt]", "int", 1, 200),
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_EDIT_STEP_FINE", "図形編集モードの微調整の刻み [pt]", "int", 1, 50),

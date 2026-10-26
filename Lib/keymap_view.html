@@ -248,7 +248,7 @@ function closeEditor() {
   document.getElementById("editor").style.display = "none";
 }
 
-// 割り当てを解除した行（hold は「return」、入力待ちの文字キーは「""」）。解除できない・すでに解除済みなら ""
+// 割り当てを解除した行（hold・単独のホットキーは「return」、入力待ちの文字キー・特殊キーは「""」）。解除できない・すでに解除済みなら ""
 function unassignedLine(ly, it) {
   if (!it || !it.f || it.t === "") return "";
   var m;
@@ -256,8 +256,13 @@ function unassignedLine(ly, it) {
     m = /^(\S+ & \S+?::)/.exec(it.r);
     return m ? m[1] + "      return                              ; 未割り当て" : "";
   }
+  if (ly.kind === "hotkey") {
+    m = /^(\S+?::)/.exec(it.r);
+    return m ? m[1] + "      return                              ; 未割り当て" : "";
+  }
   if (ly.kind !== "leader") return "";
-  m = /^(\s*"[^"]",\s*)/.exec(it.r);                 // 特殊キー（0x79, …）は、空にすると呼び出しで失敗するので対象外
+  // 文字キー（"a", …）と特殊キー（0x79, …。表の先頭の行は "static specials := Map(" が前に付くことも）。特殊キーの "" は、入力待ち（Leader_Run）が「割り当てなし」として扱う
+  m = /^(\s*(?:static specials := Map\()?(?:"[^"]"|0x[0-9A-Fa-f]+),\s*)/.exec(it.r);
   if (!m) return "";
   // 表の最後の行は、行末の「)」を残す
   var depth = 0, q = false;
@@ -468,10 +473,12 @@ var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 
 
 // 行がまだ無いキーの雛形。{text, cursor}、使えないキーは {err}
 function addTemplate(ly, sc, face) {
-  if (ly.kind === "hotkey") return { err: "この層には、ここから行を足せません。keymap/leader_keys.ahk の起点キーの欄に直接書いてください。" };
+  if (ly.kind === "hotkey") return { err: "この層には、ここから行を足せません。keymap フォルダーの起点キーの欄（「#HotIf !IH_waiting」の中）に直接書いてください。" };
   if (ly.kind === "hold") {
     if (ly.origin.indexOf(sc) >= 0) return { err: "起点のキー自身には、割り当てられません。" };
-    var tok = /^[A-Z0-9]$/.test(face || "") ? face.toLowerCase() : "sc" + sc;
+    // 記号キーは、keymap の既存の行と同じ名前で書く（スキャンコードで書くと、同じキーの名前で書いた行が効かなくなる）
+    var SYM_NAME = { "027": "+", "028": "*", "01A": "`", "01B": "[", "02B": "]", "033": ",", "034": ".", "035": "/", "00C": "-", "073": "_" };
+    var tok = /^[A-Z0-9]$/.test(face || "") ? face.toLowerCase() : (SYM_NAME[sc] || "sc" + sc);
     return { text: ly.anchor + " & " + tok + '::  SendInput("")' };
   }
   if (LEADER_SPECIAL[sc]) {

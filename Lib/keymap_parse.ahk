@@ -27,18 +27,18 @@ KP_HoldRows(src, prefix) {
     return rows
 }
 
-; 返す行：{key, action, comment, lineNo, raw}。起点キーの欄（「#HotIf !IH_waiting」から次の「#HotIf」まで）にある、単独のホットキー「キー::  処理  ; コメント」
+; 返す行：{key, action, comment, lineNo, raw}。起点キーの欄（「#HotIf !IH_waiting」で始まる行から次の「#HotIf」まで。複数あってもよい）にある、単独のホットキー「キー::  処理  ; コメント」
 ;   key は修飾キーを含むホットキーの名前（例：sc03A、^+!F12）
 KP_HotkeyRows(src) {
     rows := [], inBlock := false
     loop parse src, "`n", "`r" {
         line := A_LoopField
-        if !inBlock {
-            inBlock := RegExMatch(line, "^#HotIf !IH_waiting\s*$")
+        if RegExMatch(line, "^#HotIf\b") {
+            inBlock := RegExMatch(line, "^#HotIf !IH_waiting\b") > 0
             continue
         }
-        if RegExMatch(line, "^#HotIf\b")
-            break
+        if !inBlock
+            continue
         if !RegExMatch(line, "^(\S+?)::\s*(.*)$", &m)
             continue
         KP_SplitComment(m[2], &action, &comment)
