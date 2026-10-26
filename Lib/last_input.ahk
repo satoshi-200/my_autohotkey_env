@@ -25,8 +25,8 @@
 ;
 ; 仕組み
 ;   画面に出る文字は、常駐する InputHook の OnChar で受ける（キーは奪わない）。
-;   Space は「Space & ○」の起点でスクリプトが自分で打ち直すので InputHook に届かない。そのため、
-;   Space を押して離したとき（押している間に組み合わせを使わなかったとき）だけ、押下の状態を見て空白を足す。
+;   Space は「Space & ○」の起点で InputHook に届かない。そのため、
+;   Space を押して離したとき（押している間に組み合わせを使わなかったとき）に、hold_keys.ahk の単独のホットキーが空白を入力し、覚える。
 ;==============================================================================
 #Include %A_LineFile%\..\IME.ahk
 #Include %A_LineFile%\..\key_wait.ahk
@@ -222,13 +222,21 @@ LastInput_Start() {
 LastInput_Start()
 
 ;------------------------------------------------------------------------------
-; Space（押して離したときに、組み合わせのホットキーを使わなかったら、空白を足す）
-;   Space にホットキーを定義すると、「Space & ○」の起点の動きを変えてしまうので、押下の状態を短い間隔で見る。
-;   Space を押している間に、何かホットキーが働いたら（Space+j など）空白ではない。
+; Space（組み合わせを使ったかの判定。空白の入力は hold_keys.ahk の vk20:: → LastInput_SpaceTap）
+;   Space を押している間に、何かホットキーが働いたら（Space+j など）入力の区切りにする。
+;   押下の状態は短い間隔で見る（ここでは Space のホットキーを増やさない）。
 ;------------------------------------------------------------------------------
 LASTINPUT_POLL_MS := 15
 LastInput_spaceSince := 0                    ; Space を押し始めた時刻（押していないときは 0）
 LastInput_spaceUsed := false                 ; 押している間に、組み合わせ・入力待ちがあった
+
+; Space 単独（離したときに、「Space & ○」を使っていなければ働く）。「Space & ○」の起点なので、元の空白は入らない
+; 押している Shift / Ctrl / Alt / Win はそのまま残して送る（Shift+Space・Ctrl+Space など、Excel の行・列選択も使えるように）
+LastInput_SpaceTap() {
+    SendInput("{Blind}{Space}")
+    if (LASTINPUT_ENABLED && LastInput_cur != "" && !GetKeyState("Ctrl") && !GetKeyState("Alt") && !GetKeyState("LWin") && !GetKeyState("RWin"))
+        LastInput_Add(" ")
+}
 
 _LastInput_PollSpace() {
     global LastInput_spaceSince, LastInput_spaceUsed
@@ -249,8 +257,6 @@ _LastInput_PollSpace() {
         LastInput_spaceSince := 0
         if used                                     ; Space+j のカーソル移動などは、入力の区切りにする
             LastInput_Boundary()
-        else if (LASTINPUT_ENABLED && LastInput_cur != "")
-            LastInput_Add(" ")
     }
 }
 

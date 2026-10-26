@@ -6,6 +6,7 @@
 ;   ・無変換 (vk1D) : マウス移動・スクロール、記号、アプリ切り替え・ウィンドウ操作
 ;   ・Space (vk20)  : カーソル移動、Tab / F6 によるフォーカス移動、Enter、クリック、F2、Esc、
 ;                     タブ・ページ移動、入力待ちの呼び出し（Space+F / Space+A）など
+;   ・変換 → 無変換 + ○ : chord_keys.ahk、無変換 → 変換 + ○ : chord_ordered_keys.ahk（2 つ押したままの 3 キー）
 ;   キーコードの対応は main.ahk の冒頭を参照
 ;==============================================================================
 #Include %A_LineFile%\..\..\Lib\key_wait.ahk
@@ -13,10 +14,18 @@
 #Include %A_LineFile%\..\..\Lib\screen_saver.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\shift_hold.ahk
+#Include %A_LineFile%\..\..\Lib\chord.ahk
 #Include %A_LineFile%\..\leader_keys.ahk
+#Include %A_LineFile%\..\chord_ordered_keys.ahk
+#Include %A_LineFile%\..\chord_keys.ahk
 
-; 入力待ちの間は、このファイルのホットキーをすべて止める
+; 変換と無変換の 2 キーの組み合わせ（3 キーの割り当て用に、押した順番を記録する）。下の割り当てと違い、両方を押している間も働く
 #HotIf !IH_waiting
+vk1C & vk1D::   Chord_Begin("CD")                   ; 変換 → 無変換 の順に押した記録（3 キー用。単独では何もしない。処理を割り当てるときは Chord_Begin("CD", 関数)）
+vk1D & vk1C::   Chord_Begin("DC")                   ; 無変換 → 変換 の順に押した記録（3 キー用。単独では何もしない。処理を割り当てるときは Chord_Begin("DC", 関数)）
+
+; 入力待ちの間は、このファイルのホットキーをすべて止める。変換と無変換を両方押している間も止める（その間は chord_*.ahk の 3 キーの割り当てだけ。割り当てのないキーは何も起きない）
+#HotIf !IH_waiting && !Chord_Both()
 
 ;------------------------------------------------------------------------------
 ; 変換 (vk1C) ＋ 各種キー
@@ -24,7 +33,6 @@
 ; --- 特殊・編集 ---
 vk1C & vk20::   SendInput("{Space}")
 vk1C & sc03A::  SendInput("{Space}")                ; CapsLock
-vk1C & vk1D::   return
 vk1C & sc00F::  SendInput("^{y}")                   ; Tab -> やり直し
 vk1C & LShift:: SendInput("^{z}")                   ; 元に戻す
 vk1C & t::      SendInput("{Blind}{Delete}")
@@ -92,12 +100,11 @@ vk1D & w::      MousePlain_ScrollUp()
 vk1D & e::      MousePlain_ScrollDown()
 vk1D & q::      MousePlain_ScrollLeft()
 vk1D & r::      MousePlain_ScrollRight()
-vk1D & n::      SendInput("^{LButton}")
-vk1D & b::      SendInput("^{LButton}")
+vk1D & n::      MouseNav_WarpExternalCenter()  ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
+vk1D & b::      MouseNav_WarpVertical()  ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
 vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
-vk1D & LShift:: MouseNav_WarpCenter()               ; モニターの中央へ
-vk1D & vk1C::   MouseNav_WarpExternalCenter()       ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
-vk1D & sc070::  MouseNav_WarpVertical()             ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
+vk1D & LShift::      return                              ; 未割り当て
+vk1D & sc070::      return                              ; 未割り当て
 vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は Lib\archive\mouse_nav_timer.ahk にある）
 vk1D & 8::      return                              ; 未割り当て
 vk1D & 9::      return                              ; 未割り当て
@@ -128,10 +135,10 @@ vk1D & u::      SendInput("{/}")
 vk1D & i::      SendInput("{*}")
 vk1D & o::      SendInput("{-}")
 vk1D & p::      SendInput("{+}")
-vk1D & m::      SendInput("{#}")
-vk1D & ,::      SendInput("{$}")
-vk1D & .::      SendInput("{%}")
-vk1D & /::      SendInput("{&}")
+vk1D & m::      LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
+vk1D & ,::      return                              ; 未割り当て
+vk1D & .::      return                              ; 未割り当て
+vk1D & /::      return                              ; 未割り当て
 vk1D & *::      SendInput("{?}")
 vk1D & @::      SendInput("{!}")
 vk1D & y::      SendInput("{~}")
@@ -195,12 +202,12 @@ vk20 & q::      SendInput("+{Tab}")
 vk20 & e::      SendInput("{F6}")
 vk20 & w::      SendInput("+{F6}")
 vk20 & LShift:: return                              ; 左 Shift（未割り当て）
-vk20 & RShift::  SendInput("{Blind}+{Space}")
-vk20 & RControl:: SendInput("{Blind}^{Space}")
-vk20 & m::      LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
-vk20 & ,::      SendInput("^{WheelUp}")             ; 表示を拡大（Ctrl + ホイール↑）
-vk20 & .::      SendInput("^{WheelDown}")           ; 表示を縮小（Ctrl + ホイール↓）
-vk20 & /::      return
+vk20 & RShift::      return                              ; 未割り当て
+vk20 & RControl::      return                              ; 未割り当て
+vk20 & m::      SendInput("^{LButton}")             ; Ctrl + クリック
+vk20 & ,::      MouseClick("Left", , , 2)           ; ダブルクリック
+vk20 & .::      MouseClick("Right")                 ; 右クリック
+vk20 & /::      MouseClick("Middle")                ; ホイール（中）クリック
 
 ; --- ウィンドウ・タブ ---
 vk20 & z::      SendInput("!{Left}")
@@ -212,5 +219,13 @@ vk20 & 1::      SendInput("^+{PgUp}")
 vk20 & 2::      SendInput("^{PgUp}")                ; 前のページ
 vk20 & 3::      SendInput("^{PgDn}")                ; 次のページ
 vk20 & 4::      SendInput("^+{PgDn}")
+
+;------------------------------------------------------------------------------
+; 短押し（単独で押して離したとき。「○ & キー」を使ったときは働かない。元のキーの動きは置き換わる）
+;   Space は元の空白が入らないので、自分で送る。1 行で書く（キー割り当て一覧が読めるように）
+;------------------------------------------------------------------------------
+*vk20:: LastInput_SpaceTap()                        ; 空白を入力（Shift / Ctrl などを押していればそのまま付ける：Shift+Space・Ctrl+Space）
+vk1C:: ShiftHold_Stop(), Ime_Hiragana()             ; IME をひらがなに（Shift 長押しモードも終える）
+vk1D:: ShiftHold_Stop(), Ime_AlnumCommit()          ; IME を半角英数に（未確定の文字は確定。Shift 長押しモードも終える）
 
 #HotIf

@@ -3,7 +3,8 @@
 ;   このファイルを実行する。部品とキー割り当ての読み込み、全体に関わる操作だけを置く。
 ;
 ; ●ファイル構成
-;   ・keymap\hold_keys.ahk   : 押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）
+;   ・keymap\hold_keys.ahk   : 押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）と、短押し
+;   ・keymap\chord_keys.ahk  : 変換と無変換を両方押したまま別のキー（hold_keys.ahk から読み込む）
 ;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A → 何か）
 ;   ・Lib\                   : 各機能の部品
 ;

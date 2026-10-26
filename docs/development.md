@@ -1,16 +1,68 @@
-# 開発メモ
+﻿# 開発メモ
 
-このリポジトリを改修するときの共通の約束事と、検証のやり方。判断の基準は `principles.md`、依頼の一覧は `backlog.md`。
+このリポジトリを改修するときの共通の約束事と、検証のやり方。判断の基準は `principles.md`、機能の使い方は `features.md`、依頼の一覧は `backlog.md`。
+
+## ドキュメントの置き方
+- `README.md` を短く保つ。読むときの負担を減らすため、大きくなったら分けて、終わったものは `docs\archive\` へ移す。
+- **個々のキー割り当ては文書に書かない**（変えるたびに古くなる）。`keymap\` の行末コメントと、画面（クイックメニュー S → K）が正。文書に書くのは、レイヤーの役割とモードの動き。
+- 依頼・アイデア：`backlog.md`（依頼の表。要約 1 行）、`ideas.md`（未実装）。終わった依頼の詳細・設計の経緯は `archive\backlog_history.md` / `archive\ideas_history.md` に置く（ここは経緯の記録で、現在の仕様とは違うことがある）。
 
 ## 構成と読み込み順
 - `main.ahk` が入口。`Lib\` の部品を上から順に読み込み、そのあと `keymap\` のキー割り当てを読み込む。
 - 部品は `#Include %A_LineFile%\..\○○.ahk` で、必要な部品を自分で読み込む。同じファイルは 1 回しか読み込まれない。
-- キー割り当ては `keymap\hold_keys.ahk`（押しながら使う）と `keymap\leader_keys.ahk`（押して離してから次のキー）。機能の本体は `Lib\` に置き、keymap には呼び出しだけを書く。
+- キー割り当ては `keymap\hold_keys.ahk`（押しながら使う。末尾に単独の短押し）、`keymap\chord_keys.ahk`（変換 → 無変換 + ○ の 3 キー）と `keymap\chord_ordered_keys.ahk`（無変換 → 変換 + ○。どちらも `hold_keys.ahk` から先に読み込む。共通部品は `Lib\chord.ahk`）、`keymap\leader_keys.ahk`（押して離してから次のキー）。機能の本体は `Lib\` に置き、keymap には呼び出しだけを書く。
 - 使わなくなったものは `Lib\archive\` へ移す（読み込まれない）。小さな関数は `Lib\archive\unused_functions.ahk` にまとめる。
 - いくつかの部品で使うものの置き場所：表示まわり（`UI_Tip`、`UI_TipFlash`（既定のツールチップを一定時間で消す）、小窓の位置、モニターの番号・矩形、`UI_VisibleRect`、デスクトップ・タスクバーの判定 `UI_IsShellWindow`、UI Automation の生成 `UI_Uia`）は `Lib\ui_common.ahk`、入力待ち・選ぶモードの InputHook と、モードでのキーの読み替え（`IH_LayerSc` / `IH_SpaceAChar`）は `Lib\key_wait.ahk`、keymap の割り当て表の読み取りは `Lib\keymap_parse.ahk`、選択文字・文字の変換・クリップボードを戻す貼り付け（`QM_Paste`）は `Lib\text_ops.ahk`、ツールチップの番号（`TIP_ID_*`）は `Lib\config.ahk`。
 - InputHook でキーをイベントで受けるモードを足すときは `Lib\key_mode.ahk` の `IHM_Run()` を使う（例：`Lib\mouse_grid.ahk`）。モードの状態を入れる変数（`MouseGrid_session` など）はモード側に持ち、`#HotIf IsObject(...)` や試験で使う。
 - クイックメニューと記号メニューの小窓（タイトル・一覧・説明、Esc / 非アクティブ / 時間切れで閉じる）は `Lib\quick_menu.ahk` の `QM_ListPopup` が共通。同じ形の小窓を足すときはこれを使う。
 - `quick_menu.ahk` はメニューの登録と画面だけを置き、メニューから呼ぶ処理の本体はそれぞれの部品（`text_ops` / `window_ops` / `screen_capture` など）に置く。
+
+## ファイル一覧
+```
+main.ahk                 入口（これを実行する）。読み込みと Insert での再読み込み
+keymap/
+  hold_keys.ahk          押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）と、短押し
+  chord_keys.ahk         変換 → 無変換 を押したまま別のキー（3 キー）
+  chord_ordered_keys.ahk 無変換 → 変換 を押したまま別のキー（3 キー）
+  leader_keys.ahk        入力待ちの割り当て（Caps / Space+F / Space+A → 次のキー）
+Lib/
+  config.ahk             動作設定（常駐・フック・優先度など）、共通の定数（ツールチップの番号など）、キーコード早見表
+  IME.ahk                IME の状態の取得・設定（外部から取得したライブラリ。変更しない）
+  key_wait.ahk           入力待ちの共通部品（待機中の表示、キャンセル・タイムアウト、選ぶモード用の InputHook、モードでのキーの読み替え）
+  keymap_parse.ahk       keymap の割り当て表を読む共通部品（割り当て一覧・入力待ちの一覧・モードでのキーの読み替えが使う）
+  key_mode.ahk           InputHook でキーを受けるモードの共通の骨組み（リピートの無視・親指キーの読み替え・Space+A・時間切れ）
+  chord.ahk              3 キーの割り当ての共通部品（押した順番の記録、両方押している間の判定、割り当てのないキーを止める）
+  ui_common.ahk          表示まわりの共通部品（ツールチップ、小窓の位置、モニター、ウィンドウの矩形、デスクトップ・タスクバーの判定、UI Automation）
+  text_input.ahk         文字入力の補助（IME の切り替え、大文字化、日付の入力、ホイールでのテキストカーソル移動）
+  last_input.ahk         直前に入力した文字を覚えて、もう一度入力する。Space の短押しもここ
+  text_ops.ahk           選択文字の取得・貼り付け、文字の変換、入力先の IME の状態、検索・翻訳（クイックメニューから呼ぶ）
+  oneshot_modifiers.ahk  次のキーを Fn / Ctrl / Alt / Win 付きで送る入力モード
+  shift_hold.ahk         Shift 長押しモード
+  date_input.ahk         日付入力（日付を調整 → フォーマットを選んで入力）
+  mouse_cursor.ahk       キーボードでのマウス操作（加速つきの移動、スクロール、ワープ、ドラッグ）
+  mouse_grid.ahk         カーソル移動モード
+  window_ops.ahk         ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューから呼ぶ）
+  window_switch.ahk      アプリ切り替え、タブ・ページ切り替え、モニター移動
+  screen_saver.ahk       スクリーンセーバー回避
+  vimium_c_hints.ahk     Vimium C 風ヒント
+  quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ）
+  multi_clipboard.ahk    マルチクリップボード
+  screen_capture.ahk     画面キャプチャ
+  office_common.ahk      Office（PowerPoint・Word・Excel）共通の機能（図形編集モード）
+  powerpoint_pack.ahk    PowerPoint 専用の機能（メニューには出していない）
+  keymap_view.ahk / .html  キー割り当て・設定の画面（keymap のファイルを読んで JIS 配列の図を作り、WebView2 で開く。行の編集もできる）
+  settings_view.ahk      設定値を画面の「設定」タブで確認・編集する部品（出す設定の一覧 SET_DEFS を持つ）
+  webview2/, ComVar.ahk, Promise.ahk  外部の部品（thqby/ahk2_lib と Microsoft の WebView2Loader.dll）。変更しない
+  archive/               使わなくなったスクリプトの保管場所（読み込まれない）
+docs/                    README から分けた説明（features / principles / development / backlog / ideas）と、archive/（履歴）
+```
+
+## 3 キーの割り当てと短押し
+- **短押し**：`hold_keys.ahk` 末尾の単独のホットキー（`*vk20::`、`vk1C::`、`vk1D::`）。「○ & キー」の起点のキーは、単独で押しても元の働き（空白、IME の変換）が出ないので、自分で送る。`*` なし（修飾キーを押すと発動しない）だと Shift+Space・Ctrl+Space が消えるので、Space は `*` 付きで `{Blind}{Space}` を送る。1 行で書く（キー割り当て一覧が読めるように）。
+- **3 キー**：「A & B」は 2 キーまで。変換と無変換を両方押している間（`Chord_Both()`）の `#HotIf` の中に、起点を 2 つ重ねて書く（`vk1C & x::` の次の行に `vk1D & x:: 処理`。AutoHotkey がどちらを起点にするか決まらないため）。押した順番は、2 キーの組み合わせ（`vk1C & vk1D` / `vk1D & vk1C`）が `Chord_Begin` で `Chord_order` に覚え、`#HotIf` の条件に使う（`Lib\chord.ahk`）。
+- 両方を押している間は、`hold_keys.ahk` の通常の割り当てを止める（`#HotIf !IH_waiting && !Chord_Both()`）。止めると割り当てのないキーが文字として入力されるので、`Chord_InstallCatchAll` が何もしないホットキーを足す。2 キーの組み合わせ（順番の記録）は、止めない別の欄に置く。
+- 同じホットキーが複数の `#HotIf` にあると、先に読み込んだほうが優先される。`chord_*.ahk` を `hold_keys.ahk` の割り当てより前に読み込むのはこのため。
+- キー割り当て一覧（`keymap_view.ahk`）は、3 キーを無変換側の行から読む。`KP_HotkeyRows` は「#HotIf !IH_waiting」で始まる欄を複数読む。
 
 ## 命名
 - 関数・変数・クラスは、部品ごとの接頭辞を付けて重複を避ける：`QM_` / `QuickPalette`（クイックメニュー）、`Cap_`（画面キャプチャ。内部用は `_Cap_`）、`VimiumC_`（Vimium C 風ヒント）、`Mouse_`、`IH_`（入力待ち。共有の InputHook は `IH_hook`、待機中フラグは `IH_waiting`）、`KP_`（割り当て表の読み取り。`keymap_parse.ahk`）、`UI_`（表示の共通部品。`ui_common.ahk`）、`Office_` / `OFFICE_`（Office 共通。`office_common.ahk`）、`Ppt_` / `PPT_`（PowerPoint 専用。`powerpoint_pack.ahk`）など。`text_ops.ahk` / `window_ops.ahk` の関数は、クイックメニューから呼ぶものなので `QM_` のまま。
@@ -24,9 +76,17 @@
 - 選択中だけ有効にするホットキーは `#HotIf IsObject(状態)` で囲み、最後に `#HotIf` で戻す（例：`Cap_session`、`VimiumC_session`）。
 
 ## 検証
+- **まず `tests\` を使う**（キー割り当ての回帰試験。毎回、使い捨ての補助スクリプトを書かない）。端末は `mode=async` で動かし、出力は `FAIL` と `TOTAL` の行だけ見る：
+  `powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_tests.ps1 | Select-String 'FAIL|TOTAL'`（一部だけなら `-Cases space,clicks`）。結果は `%TEMP%\_t_results.txt`。
+  - 仕組み：複製（`%TEMP%\_t_run`、`GetKeyState(キー,"P")` を旗ファイルに置き換え）の `main.ahk` を動かし、`tests\cases\*.ahk`（1 ファイル 1 プロセス、時間切れ 60 秒）が `tests\harness.ahk` の `T_Combo` / `T_Chord` などでキーを送って `T_Expect` で比べる。実行中の本物の `main.ahk` は `tests\suspend.ahk` で前後に 1 回ずつ切り替える（状態は外から読めない。打ち切ったら `suspend.ahk リポジトリのパス` をもう一度呼んで戻す）。
+  - 試験の間は、キーボード・マウス・前面のウィンドウに触らない。試験は今の割り当てに依存する（割り当てを変えたら、対応する `cases` の期待値も直す）。
+  - 機能を足したら、`tests\cases\` に 1 件足す（`space.ahk` を雛形に：`T_Start("edit"|"msg")` → 操作 → `T_Expect(名前, 実際, 期待)` → `T_End()`）。
+  - 別の種類の試験が要るときだけ、下の手順で一時の補助スクリプトを書く。
 - 構文：`AutoHotkey64.exe /ErrorStdOut /validate main.ahk`（終了コード 0 なら問題なし）。実行ファイルは `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`。
 - 動作：実際に動かして確かめる。キーやマウスの入力は、別プロセスの補助スクリプトから `SendLevel(1)` + `SendInput` で送る（既定のレベル 0 は、ほかの AutoHotkey のホットキーに無視される）。
 - 一時ファイルは `_t_` で始まる名前にし、確認が終わったら削除する。
+- 実行中の `main.ahk`（自分の環境）が反応しないよう、試験の間は一時停止する：`PostMessage(0x111, 65305, , , "main.ahk ahk_class AutoHotkey")`（切り替えなので、終わったらもう一度送って戻す）。そのうえで、リポジトリを一時フォルダ（`%TEMP%`）へ複製して複製の `main.ahk` を動かし、補助スクリプトでキーを送る。物理入力の判定は、複製の中でだけ旗ファイルに置き換える。
+- 長い試験は `.ps1` に書いて、結果をログファイルに出す。端末は `mode=async` で動かし、ログを読んで確かめる（同期で待つと端末が固まることがある）。補助スクリプトに構文エラーがあると、エラーのダイアログで止まって `-Wait` が終わらないので、`WaitForExit(時間)` で打ち切る。`.ps1` に日本語を書くときは BOM 付き UTF-8 にする（書かないのが無難）。
 - 注意
   - 補助スクリプトが送るキーは、フォーカスのあるウィンドウに届く。操作中の端末や VS Code に届くと入力が混ざるので、対象のウィンドウを前面に出してから送る。
   - 別プロセスが送った入力は「物理入力」にならないので、`GetKeyState(キー, "P")` は偽のまま。試すときはその判定を一時的にファイルの有無などへ置き換えた複製で確かめる（複製は元と同じフォルダに置く）。
@@ -53,3 +113,6 @@
 - 自分が押した Shift（`SendInput("{LShift down}")`）を押したままにしても、ほかの `SendInput`（`{Blind}` なしを含む）では外れず、組み合わせのホットキー（`変換 & g` のような形）も発動する。ただし「*」なしの単独キーのホットキーは、Shift を押したままの間は発動しない。押したままのモードを作るときは、終了用に `*` 付きのホットキーを `#HotIf` で用意し、終了・`OnExit` で必ず離す（`Lib/shift_hold.ahk`）。
 - 自動操作の試験では、`GetKeyState` は送った直後は前の状態を返すことがある。`Sleep` を挟んで読む。`A_TimeIdlePhysical` は人の入力がないと大きいままなので、時間切れの判定が即発動する。
 - WebView2（`Lib/webview2/`）：ページから AHK へは `chrome.webview.postMessage(文字列)`、AHK からページへは `ExecuteScriptAsync("関数(...)")`。受け取りは `wv.WebMessageReceived(関数)` で、戻り値のオブジェクトを変数に持っておく（捨てると登録が外れる）。重い処理は、受け取った通知の中でなく `SetTimer(…, -1)` で回す。
+- 「A & B」の起点のキー（Space・変換・無変換）を単独で押して離しても、元の働きは出ない。単独のホットキー（`vk20::` など）を足して自分で送る（離したときに、組み合わせを使っていなければ発動する）。`*` なしだと、Shift / Ctrl を押している間は発動せず、そのキーが消える。
+- 補助スクリプトが `SendInput` で送るとき、`{Blind}` なしだと、いま押している修飾キー（Shift 長押しモードの Shift など）がいったん離される。押したままの状態を試すときは `{Blind}` を付ける。Alt+Space はシステムメニューが開いて補助スクリプトが止まるので試さない。変数名 `log` も使わない（`Log()` と衝突する）。
+- 同じ物理キーを、名前（`+`、`j` など）とスキャンコード（`sc027`）の両方でホットキーに書かない。スキャンコードで書いたホットキーが 1 つでもあると、そのキーはスキャンコード側で探され、名前で書いた別の行（`vk20 & +` など）が効かなくなる（Space+; が右矢印でなく `;` になった）。記号キーは名前で書く（`;` = `+`、`:` = `*`、`@` = `` ` ``）。スキャンコードで書くのは、名前のないキー（Caps、Tab、半角/全角、かな、`\`、`^`）だけで、すべての行を同じ書き方にそろえる。

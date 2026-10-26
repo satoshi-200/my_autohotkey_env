@@ -6,6 +6,7 @@
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
 ;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、Caps で右クリック）
+;   Caps → Space      … Shift 長押しモード、Caps → 変換 … 次の 1 文字を大文字に
 ;
 ; 割り当ての書き方（各関数の中の表）
 ;   keys     … 文字キー → 処理（大文字・小文字は区別しない）
@@ -107,9 +108,9 @@ Leader_Caps() {
         ".",  "",
         "/",  "")
     static specials := Map(
-        0x39, () => (ShiftHold_Stop(), Ime_AlnumCommit()),   ; Space：IME を半角英数に（未確定の文字は確定。Shift 長押しモードも終える）
+        0x39, ShiftHold_Start,                      ; Space：Shift 長押しモード
         0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中に左 Shift でカーソル移動モード、Caps で右クリック）
-        0x79, () => (ShiftHold_Stop(), Ime_Hiragana()))   ; 変換：IME をひらがなに（Shift 長押しモードも終える）
+        0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
     Leader_Run("Caps", keys, specials, true)
 }
 
@@ -168,7 +169,7 @@ Leader_SpaceF() {
         "/",  "")
     static specials := Map(
         0x3A, Reload,                               ; Caps：スクリプトを再読み込み
-        0x79, ShiftHold_Toggle)                     ; 変換：Shift 長押しモード（Space+A → Space と同じ）
+        0x79, "")
     ShiftHold_Remember()
     Leader_Run("Space + F", keys, specials)
 }
@@ -228,8 +229,8 @@ Leader_SpaceA() {
         ".",  "",
         "/",  "")
     static specials := Map(
-        0x39, ShiftHold_Toggle,                     ; Space：Shift 長押しモード
-        0x79, Text_CapitalizeNext)                  ; 変換：次の 1 文字を大文字に
+        0x39, "",
+        0x79, "")
     ShiftHold_Remember()
     Leader_Run("Space + A：左手で文字・記号", keys, specials, , true)
 }
@@ -267,8 +268,13 @@ Leader_Run(mode, keys, specials := 0, forcedAsSpecial := false, shiftAware := fa
     endKey := forcedAsSpecial ? IH_EndKeyOf() : (IH_hook.EndReason = "EndKey" ? IH_hook.EndKey : "")
     if (endKey != "") {
         sc := GetKeySC(endKey)
-        if (specials && specials.Has(sc))
-            specials[sc]()
+        act := (specials && specials.Has(sc)) ? specials[sc] : ""
+        if !(act is String)
+            act()
+        else if (act != "") {                           ; 関数でなく文字列のときは、送るキー
+            SendInput(act)
+            LastInput_NoteSendInput(act)
+        }
         else if LEADER_KEY_NAMES.Has(sc)
             UI_ToolTip(LEADER_KEY_NAMES[sc] "検知")    ; 未割り当ての特殊キー（動作確認用）
     }
