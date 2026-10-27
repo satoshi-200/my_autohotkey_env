@@ -6,6 +6,9 @@ T_Start("msg")
 T_Tap("vk20")
 T_Expect("Space 短押しで空白", T_Msgs(), "[vk20](c32)")
 
+T_Down("vk20"), Sleep(600), T_Up("vk20")
+T_Expect("Space 長押しだけで離すと何も入力しない", T_Msgs(), "")
+
 T_Down("LShift"), T_Tap("vk20"), T_Up("LShift")
 T_Expect("Shift+Space が通る", T_Msgs(), "[vk20 Shift](c32)")
 

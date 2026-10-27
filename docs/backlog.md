@@ -21,7 +21,7 @@
 | 2 | Vimium C 風ヒントの暗転をなくす | `Lib/vimium_c_hints.ahk` |
 | 3 | JIS 配列の図でキー割り当てを見える化 | `Lib/keymap_view.ahk` / `.html` |
 | 4 | 日付入力（日付 → フォーマットの 2 段階） | `Lib/date_input.ahk` |
-| 6 | Shift 長押しモード（Caps → Space。Enter は IME が半角英数なら、まずモードを抜けるだけ。上端の帯でモード中を表示） | `Lib/shift_hold.ahk` |
+| 6 | Shift 長押しモード（Caps → 無変換。Enter は IME が半角英数なら、まずモードを抜けるだけ。上端の帯でモード中を表示） | `Lib/shift_hold.ahk` |
 | 7 | リファクタリング（部品の分割、未使用コードの archive、名前の統一） | 全体 |
 | 8 | カーソル移動モード（キーボード配置のグリッドジャンプ） | `Lib/mouse_grid.ahk` |
 | 9 | Vimium C 風ヒントを、Space+A で左手だけで入力 | `Lib/vimium_c_hints.ahk` |

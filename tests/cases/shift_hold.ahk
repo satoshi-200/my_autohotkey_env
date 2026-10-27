@@ -1,5 +1,5 @@
 #Requires AutoHotkey v2.0
-; Shift 長押しモード（Caps → Space、shift_hold.ahk）と、Caps → 変換、解除した入力待ちの特殊キー
+; Shift 長押しモード（Caps → 無変換、shift_hold.ahk）と、Caps → 変換、解除した入力待ちの特殊キー
 #Include ..\harness.ahk
 T_Start("edit")
 
@@ -17,8 +17,8 @@ BarCount() {
 }
 
 T_Clear()
-T_Tap("sc03A"), Sleep(400), T_Tap("vk20"), Sleep(700)
-T_Expect("Caps → Space：上端の帯が出る", BarCount(), 1)
+T_Tap("sc03A"), Sleep(400), T_Tap("vk1D"), Sleep(700)
+T_Expect("Caps → 無変換：上端の帯が出る", BarCount(), 1)
 T_Tap("a")
 Sleep(200)
 T_Expect("モード中は大文字", T_Value(), "A")

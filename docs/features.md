@@ -52,7 +52,7 @@ a:F11  s:F4  d:F5  f:F6      j:Ctrl+1  k:Ctrl+2  l:Ctrl+3  ;:Ctrl+4
 z:F10  x:F1  c:F2  v:F3
 ```
 
-## Shift 長押しモード（Caps → Space、`Lib/shift_hold.ahk`）
+## Shift 長押しモード（Caps → 無変換、`Lib/shift_hold.ahk`）
 - 入ると Shift を押したままの状態になり、終わるまで、Shift を押しながら打つのと同じ入力になる（英字は大文字、数字・記号は Shift 側）。
 - モード中は、前面のウィンドウのあるモニターの上端に色つきの帯と、左下にツールチップを出す（`SHIFTHOLD_BAR_HEIGHT` / `SHIFTHOLD_BAR_COLOR`）。
 - 終了：Esc / Caps / Space+Caps、変換・無変換の短押し、一定時間の無操作。Enter は、IME が日本語入力のときは確定してモードを抜け、半角英数のときは 1 回目はモードを抜けるだけ（2 回目から普通の Enter）。
