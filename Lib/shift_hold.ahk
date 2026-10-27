@@ -10,7 +10,7 @@
 ;     IME の F8・F9（変換+b / n）は、モードは続けたまま ShiftHold_SendPlain で Shift なしで送る（半角全角変換が効くように）。
 ;   表示：入っている間、前面のウィンドウのあるモニターの上端に色つきの帯（SHIFTHOLD_BAR_HEIGHT）と、左下にツールチップを出す。ウィンドウが別のモニターへ移ったら追う。
 ;   Space + A（左手で文字・記号）は、入力待ちの間だけ ShiftHold_Pause で Shift を離し、送る直前に ShiftHold_Resume で戻す（送る文字にモードが反映される）。
-;   呼び出し：Caps → Space（keymap\leader_keys.ahk）
+;   呼び出し：Caps → 無変換（keymap\leader_keys.ahk）
 ;   終了：Esc / Caps / Space+Caps、変換・無変換の短押し（IME を切り替えたとき。keymap\hold_keys.ahk）、Enter（確定したら抜ける）、キー操作がない状態が SHIFTHOLD_IDLE_MS 続いたとき、Shift キーを物理的に押して離したとき、
 ;         スクリプトの終了・再読み込み。
 ;

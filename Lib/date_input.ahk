@@ -7,7 +7,7 @@
 ;   どちらも同じ一覧（DATEINPUT_FORMATS）から選ぶ。
 ;
 ;   1. 日付の調整（初期値は今日）
-;        K / ←：1 日戻る　L / →：1 日進む　J / ↑：10 日戻る　; / ↓：10 日進む　G / H / V / B / N / Enter：日付を確定
+;        K / ↑：1 日戻る　L / ↓：1 日進む　J / ←：10 日戻る　; / →：10 日進む　G / H / V / B / N / Enter：日付を確定
 ;   2. フォーマットの選択（初期値は先頭）
 ;        一覧の [ ] のキー：その形式で入力
 ;        ↑ / ↓：前 / 次　← / →：先頭 / 最後　G / H / V / B / N / Enter：▶ の形式で入力　BS：日付の調整へ
@@ -76,10 +76,10 @@ _DateInput_OnKey(st, k) {
         }
     } else if (st.stage = 1) {
         switch key {
-            case "k", "left":  st.date := DateAdd(st.date, -1, "Days")
-            case "l", "right": st.date := DateAdd(st.date, 1, "Days")
-            case "j", "up":    st.date := DateAdd(st.date, -DATEINPUT_DAY_STEP, "Days")
-            case ";", "down":  st.date := DateAdd(st.date, DATEINPUT_DAY_STEP, "Days")
+            case "k", "up":    st.date := DateAdd(st.date, -1, "Days")
+            case "l", "down":  st.date := DateAdd(st.date, 1, "Days")
+            case "j", "left":  st.date := DateAdd(st.date, -DATEINPUT_DAY_STEP, "Days")
+            case ";", "right": st.date := DateAdd(st.date, DATEINPUT_DAY_STEP, "Days")
         }
     } else {
         last := DATEINPUT_FORMATS.Length
@@ -106,7 +106,7 @@ _DateInput_Show(st) {
     if (st.stage = 1) {
         text := "📅 [日付入力] 日付を選ぶ`n"
             . FormatTime(st.date, "yyyy/MM/dd(ddd)") "`n"
-            . "K / ←：1 日戻る　L / →：1 日進む　J / ↑：" DATEINPUT_DAY_STEP " 日戻る　; / ↓：" DATEINPUT_DAY_STEP " 日進む`n"
+            . "K / ↑：1 日戻る　L / ↓：1 日進む　J / ←：" DATEINPUT_DAY_STEP " 日戻る　; / →：" DATEINPUT_DAY_STEP " 日進む`n"
             . "G / H / V / B / N / Enter：日付を確定　Esc / Caps：キャンセル"
     } else {
         text := "📅 [日付・時刻] フォーマットを選ぶ"

@@ -26,6 +26,7 @@ SET_DEFS := [
     Set_Def("入力待ち", "Lib\key_wait.ahk", "IH_TIMEOUT_SEC", "キー入力がなければキャンセルするまで [秒]", "int", 1, 300),
     Set_Def("直前の入力", "Lib\last_input.ahk", "LASTINPUT_ENABLED", "直前の入力を覚える", "bool", , , "パスワード欄などで打った文字も覚えるので、気になる場合は false"),
     Set_Def("直前の入力", "Lib\last_input.ahk", "LASTINPUT_MAX_LEN", "覚える文字数の上限", "int", 1, 5000),
+    Set_Def("直前の入力", "Lib\last_input.ahk", "SPACE_LONG_MS", "Space をこの時間以上押して離したら、何も入力しない [ms]（0 で無効）", "int", 0, 5000),
     Set_Def("直前の入力", "Lib\last_input.ahk", "LASTINPUT_GAP_MS", "ひとまとまりが終わるまでの時間 [ms]", "int", 100, 60000),
     Set_Def("日付入力", "Lib\date_input.ahk", "DATEINPUT_TIMEOUT_MS", "操作がなければキャンセルするまで [ms]", "int", 1000, 600000),
     Set_Def("日付入力", "Lib\date_input.ahk", "DATEINPUT_DAY_STEP", "J / `; で動かす日数", "int", 1, 366),

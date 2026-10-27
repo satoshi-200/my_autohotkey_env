@@ -16,7 +16,7 @@ CoordMode("Mouse", "Screen")
 DllCall("SetThreadDpiAwarenessContext", "Ptr", -4, "Ptr")  ; Per-Monitor v2：座標を物理ピクセルで扱う
 
 ;--- 共通の定数 -----------------------------------------------------------------
-TOOLTIP_DURATION_MS := 500                ; 完了・状態表示のツールチップを消すまでの時間
+TOOLTIP_DURATION_MS := 1000               ; 完了・状態表示のツールチップを消すまでの時間
 TOOLTIP_FONT_SIZE   := 9                  ; ツールチップの文字の大きさ（pt。Windows 標準は 9）
 IME_TIP_MS          := 700                ; 変換・無変換で IME を切り替えたときの表示を消すまでの時間（0 で表示しない）
 
