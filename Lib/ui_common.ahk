@@ -13,9 +13,11 @@ UI_ToolTip(text := "", x?, y?, id?) {
     static hFont := DllCall("CreateFontW", "Int", -Round(TOOLTIP_FONT_SIZE * A_ScreenDPI / 72), "Int", 0, "Int", 0, "Int", 0
         , "Int", 400, "UInt", 0, "UInt", 0, "UInt", 0, "UInt", 1, "UInt", 0, "UInt", 0, "UInt", 5, "UInt", 0, "Str", "Yu Gothic UI", "Ptr")
     hwnd := ToolTip(text, x?, y?, id?)
-    if (hwnd && text != "" && SendMessage(0x31, 0, 0, , hwnd) != hFont) {   ; WM_GETFONT
-        SendMessage(0x30, hFont, 0, , hwnd)                                 ; WM_SETFONT
-        ToolTip(text, x?, y?, id?)                                          ; 大きさを測り直させる
+    try {                                                                   ; 他のスレッドが先にツールチップを消すと、窓が見つからず失敗する
+        if (hwnd && text != "" && SendMessage(0x31, 0, 0, , hwnd) != hFont) {   ; WM_GETFONT
+            SendMessage(0x30, hFont, 0, , hwnd)                             ; WM_SETFONT
+            ToolTip(text, x?, y?, id?)                                      ; 大きさを測り直させる
+        }
     }
     return hwnd
 }
