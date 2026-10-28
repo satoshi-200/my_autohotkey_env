@@ -48,6 +48,7 @@ Lib/
   quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ）
   multi_clipboard.ahk    マルチクリップボード
   screen_capture.ahk     画面キャプチャ
+  capture_pin.ahk        付箋スクリーンショット（撮った画像を最前面に固定。screen_capture.ahk から使う）
   office_common.ahk      Office（PowerPoint・Word・Excel）共通の機能（図形編集モード）
   powerpoint_pack.ahk    PowerPoint 専用の機能（メニューには出していない）
   keymap_view.ahk / .html  キー割り当て・設定の画面（keymap のファイルを読んで JIS 配列の図を作り、WebView2 で開く。行の編集もできる）
@@ -76,13 +77,13 @@ docs/                    README から分けた説明（features / principles / 
 - 選択中だけ有効にするホットキーは `#HotIf IsObject(状態)` で囲み、最後に `#HotIf` で戻す（例：`Cap_session`、`VimiumC_session`）。
 
 ## 検証
-- **まず `tests\` を使う**（キー割り当ての回帰試験。毎回、使い捨ての補助スクリプトを書かない）。端末は `mode=async` で動かし、出力は `FAIL` と `TOTAL` の行だけ見る：
-  `powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_tests.ps1 | Select-String 'FAIL|TOTAL'`（一部だけなら `-Cases space,clicks`）。結果は `%TEMP%\_t_results.txt`。
-  - 仕組み：複製（`%TEMP%\_t_run`、`GetKeyState(キー,"P")` を旗ファイルに置き換え）の `main.ahk` を動かし、`tests\cases\*.ahk`（1 ファイル 1 プロセス、時間切れ 60 秒）が `tests\harness.ahk` の `T_Combo` / `T_Chord` などでキーを送って `T_Expect` で比べる。実行中の本物の `main.ahk` は `tests\suspend.ahk` で前後に 1 回ずつ切り替える（状態は外から読めない。打ち切ったら `suspend.ahk リポジトリのパス` をもう一度呼んで戻す）。
+- 既定は構文の確認だけで、動作は利用者が確かめる。`tests\`（キーの仕組みの回帰試験）は、起点キー・3 キー・入力待ち・Shift 長押しの仕組みを変えたときか、頼まれたときだけ流す。端末は同期で流して出力を捨て、終わってから結果のファイルを 1 回読む（試験中に別のコマンドを打つと、送ったキーが端末に混ざる）：
+  `powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_tests.ps1 -Cases space | Out-Null` → `Get-Content $env:TEMP\_t_results.txt | Select-String 'FAIL|TOTAL'`（全部なら `-Cases` を省く。複数は `-Cases space,chord`）。
+  - 仕組み：複製（`%TEMP%\_t_run`、`GetKeyState(キー,"P")` を旗ファイルに置き換え）の `main.ahk` を動かし、`tests\cases\*.ahk`（1 ファイル 1 プロセス、時間切れ 60 秒）が `tests\harness.ahk` の `T_Combo` / `T_Chord` などでキーを送って `T_Expect` で比べる。実行中の本物の `main.ahk` は `tests\suspend.ahk`（`on` / `off`）で前に止め、後で戻す（打ち切ったら `suspend.ahk リポジトリのパス off` で戻す）。
   - 試験の間は、キーボード・マウス・前面のウィンドウに触らない。試験は今の割り当てに依存する（割り当てを変えたら、対応する `cases` の期待値も直す）。
-  - 機能を足したら、`tests\cases\` に 1 件足す（`space.ahk` を雛形に：`T_Start("edit"|"msg")` → 操作 → `T_Expect(名前, 実際, 期待)` → `T_End()`）。
+  - 試験を足すのは、手で確かめにくい不具合を直したときだけ（`space.ahk` を雛形に：`T_Start("edit"|"msg")` → 操作 → `T_Expect(名前, 実際, 期待)` → `T_End()`）。
   - 別の種類の試験が要るときだけ、下の手順で一時の補助スクリプトを書く。
-- 構文：`AutoHotkey64.exe /ErrorStdOut /validate main.ahk`（終了コード 0 なら問題なし）。実行ファイルは `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`。
+- 構文：`AutoHotkey64.exe /ErrorStdOut /validate main.ahk 2>&1`（終了コード 0 で出力がなければ問題なし。関数の引数の数の誤りも見つける）。実行ファイルは `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`。
 - 動作：実際に動かして確かめる。キーやマウスの入力は、別プロセスの補助スクリプトから `SendLevel(1)` + `SendInput` で送る（既定のレベル 0 は、ほかの AutoHotkey のホットキーに無視される）。
 - 一時ファイルは `_t_` で始まる名前にし、確認が終わったら削除する。
 - 実行中の `main.ahk`（自分の環境）が反応しないよう、試験の間は一時停止する：`PostMessage(0x111, 65305, , , "main.ahk ahk_class AutoHotkey")`（切り替えなので、終わったらもう一度送って戻す）。そのうえで、リポジトリを一時フォルダ（`%TEMP%`）へ複製して複製の `main.ahk` を動かし、補助スクリプトでキーを送る。物理入力の判定は、複製の中でだけ旗ファイルに置き換える。
@@ -107,12 +108,13 @@ docs/                    README から分けた説明（features / principles / 
 - 全画面のウィンドウを `WinSetTransColor`（色抜き）で透かさない。`Show` の直後に画面全体が一瞬塗りつぶされて暗転する。透過・半透明の属性は `Show` の前に付け、見せたい部分だけを `SetWindowRgn` で切り抜く（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
 - 画面の座標は `config.ahk` で Per-Monitor v2（物理ピクセル）にしてある。GUI は `-DPIScale` を付けて物理ピクセルで指定する。
 - UI Automation を使う部品は、仮想関数表の番号を部品の冒頭コメントに書いてある（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
-- `AutoHotkey64.exe /validate` の終了コードは、構文エラーがあっても 0 になる。出力の有無で判定する。存在しない変数名・関数名があると警告のダイアログで止まり、終わらないことがある（`Lib/keymap_view.ahk` の `Km_Validate` は時間切れで不可とする）。
+- `AutoHotkey64.exe /validate` は、終了コードと出力の両方で判定する（エラーは標準エラー出力に出るので `2>&1` を付ける）。存在しない変数名・関数名があると警告のダイアログで止まり、終わらないことがある（`Lib/keymap_view.ahk` の `Km_Validate` は時間切れで不可とする）。
 - 組み込み関数と同じ名前（`log`）、クラスと同じ名前（`file` は `File`）は、グローバルの変数に使えない。アロー関数の中では `global` を書けないので、普通の関数にする。
 - 変数名はクラス・関数と大文字小文字を区別されずに衝突する。関数 `Ppt_Align` と変数 `PPT_ALIGN` は同じ名前になり、読み込みでエラーになる（定数の変数には関数名と別の名前を付ける）。
 - 自分が押した Shift（`SendInput("{LShift down}")`）を押したままにしても、ほかの `SendInput`（`{Blind}` なしを含む）では外れず、組み合わせのホットキー（`変換 & g` のような形）も発動する。ただし「*」なしの単独キーのホットキーは、Shift を押したままの間は発動しない。押したままのモードを作るときは、終了用に `*` 付きのホットキーを `#HotIf` で用意し、終了・`OnExit` で必ず離す（`Lib/shift_hold.ahk`）。
 - 自動操作の試験では、`GetKeyState` は送った直後は前の状態を返すことがある。`Sleep` を挟んで読む。`A_TimeIdlePhysical` は人の入力がないと大きいままなので、時間切れの判定が即発動する。
 - WebView2（`Lib/webview2/`）：ページから AHK へは `chrome.webview.postMessage(文字列)`、AHK からページへは `ExecuteScriptAsync("関数(...)")`。受け取りは `wv.WebMessageReceived(関数)` で、戻り値のオブジェクトを変数に持っておく（捨てると登録が外れる）。重い処理は、受け取った通知の中でなく `SetTimer(…, -1)` で回す。
 - 「A & B」の起点のキー（Space・変換・無変換）を単独で押して離しても、元の働きは出ない。単独のホットキー（`vk20::` など）を足して自分で送る（離したときに、組み合わせを使っていなければ発動する）。`*` なしだと、Shift / Ctrl を押している間は発動せず、そのキーが消える。
+- `*vk20::` は、Shift などを押している間は離したときでなく押した時点で発動する（Shift 長押しモード中の Space+A で空白が入った）。`LastInput_SpaceTap` は、押した時点で呼ばれたら離すまで待ち、間にほかのホットキーが働いていれば送らない。
 - 補助スクリプトが `SendInput` で送るとき、`{Blind}` なしだと、いま押している修飾キー（Shift 長押しモードの Shift など）がいったん離される。押したままの状態を試すときは `{Blind}` を付ける。Alt+Space はシステムメニューが開いて補助スクリプトが止まるので試さない。変数名 `log` も使わない（`Log()` と衝突する）。
 - 同じ物理キーを、名前（`+`、`j` など）とスキャンコード（`sc027`）の両方でホットキーに書かない。スキャンコードで書いたホットキーが 1 つでもあると、そのキーはスキャンコード側で探され、名前で書いた別の行（`vk20 & +` など）が効かなくなる（Space+; が右矢印でなく `;` になった）。記号キーは名前で書く（`;` = `+`、`:` = `*`、`@` = `` ` ``）。スキャンコードで書くのは、名前のないキー（Caps、Tab、半角/全角、かな、`\`、`^`）だけで、すべての行を同じ書き方にそろえる。

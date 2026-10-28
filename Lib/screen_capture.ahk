@@ -4,13 +4,14 @@
 ; 画面キャプチャ（Snipping Tool 相当）。Caps → t / Ctrl+Shift+Alt+F11 でツールチップのメニュー（CaptureQuick_Show。InputHook でキーを受ける）を開く。クイックメニューの「C 画面キャプチャ」からも呼べる
 ;
 ; 撮り方の選択（CaptureQuick_Show）
-;   f / d / s / a：その撮り方で始める　↑ ↓（Space+k / l）：選ぶ　G / H / V / B / N / Enter：▶ の撮り方で始める　Esc / Caps / Space+Caps：キャンセル
+;   f / d / s / a / q：その撮り方で始める　↑ ↓（Space+k / l）：選ぶ　G / H / V / B / N / Enter：▶ の撮り方で始める　Esc / Caps / Space+Caps：キャンセル
 ;
 ; 種類
 ;   Cap_Region()     … ドラッグで範囲を指定（画面を暗くし、選んだ範囲だけ明るく表示）
 ;   Cap_RegionTrim() … 上と同じで、撮った画像の端に残った「ほぼ 1 色の行・列」を外側から落とす（CAP_TRIM_*）
 ;   Cap_Window()     … 枠が出るウィンドウをクリックして、そのウィンドウ全体
 ;   Cap_Area()       … ウィンドウ内のクリックした部品・領域だけ（UI Automation）
+;   Cap_Pin()        … ドラッグで範囲を指定し、撮った画像を付箋にして最前面に固定する（Lib\capture_pin.ahk。ファイルには保存せず、クリップボードにだけ入れる）
 ;   使っていない撮り方（フォーカス中の部品・いまのウィンドウ全体・モニター・全モニター）は Lib\archive\capture_extras.ahk に移した
 ;
 ; 操作（範囲・ウィンドウ・領域の選択中）
@@ -22,6 +23,7 @@
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\ui_common.ahk
 #Include %A_LineFile%\..\key_mode.ahk
+#Include %A_LineFile%\..\capture_pin.ahk
 
 CAP_SAVE_DIR    := EnvGet("USERPROFILE") "\Pictures\Screenshots"   ; 保存先（"" なら保存しない）
 CAP_COPY        := true                    ; クリップボードにコピーするか
@@ -62,6 +64,7 @@ Cap_Region()  => _Cap_Run("region")
 Cap_RegionTrim() => _Cap_Run("region", true)
 Cap_Window()  => _Cap_Run("window")
 Cap_Area()    => _Cap_Run("area")
+Cap_Pin()     => _Cap_Run("region", false, true)
 
 ;------------------------------------------------------------------------------
 ; 撮り方を選ぶメニュー（ツールチップ + InputHook）
@@ -70,7 +73,8 @@ CAPTURE_QUICK_ITEMS := [
     {key: "f", label: "範囲を指定（ドラッグ）",              fn: Cap_Region},
     {key: "d", label: "範囲を指定（端を自動トリミング）",    fn: Cap_RegionTrim},
     {key: "s", label: "ウィンドウを選んで全体",              fn: Cap_Window},
-    {key: "a", label: "ウィンドウ内のクリックした領域",      fn: Cap_Area}]
+    {key: "a", label: "ウィンドウ内のクリックした領域",      fn: Cap_Area},
+    {key: "q", label: "範囲を指定して付箋（最前面に固定）",  fn: Cap_Pin}]
 
 CaptureQuick_Show() {
     if (IH_waiting || IsObject(Cap_session))
@@ -131,7 +135,7 @@ _CaptureQuick_OnKey(st, k) {
 ;------------------------------------------------------------------------------
 ; 範囲の選択（region / window / area）
 ;------------------------------------------------------------------------------
-_Cap_Run(mode, trim := false) {
+_Cap_Run(mode, trim := false, pin := false) {
     global Cap_session
     if IsObject(Cap_session)
         return
@@ -165,7 +169,7 @@ _Cap_Run(mode, trim := false) {
         Sleep(CAP_DELAY_MS)
         rc := _Cap_Clamp(UI_VisibleRect(st.hwnd))
     }
-    _Cap_Finish(rc, snap, vx, vy, trim)
+    _Cap_Finish(rc, snap, vx, vy, trim, pin)
 }
 
 _Cap_OnDown(byKey := false) {
@@ -327,7 +331,7 @@ _Cap_Clamp(rc) {
 ;------------------------------------------------------------------------------
 ; rc の部分を画像にして出力する。snap を渡すと、その画面全体の画像（原点 vx, vy）から切り出す
 ; trim が true なら、撮った画像の端を自動でトリミングする
-_Cap_Finish(rc, snap := 0, vx := 0, vy := 0, trim := false) {
+_Cap_Finish(rc, snap := 0, vx := 0, vy := 0, trim := false, pin := false) {
     if !rc {
         if snap
             DllCall("DeleteObject", "Ptr", snap)
@@ -347,8 +351,10 @@ _Cap_Finish(rc, snap := 0, vx := 0, vy := 0, trim := false) {
         trimNote := (cut.l + cut.t + cut.r + cut.b = 0) ? "`n端のトリミング：削る部分なし"
             : "`n端をトリミング（左 " cut.l " 上 " cut.t " 右 " cut.r " 下 " cut.b " px）"
     }
-    msg := "キャプチャしました（" w "×" h "）" trimNote
-    if (CAP_SAVE_DIR != "") {
+    msg := (pin ? "付箋にしました（" : "キャプチャしました（") w "×" h "）" trimNote
+    if pin
+        Pin_Add(hbm, w, h, rc.l + w // 2, rc.t + h // 2)
+    if (CAP_SAVE_DIR != "" && !pin) {
         path := CAP_SAVE_DIR "\Capture_" FormatTime(, "yyyyMMdd_HHmmss") ".png"
         try {
             DirCreate(CAP_SAVE_DIR)

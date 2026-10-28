@@ -63,3 +63,5 @@
 #HotIf !IH_waiting
 Insert:: Reload                         ; スクリプトの再読み込み
 #HotIf
+
+OnMessage(0x8051, (wParam, *) => (Suspend(wParam ? 1 : 0), 1))   ; tests\suspend.ahk が試験の間だけ止める（1）・戻す（0）

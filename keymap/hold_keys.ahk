@@ -140,7 +140,7 @@ vk1D & ,::      return                              ; 未割り当て
 vk1D & .::      return                              ; 未割り当て
 vk1D & /::      return                              ; 未割り当て
 vk1D & *::      SendInput("{?}")
-vk1D & @::      SendInput("{!}")
+vk1D & `::      SendInput("{!}")
 vk1D & y::      SendInput("{~}")
 vk1D & _::      return                              ; 未割り当て
 vk1D & RShift::      return                              ; 未割り当て
@@ -154,7 +154,7 @@ vk1D & sc00D::  return
 ; --- 特殊・システム ---
 vk20 & vk1C::   SendInput("{Space}")
 vk20 & vk1D::   return                              ; 無変換（未割り当て）
-vk20 & sc03A::  ShiftHold_Stop(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモードとスクリーンセーバー回避も解除）
+vk20 & sc03A::  ShiftHold_Stop(), Pin_EscAll(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモード・付箋・スクリーンセーバー回避も解除）
 vk20 & sc00F::  SendInput("^+{Tab}")                ; Tab -> 前のタブへ
 vk20 & F1::     ScreenSaver_Toggle()
 vk20 & sc070::  return                              ; かな（未割り当て）
@@ -169,7 +169,7 @@ vk20 & +::      SendInput("{Blind}{Right}")
 vk20 & u::      SendInput("{Blind}{Home}")
 vk20 & p::      SendInput("{Blind}{End}")
 vk20 & y::      SendInput("{Blind}^{Left}")
-vk20 & @::      SendInput("{Blind}^{Right}")
+vk20 & `::      SendInput("{Blind}^{Right}")
 vk20 & 8::      SendInput("{Blind}^{Left}")
 vk20 & 9::      SendInput("{Blind}^{Right}")
 vk20 & 7::      SendInput("{Blind}^{Home}")

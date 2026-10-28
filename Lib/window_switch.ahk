@@ -193,9 +193,9 @@ _AppSwitcher_MoveCursorToCenter(hwnd) {
 }
 
 ;------------------------------------------------------------------------------
-; KeyCycler：キーを押すたびにその場で操作し、Esc で送った分を逆順に戻すモード
-;   actions … キー → [送るキー（または元に戻す関数を返す関数）, 戻すときに送るキー, 表示名]
-;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）：決定　Esc / Caps / Space+Caps：動かした分を戻す
+; KeyCycler：キーを押すたびにその場で操作するモード
+;   actions … キー → [送るキー, 表示名]
+;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）・Esc / Caps / Space+Caps：そこで終える（戻さない）
 ;   ほかのキーは無視。KEYCYCLE_IDLE_SEC 秒操作がなければ決定する。
 ;------------------------------------------------------------------------------
 KEYCYCLE_IDLE_SEC := 3
@@ -207,18 +207,16 @@ KeyCycler_Show(title, actions) {
     ; 同じ動作のキーはまとめて表示する（例：次のタブ：f j）
     keysOf := Map(), order := []
     for k, a in actions {
-        if !keysOf.Has(a[3])
-            keysOf[a[3]] := "", order.Push(a[3])
-        keysOf[a[3]] .= " " k
+        if !keysOf.Has(a[2])
+            keysOf[a[2]] := "", order.Push(a[2])
+        keysOf[a[2]] .= " " k
     }
     hint := ""
     for label in order
         hint .= label "：" Trim(keysOf[label]) "　"
 
-    undo := []                                      ; Esc で戻すための履歴
-    result := "決定"
     loop {
-        UI_ToolTip("📑 [" title "] " hint "`n" SWITCH_DECIDE_HINT
+        UI_ToolTip("📑 [" title "] " hint "`ng / h / v / b / n / Enter / Esc / Caps / Space+Caps：決定"
             . "`n（" KEYCYCLE_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -227,48 +225,32 @@ KeyCycler_Show(title, actions) {
         key := StrLower(h.EndKey)
         if (GetKeyVK(key) = 0x20)                   ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
             key := StrLower(_Switch_SpaceChord())
-        if actions.Has(key) {
-            a := actions[key]
-            if (a[1] is Func)
-                undo.Push(a[1]())                   ; 関数は戻す処理（関数）を返す
-            else {
-                SendInput(a[1])
-                undo.Push(a[2])
-            }
-        }
-        else if _Switch_IsDecideKey(key)
+        if actions.Has(key)
+            SendInput(actions[key][1])
+        else if (_Switch_IsDecideKey(key) || key = "Escape" || IH_IsCapsKey(key))
             break
-        else if (key = "Escape" || IH_IsCapsKey(key)) {
-            while undo.Length {
-                u := undo.Pop()
-                (u is Func) ? u() : SendInput(u)
-                Sleep(30)                           ; 連続で送ると取りこぼすアプリがある
-            }
-            result := "元に戻しました"
-            break
-        }
     }
-    IH_ModeEnd((result = "決定" ? "✅" : "↩️") " [" title "] " result)
+    IH_ModeEnd("✅ [" title "] 決定")
 }
 
 ;--- タブ・ページの連続切り替え（Caps → d）-------------------------------------
 ; 右手は左＝前・右＝次の向き
 TABPAGE_ACTIONS := Map(
-    "f", ["^{Tab}",  "^+{Tab}", "次のタブ"],
-    "a", ["^+{Tab}", "^{Tab}",  "前のタブ"],
-    "d", ["^{PgDn}", "^{PgUp}", "次のページ"],
-    "s", ["^{PgUp}", "^{PgDn}", "前のページ"],
-    "w", ["^{w}",    "^+{t}",   "タブを閉じる"],
-    "e", ["^{t}",    "^{w}",    "新しいタブ"],
-    "t", ["^+{PgDn}", "^+{PgUp}", "タブを右へ移動"],
-    "tab", ["^+{PgUp}", "^+{PgDn}", "タブを左へ移動"],
-    "r", ["^+{t}",   "^{w}",    "閉じたタブを復元"],
-    "j", ["^+{Tab}", "^{Tab}",  "前のタブ"],
-    ";", ["^{Tab}",  "^+{Tab}", "次のタブ"],
-    "k", ["^{PgUp}", "^{PgDn}", "前のページ"],
-    "l", ["^{PgDn}", "^{PgUp}", "次のページ"],
-    "i", ["^{PgUp}", "^{PgDn}", "前のページ"],
-    "o", ["^{PgDn}", "^{PgUp}", "次のページ"])
+    "f", ["^{Tab}", "次のタブ"],
+    "a", ["^+{Tab}", "前のタブ"],
+    "d", ["^{PgDn}", "次のページ"],
+    "s", ["^{PgUp}", "前のページ"],
+    "w", ["^{w}", "タブを閉じる"],
+    "e", ["^{t}", "新しいタブ"],
+    "t", ["^+{PgDn}", "タブを右へ移動"],
+    "tab", ["^+{PgUp}", "タブを左へ移動"],
+    "r", ["^+{t}", "閉じたタブを復元"],
+    "j", ["^+{Tab}", "前のタブ"],
+    ";", ["^{Tab}", "次のタブ"],
+    "k", ["^{PgUp}", "前のページ"],
+    "l", ["^{PgDn}", "次のページ"],
+    "i", ["^{PgUp}", "前のページ"],
+    "o", ["^{PgDn}", "次のページ"])
 
 TabPageSwitcher_Show() => KeyCycler_Show("タブ・ページ切り替え", TABPAGE_ACTIONS)
 
@@ -279,7 +261,7 @@ TabPageSwitcher_Show() => KeyCycler_Show("タブ・ページ切り替え", TABPA
 ;     reverse … false：次のモニターへ、true：前のモニターへ
 ;   呼び出した直後は動かさない。呼び出しに使ったキー（Caps → Tab なら Tab）をもう一度押すと次へ、Shift 付きで前へ。
 ;   w：Win+↑、e：Win+↓ で大きさを変える。
-;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）：決定　Esc / Caps / Space+Caps：元のモニターに戻す
+;   SWITCH_DECIDE_KEYS（g / h / v / b / n / Enter。Space を押したままでも同じ）・Esc / Caps / Space+Caps：そのときのモニターで決定
 ;   ほかのキー（Space だけを含む）は無視する。WINMONITOR_IDLE_SEC 秒操作がなければ、そのときのモニターで決定する。
 ;------------------------------------------------------------------------------
 WINMONITOR_IDLE_SEC := 3
@@ -297,16 +279,11 @@ WindowMonitor_Show(reverse := false) {
     sameVK := (triggerKey != "") ? GetKeyVK(triggerKey) : 0
     h := IH_ChoiceHook(WINMONITOR_IDLE_SEC, prefix)
 
-    startPt := Buffer(8, 0)
-    DllCall("GetCursorPos", "Ptr", startPt)
-    steps := 0                                      ; 次へ +1、前へ -1（元に戻すときに使う）
-    sizeUndo := []                                  ; w / e で変えた大きさを戻すための履歴
     mon := _WinMonitor_Info(hwnd)                   ; 呼び出した時点では動かさない（キーを押したときに移す）
-    result := "決定"
     loop {
         UI_ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
             . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
-            . "`n" SWITCH_DECIDE_HINT
+            . "`ng / h / v / b / n / Enter / Esc / Caps / Space+Caps：決定"
             . "`n（" WINMONITOR_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
@@ -320,44 +297,22 @@ WindowMonitor_Show(reverse := false) {
             if (count > 1) {
                 back := (reverse != GetKeyState("Shift"))   ; Shift 付きなら逆方向
                 mon := _WinMonitor_Step(hwnd, back)
-                steps += back ? -1 : 1
             }
         }
         else if (key = "w" || key = "e") {
             if (WinGetMinMax(hwnd) = -1) {          ; 最小化中は Win+↑ が効かないので元に戻すだけ
-                if (key = "w") {
+                if (key = "w")
                     WinRestore(hwnd), WinActivate(hwnd)
-                    sizeUndo.Push("#{Down}")
-                }
             }
             else {
                 try WinActivate(hwnd)
                 Send(key = "w" ? "#{Up}" : "#{Down}")
-                sizeUndo.Push(key = "w" ? "#{Down}" : "#{Up}")
             }
         }
-        else if _Switch_IsDecideKey(key)
-            break
-        else if (key = "Escape" || IH_IsCapsKey(key)) {
-            while sizeUndo.Length {
-                u := sizeUndo.Pop()
-                if (WinGetMinMax(hwnd) = -1)
-                    WinActivate(hwnd)               ; 最小化からの復帰 = Win+↑ 1 回分
-                else {
-                    try WinActivate(hwnd)
-                    Send(u)
-                }
-                Sleep(30)
-            }
-            n := Mod(Mod(steps, count) + count, count)  ; 元のモニターまで「前へ」を何回押すか
-            loop n
-                _WinMonitor_Step(hwnd, true)
-            DllCall("SetCursorPos", "Int", NumGet(startPt, 0, "Int"), "Int", NumGet(startPt, 4, "Int"))
-            result := "元に戻しました"
-            break
-        }
+        else if (_Switch_IsDecideKey(key) || key = "Escape" || IH_IsCapsKey(key))
+            break                                   ; Esc / Caps も取り消しではなく、そのときのモニターで決定する
     }
-    IH_ModeEnd((result = "決定" ? "✅" : "❌") " [モニター移動] " result)
+    IH_ModeEnd("✅ [モニター移動] 決定")
 }
 
 ; ウィンドウを隣のモニターへ移し、カーソルをそのモニターの中央へ動かす

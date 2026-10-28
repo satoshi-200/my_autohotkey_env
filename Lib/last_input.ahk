@@ -37,7 +37,7 @@
 LASTINPUT_ENABLED := true
 LASTINPUT_MAX_LEN := 200                     ; 覚える文字数の上限（超えたら古い方から忘れる）
 LASTINPUT_GAP_MS := 3000                     ; この時間、何も打たなければ、ひとまとまりが終わる
-SPACE_LONG_MS := 250                         ; Space をこれ以上押して、何も押さずに離したら、押しそびれとして何も入力しない（0 で無効）
+SPACE_LONG_MS := 150                         ; Space をこれ以上押して、何も押さずに離したら、押しそびれとして何も入力しない（0 で無効）
 
 LastInput_cur := ""                          ; 入力中のひとまとまり
 LastInput_last := ""                         ; 直前の入力
@@ -234,7 +234,14 @@ LastInput_spaceUsed := false                 ; 押している間に、組み合
 ; Space 単独（離したときに、「Space & ○」を使っていなければ働く）。「Space & ○」の起点なので、元の空白は入らない
 ; 押している Shift / Ctrl / Alt / Win はそのまま残して送る（Shift+Space・Ctrl+Space など、Excel の行・列選択も使えるように）
 LastInput_SpaceTap() {
-    if (SPACE_LONG_MS > 0 && LastInput_spaceSince && A_TickCount - LastInput_spaceSince >= SPACE_LONG_MS)
+    start := A_TickCount
+    if GetKeyState("vk20", "P") {                   ; Shift などを押していると、離す前（押した時点）に働く。離すまで待ち、組み合わせを使ったら送らない
+        while GetKeyState("vk20", "P")
+            Sleep(10)
+        if (A_TimeSinceThisHotkey < A_TickCount - start || (SPACE_LONG_MS > 0 && A_TickCount - start >= SPACE_LONG_MS))
+            return
+    }
+    else if (SPACE_LONG_MS > 0 && LastInput_spaceSince && A_TickCount - LastInput_spaceSince >= SPACE_LONG_MS)
         return
     SendInput("{Blind}{Space}")
     if (LASTINPUT_ENABLED && LastInput_cur != "" && !GetKeyState("Ctrl") && !GetKeyState("Alt") && !GetKeyState("LWin") && !GetKeyState("RWin"))

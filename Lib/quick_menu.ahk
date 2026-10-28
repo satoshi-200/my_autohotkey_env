@@ -193,6 +193,8 @@ class QuickPalette {
         this.Add("C", "T", "cap-trim",    "範囲を指定（端を自動トリミング）", (*) => Cap_RegionTrim(), "capture screenshot trim crop hanni kiritori")
         this.Add("C", "W", "cap-window",  "ウィンドウを選んで全体",          (*) => Cap_Window(), "capture screenshot window")
         this.Add("C", "C", "cap-area",    "ウィンドウ内のクリックした領域",  (*) => Cap_Area(), "capture screenshot element buhin ryouiki")
+        this.Add("C", "P", "cap-pin",     "範囲を指定して付箋（最前面に固定）", (*) => Cap_Pin(), "capture screenshot pin sticky fusen")
+        this.Add("C", "X", "cap-pin-off", "付箋をすべて消す",                (*) => Pin_CloseAll(), "capture pin close fusen")
 
         ;--- マルチクリップボード -----------------------------------------------
         this.Add("M", "S", "clip-save",    "選択文字を箱にコピー保存",      (*) => Clip_Copy(), "clipboard box save copy")

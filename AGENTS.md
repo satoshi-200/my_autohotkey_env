@@ -1,9 +1,12 @@
 # このリポジトリで作業するときの約束
 
-- 最初に [docs/development.md](docs/development.md) を読む（構成・命名・検証・AutoHotkey v2 の落とし穴）。設計の考え方は [docs/principles.md](docs/principles.md)。
+- [docs/development.md](docs/development.md)（構成・命名・検証・AutoHotkey v2 の落とし穴）は全体を読まず、要る節を検索して読む。キーの処理を触るときは「落とし穴」を見る。設計の考え方は [docs/principles.md](docs/principles.md)。
 - 返答は日本語で簡潔に。絵文字は使わない。
 - キー割り当ての出典は `keymap/*.ahk` のコメントだけ。表やドキュメントに重ねて書かない。空きと言う前に keymap を検索して確かめる（利用者が直接編集する）。
 - 大きなファイルは全体を読まず、検索で該当行だけ読む。
-- 検証：構文は `AutoHotkey64.exe /ErrorStdOut /validate main.ahk`（出力が空なら問題なし）。動作は `tests\run_tests.ps1` を非同期の端末で動かし、出力は `FAIL|TOTAL` の行だけ見る。機能を足したら `tests\cases\` に 1 件足す。使い捨ての `_t_` スクリプトは作らない。
+- 検証：既定は、最後の編集のあとに構文の確認だけ（`& AutoHotkey64.exe /ErrorStdOut /validate main.ahk 2>&1; "exit=$LASTEXITCODE"`。exit=0 で出力がなければ問題なし。引数の数の誤りもここで出る）。動作は利用者が確かめるので、試してほしい操作を返答に 1〜2 行で書く。
+- キーや画面に触らない試験（`tests\cases\pin.ahk` のような関数を直接呼ぶもの）がある部品を変えたときは、それも流す。
+- `tests\` は、起点キー（Space・変換・無変換）・3 キー・入力待ち・Shift 長押しの仕組みを変えたときか、頼まれたときだけ、関係するものを `-Cases 名前` で流す。試験を足すのは、手で確かめにくい不具合を直したときだけ。使い捨ての `_t_` スクリプトは作らない。
+- 原因が 2 回試しても分からないときは、試行を重ねず、推測と確かめ方を報告して止める。
 - 試験の間は、前面のウィンドウやキー・マウスに触らない（送ったキーが別の窓に届く）。
 - 新しい説明用の Markdown は、頼まれない限り作らない。

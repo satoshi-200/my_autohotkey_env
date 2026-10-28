@@ -15,10 +15,12 @@ T_gui := 0
 T_ed := 0
 T_buf := ""
 T_name := RegExReplace(A_ScriptName, "\.ahk$")
+OnError((e, *) => (T_Fatal("error: " e.Message " (" RegExReplace(e.File, ".*\\") " line " e.Line ")"), 1))   ; ダイアログで止めず、結果に書いて終える
+SetTimer(() => T_Fatal("stopped (no T_End within 50 s)"), -50000)      ; run_tests.ps1 の時間切れ（60 秒）より前に、そこまでの結果を残す
 
 T_Start(mode := "edit") {
     global T_gui, T_ed
-    Sleep(800)
+    Sleep(200)
     T_gui := Gui("+AlwaysOnTop", "t_case")
     if (mode = "edit")
         T_ed := T_gui.AddEdit("w380 r4")
