@@ -9,21 +9,18 @@
 ; Vimium C との対応
 ;   リンクヒントを出してラベルを打つ（f）→ VimiumC_ShowHints（通常のクリック）
 ;   ラベルは 1・2 文字で絞り込み、BackSpace で戻す、Esc で取り消す、という点も同じ
-;   Vimium C では f / F / yf など別のコマンドでクリックの種類を選ぶ。ここでは親指キーで選ぶ（下の「操作」）。
+;   Vimium C では f / F / yf など別のコマンドでクリックの種類を選ぶ。ここでは、ラベルを打つ前にキーで選ぶ（下の「操作」）。
 ;
-; 操作（VIMIUMC_THUMB_CLICK が false：既定）
-;   ラベルの英字     … 1て2 文字で決定（打つごとに候補が絞られる）。クリックする
+; 操作
+;   ラベルの英字     … 1 〜 2 文字で決定（打つごとに候補が絞られる）。そのときのクリックの種類で動く（既定は左クリック）
+;   クリックの種類   … ラベルを打つ前に切り替える。同じキーをもう一度押すと左クリックに戻る
+;                       Caps → Ctrl+クリック　変換 → 右クリック　Space → 移動だけ　無変換 → ダブルクリック
+;                       変換・Space・無変換は短押し（IHM_TAP_MS）だけ受ける。押したままにしたり、押している間に別のキーを打ったときは
+;                       切り替えない（Space+A、変換+g などの組み合わせとぶつからない）
 ;   Space+A → キー   … 左手だけで右手側の文字を入力（keymap\leader_keys.ahk の Leader_SpaceA の表を読む。Q → P など）。
 ;                       Space+A を押したあとの次の 1 キーだけが対象
 ;   変換+g や Space+s など … BackSpace などを送る割り当ても、そのキーとして扱う（IH_LayerSc）
-; 操作（VIMIUMC_THUMB_CLICK を true にしたとき：親指キーでクリックの種類を選ぶ旧の動作）
-;   ラベルの英字     … 1て2 文字で決定（打つごとに候補が絞られる）。そのままならクリック
-;   Space → ラベル  … ダブルクリック（親指キーは押して離してからラベルを打つ。同じキーをもう一度で取り消し）
-;   変換 → ラベル   … 右クリック
-;   無変換 → ラベル … マウスカーソルを移動するだけ（ホバー）
-; どちらも共通
 ;   Tab              … 対象を「ウィンドウ ↔ タスクバー」で切り替え
-;   Caps             … 右クリックに切り替え（ラベルを打つと部品へ移動して右クリック。もう一度押すと通常に戻る）
 ;   BackSpace        … 1 文字戻す
 ;   Esc / Space+Caps        … キャンセル（IH_TIMEOUT_SEC 秒操作がなくてもキャンセル）
 ;   LShift                  … カーソル移動モード（Lib\mouse_grid.ahk）へ切り替え（Caps → Caps → LShift）
@@ -42,23 +39,18 @@
 
 VIMIUMC_ALPHABET := "asdfjklghweruio"        ; ラベルに使う文字（打ちやすいものから。多いほどラベルが短くなる。q・p は遠いので使わない）
 VIMIUMC_LABEL_BG := "FFE066"                 ; ラベルの背景色
-VIMIUMC_LABEL_BG_RIGHT := "7DD3FC"           ; 右クリックモード中のラベルの背景色
+VIMIUMC_LABEL_BG_RIGHT := "7DD3FC"           ; 右クリックに切り替えている間のラベルの背景色
+VIMIUMC_LABEL_BG_CTRL := "86EFAC"            ; Ctrl+クリック
+VIMIUMC_LABEL_BG_DOUBLE := "F9A8D4"          ; ダブルクリック
+VIMIUMC_LABEL_BG_HOVER := "C4B5FD"           ; 移動だけ
 VIMIUMC_LABEL_FG := "000000"                 ; ラベルの文字色
 VIMIUMC_LABEL_ALPHA := 255                   ; ラベルの不透明度（0〜255。小さいほど下の文字が見える）
 VimiumC_session := ""                        ; 実行中のモードの状態（動作確認用。実行していなければ ""）
-; true：親指キーでクリックの種類を選ぶ（Space＝ダブルクリック、変換＝右クリック、無変換＝ホバー）
-; false：これらをやめ、Space+A で左手だけのラベル入力にする（右手でマウスを持つとき用）
-VIMIUMC_THUMB_CLICK := false
 ; 待っている間の案内の出し方（Lib\key_mode.ahk）。押したい部品を隠さないように、既定はモニターの左下に状態だけ（手が止まったら説明も）
 ;   "corner" / "hidden"（手が止まるまで出さない）/ "cursor"（以前のようにマウスカーソルの近く）
 VIMIUMC_TIP := "corner"
 
-; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで受ける
-#HotIf IsObject(VimiumC_session) && VIMIUMC_THUMB_CLICK
-vk1D:: _VimiumC_Thumb(VimiumC_session, 0x1D)
-#HotIf
-
-; 部品を取得している間は InputHook がまだ無いので、Caps（右クリック）と Shift（カーソル移動モード）はホットキーで受ける
+; 部品を取得している間は InputHook がまだ無いので、Caps（Ctrl+クリック）と Shift（カーソル移動モード）はホットキーで受ける
 #HotIf IsObject(VimiumC_session) && VimiumC_session.loading
 sc03A:: _VimiumC_LoadCaps()
 sc03A up:: VimiumC_session.capsDown := false
@@ -71,7 +63,7 @@ _VimiumC_LoadCaps() {
     if st.capsDown
         return
     st.capsDown := true
-    st.mode := "right"
+    st.mode := "ctrl"
 }
 
 ;------------------------------------------------------------------------------
@@ -79,23 +71,19 @@ _VimiumC_LoadCaps() {
 ;------------------------------------------------------------------------------
 VimiumC_ShowHints() {
     global VimiumC_session
-    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", thumbHeld: Map(), loading: true, gridPending: false, painted: ""
+    st := {scope: "window", items: [], ov: 0, typed: "", pick: 0, mode: "left", loading: true, gridPending: false, painted: ""
         , capsDown: true}                           ; 起動に使った Caps を離すまでは、リピートを無視する
     VimiumC_session := st
     IHM_Run(st, {message: _VimiumC_Message, onKey: _VimiumC_OnKey, onTip: _VimiumC_Tip, onStart: _VimiumC_OnStart
-        , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp, tip: VIMIUMC_TIP
-        , layers: !VIMIUMC_THUMB_CLICK})            ; 旧の動作では親指キー自体に意味があるので、読み替えをしない
+        , onEnd: _VimiumC_OnEnd, onKeyUp: _VimiumC_OnKeyUp, onThumbTap: _VimiumC_ThumbTap, tip: VIMIUMC_TIP})
     if (st.result = "grid")
         MouseGrid_Start()                           ; Caps → Caps → LShift
 }
 
 _VimiumC_OnStart(st) {
-    for vk in [0x20, 0x1C]                          ; 起動時にすでに押している親指キーは、離すまで無視する（旧の動作用）
-        if GetKeyState(Format("vk{:X}", vk), "P")
-            st.thumbHeld[vk] := true
     found := _VimiumC_Load(st)
     st.loading := false
-    _VimiumC_Recolor(st)                            ; 取得中に右クリックへ切り替えていた分
+    _VimiumC_Recolor(st)                            ; 取得中に切り替えていた分
     if st.gridPending
         IHM_Finish(st, "grid")
     else if !found
@@ -122,22 +110,13 @@ _VimiumC_Message(st) {
 
 ; キーが来たとき（リピートの無視、親指キーの読み替え、Space+A は骨組み key_mode.ahk）
 _VimiumC_OnKey(st, k) {
-    if (k.HasProp("raw") && (k.vk = 0x20 || k.vk = 0x1C)) {   ; 旧の動作：Space / 変換はクリックの種類の切り替え（リピートは無視）
-        if !st.thumbHeld.Has(k.vk) {
-            st.thumbHeld[k.vk] := true
-            _VimiumC_Thumb(st, k.vk)
-        }
-        return
-    }
     switch k.sc {
-        case 0x3A:                                  ; Caps：右クリックと通常のクリックを切り替える（Space+Caps はキャンセル。Caps はリピートも届くので capsDown で止める）
+        case 0x3A:                                  ; Caps：Ctrl+クリックの切り替え（Space+Caps はキャンセル。Caps はリピートも届くので capsDown で止める）
             if st.held.Has(0x39)
                 IHM_Finish(st, "cancel")
             else if !st.capsDown {
                 st.capsDown := true
-                st.mode := (st.mode = "right") ? "left" : "right"
-                _VimiumC_Recolor(st)
-                _VimiumC_Tip(st)
+                _VimiumC_SetMode(st, "ctrl")
             }
         case 0x01:                                  ; Esc
             IHM_Finish(st, "cancel")
@@ -190,17 +169,18 @@ _VimiumC_TypeLabel(st, name) {
 _VimiumC_OnKeyUp(st, vk, sc) {
     if (sc = 0x3A)
         st.capsDown := false
-    if st.thumbHeld.Has(vk)
-        st.thumbHeld.Delete(vk)
 }
 
-; 親指キーでクリックの種類を切り替える（同じキーをもう一度で通常のクリックに戻す）
-_VimiumC_Thumb(st, vk) {
-    static modes := Map(0x20, "double", 0x1C, "right", 0x1D, "hover")
-    if (st.result != "")
-        return
-    SetTimer(st.idle, -IH_TIMEOUT_SEC * 1000)
-    st.mode := (st.mode = modes[vk]) ? "left" : modes[vk]
+; 親指キーの短押し（key_mode.ahk が、長押し・他のキーとの組み合わせを除いて呼ぶ）でクリックの種類を切り替える
+_VimiumC_ThumbTap(st, sc) {
+    static modes := Map(0x39, "hover", 0x79, "right", 0x7B, "double")
+    _VimiumC_SetMode(st, modes[sc])
+}
+
+; クリックの種類を切り替える（同じ種類をもう一度で左クリックに戻す）
+_VimiumC_SetMode(st, mode) {
+    st.mode := (st.mode = mode) ? "left" : mode
+    _VimiumC_Recolor(st)
     _VimiumC_Tip(st)
 }
 
@@ -248,15 +228,10 @@ _VimiumC_Tip(st) {
     other := (st.scope = "window") ? "タスクバー" : "ウィンドウ"
     typed := (st.typed != "") ? "　入力：" StrUpper(st.typed) : ""
     cancel := "`nBS：1 文字戻す　Esc：キャンセル　LShift：カーソル移動モード（" IH_TIMEOUT_SEC " 秒で自動キャンセル）"
-    if !VIMIUMC_THUMB_CLICK {
-        IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed (st.mode = "right" ? "　動作：右クリック" : "")
-                . (st.leftHand ? "　左手入力：次のキーを右手側の文字に" : "")
-            , "Space+A → キー：左手だけで右手側の文字を入力　Caps：右クリック　Tab：" other "へ" cancel)
-        return
-    }
-    static names := Map("left", "クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "カーソル移動")
-    IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件　動作：" names[st.mode] typed
-        , "Space：ダブルクリック　変換：右クリック　無変換：カーソル移動　Tab：" other "へ" cancel)
+    static names := Map("ctrl", "Ctrl+クリック", "double", "ダブルクリック", "right", "右クリック", "hover", "移動だけ")
+    IHM_Tip(st, "🎯 [Vimium C ヒント：" now "] " st.items.Length " 件" typed (names.Has(st.mode) ? "　動作：" names[st.mode] : "")
+            . (st.leftHand ? "　左手入力：次のキーを右手側の文字に" : "")
+        , "Caps：Ctrl+クリック　変換：右クリック　Space：移動だけ　無変換：ダブルクリック（変換・Space・無変換は短押し）`nSpace+A → キー：左手だけで右手側の文字を入力　Tab：" other "へ" cancel)
 }
 
 _VimiumC_Act(it, mode) {
@@ -267,6 +242,11 @@ _VimiumC_Act(it, mode) {
         case "double":
             MouseClick("Left", it.x, it.y, 2, 0)
             tip := "ダブルクリック"
+        case "ctrl":
+            SendInput("{Ctrl down}")
+            try MouseClick("Left", it.x, it.y, 1, 0)
+            SendInput("{Ctrl up}")
+            tip := "Ctrl+クリック"
         case "hover":
             MouseMove(it.x, it.y, 0)
             tip := "カーソル移動"
@@ -380,7 +360,15 @@ _VimiumC_Overlay(items, bg) {
     return ov
 }
 
-_VimiumC_Color(st) => (st.mode = "right") ? VIMIUMC_LABEL_BG_RIGHT : VIMIUMC_LABEL_BG
+_VimiumC_Color(st) {
+    switch st.mode {
+        case "right":  return VIMIUMC_LABEL_BG_RIGHT
+        case "ctrl":   return VIMIUMC_LABEL_BG_CTRL
+        case "double": return VIMIUMC_LABEL_BG_DOUBLE
+        case "hover":  return VIMIUMC_LABEL_BG_HOVER
+        default:       return VIMIUMC_LABEL_BG
+    }
+}
 
 ; モードに合わせて、表示中のラベルの背景色を変える（透明度などは共通）
 _VimiumC_Recolor(st) {

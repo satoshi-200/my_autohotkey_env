@@ -5,7 +5,8 @@
 ;   CapsLock          … Leader_Caps()
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
-;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、Caps で右クリック）
+;   カタカナひらがな  … Leader_Kana()     （前面のアプリ専用の機能。次の 1 キーで選ぶ。Outlook：s メール選択、Office：e 図形編集、VS Code：f 折りたたみ、Obsidian：モードに入って Caps でリンク選択）
+;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、Caps で Ctrl+クリック、変換で右クリック、Space で移動だけ、無変換でダブルクリック）
 ;   Caps → Space      … IME 半角英数、Caps → 無変換 … Shift 長押しモード、Caps → 変換 … 次の 1 文字を大文字に
 ;
 ; 割り当ての書き方（各関数の中の表）
@@ -27,12 +28,15 @@
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
 #Include %A_LineFile%\..\..\Lib\vimium_c_hints.ahk
 #Include %A_LineFile%\..\..\Lib\shift_hold.ahk
+#Include %A_LineFile%\..\..\Lib\outlook_mail.ahk
+#Include %A_LineFile%\..\..\Lib\obsidian_mode.ahk
 
 ;------------------------------------------------------------------------------
 ; 起点キー（Space+F / Space+A は hold_keys.ahk から呼ぶ）
 ;------------------------------------------------------------------------------
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
+sc070:: Leader_Kana()                               ; カタカナひらがな（前面のアプリ専用の機能。Outlook：s、Office：e、VS Code：f、Obsidian：モード→Caps）
 ^+!F12:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ）
 ^+!F11:: QM_CaptureMenu_Show()                      ; 画面キャプチャメニュー（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる。Caps → t と同じ）
 #HotIf
@@ -234,6 +238,38 @@ Leader_SpaceA() {
         0x79, "")
     ShiftHold_Remember()
     Leader_Run("Space + A：左手で文字・記号", keys, specials, , true)
+}
+
+; カタカナひらがな：前面のアプリ専用の機能へ。アプリごとに次の 1 キーで選ぶ（表はアプリごとに別。Outlook・Office・VS Code）。Obsidian はモードに入ってから Caps
+Leader_Kana() {
+    if WinActive("ahk_exe OUTLOOK.EXE")
+        Leader_KanaOutlook()
+    else if IsObject(Office_HostOf(WinExist("A")))
+        Leader_KanaOffice()
+    else if WinActive("ahk_exe Code.exe")
+        Leader_KanaVSCode()
+    else if WinActive("ahk_exe Obsidian.exe")
+        Obsidian_Mode()
+    else
+        UI_TipFlash("かな：このアプリ用の機能はありません")
+}
+
+Leader_KanaOutlook() {
+    static keys := Leader_Keys(
+        "s",  OutlookMail_SelectMode)               ; メール選択モード（Select）
+    Leader_Run("かな：Outlook", keys)
+}
+
+Leader_KanaOffice() {
+    static keys := Leader_Keys(
+        "e",  Office_EditStart)                     ; 図形編集モード（Edit）
+    Leader_Run("かな：Office", keys)
+}
+
+Leader_KanaVSCode() {
+    static keys := Leader_Keys(
+        "f",  QM_FoldMenu_Show)                     ; 折りたたみメニュー（Fold）
+    Leader_Run("かな：VS Code", keys)
 }
 
 ;------------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 ; ●ファイル構成
 ;   ・keymap\hold_keys.ahk   : 押しながら使うレイヤー（変換 / 無変換 / Space ＋ 何か）と、短押し
 ;   ・keymap\chord_keys.ahk  : 変換と無変換を両方押したまま別のキー（hold_keys.ahk から読み込む）
-;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A → 何か）
+;   ・keymap\leader_keys.ahk : 押して離してから次のキー（Caps / Space+F / Space+A / カタカナひらがな → 何か）
 ;   ・Lib\                   : 各機能の部品
 ;
 ; ●キー対応表 (JIS キーボード)
@@ -50,6 +50,8 @@
 #Include Lib\powerpoint_pack.ahk
 #Include Lib\keymap_view.ahk
 #Include Lib\quick_menu.ahk
+; 他のツールとの連携
+#Include Lib\outlook_mail.ahk
 
 ; ------------------------------------------------------------------------------
 ; キーの割り当て

@@ -95,7 +95,7 @@ class QuickPalette {
         {key: "C", name: "画面キャプチャ"},
         {key: "M", name: "マルチクリップボード"},
         {key: "A", name: "アプリ・フォルダ"},
-        {key: "V", name: "VS Code"},
+        {key: "V", name: "VS Code の折りたたみ"},
         {key: "O", name: "Office"}]
 
     static Items := []
@@ -846,6 +846,7 @@ QuickPalette_Show()  => QuickPalette.Show()
 QuickMenu_Show()     => QuickPalette.ShowMenu()
 QM_DesktopMenu_Show() => QuickPalette.ShowMenu("D")
 QM_DateMenu_Show()    => QuickPalette.ShowMenu("N")
+QM_FoldMenu_Show()  => QuickPalette.ShowMenu("V")
 QM_CaptureMenu_Show() => CaptureQuick_Show()
 ; 記号メニューの見た目："tooltip"（ツールチップ。キーを InputHook で受ける。軽い。Lib\symbol_quick.ahk）/ "window"（一覧の小窓。矢印 + Enter でも選べる）
 QM_SYMBOL_UI := "tooltip"

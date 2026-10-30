@@ -17,6 +17,7 @@
 ;   onKey(st, k)  キーが来たとき。k は {sc, name, left}。sc は読み替えたあとのスキャンコード、name は文字（小文字）、
 ;                 left は Space+A で右手側の文字に直したキー（このとき sc は 0）。必須
 ;   onStart(st)   始める前（表示を作るなど）。ここで IHM_Finish したら、キーを待たずに終わる。
+;                 onThumbTap(st, sc) 親指キー（Space 0x39・変換 0x79・無変換 0x7B）の短押し（IHM_TAP_MS より短く、間に他のキーなし。離したときに呼ぶ）。
 ;                 onEnd(st) 後始末（finally で呼ぶ）。onTip(st) Space+A の待ちが変わったとき（案内の書き直し）。onKeyUp(st, vk, sc) キーを離したとき
 ;   idleSec       この秒数キー入力がなければ "timeout"（既定 IH_TIMEOUT_SEC）
 ;   layers        false にすると読み替えも Space+A も行わず、すべてのキーをそのまま onKey に渡す（親指キーに独自の意味があるモード用）。
@@ -36,11 +37,12 @@
 #Include %A_LineFile%\..\ui_common.ahk
 
 IHM_HELP_DELAY_MS := 1000                 ; 案内の説明を出すまでの、操作のない時間（tip が "corner" / "hidden" のとき）
+IHM_TAP_MS := 300                         ; 親指キーを押して離すまでがこの時間より短く、間に他のキーがなければ「短押し」（opts.onThumbTap）
 
 IHM_Run(st, opts) {
     IH_ModeBegin()
     st.result := "", st.err := "", st.leftHand := false
-    st.held := Map()
+    st.held := Map(), st.thumbDown := Map()
     st.hook := InputHook("L0")
     st.idle := IHM_Finish.Bind(st, "timeout")
     st.tipPos := opts.HasProp("tip") ? opts.tip : "cursor"
@@ -125,6 +127,12 @@ _IHM_OnKeyDown(st, opts, idleMs, h, vk, sc) {
         opts.onKey.Call(st, {sc: sc, vk: vk, name: _IHM_KeyName(vk, sc), raw: true})
         return
     }
+    if (sc = 0x39 || sc = 0x79 || sc = 0x7B) {      ; 親指キーを押した時刻（始めから押していたもの・リピートは数えない）
+        if !st.held.Has(sc)
+            st.thumbDown[sc] := A_TickCount
+    }
+    else
+        st.thumbDown.Clear()                        ; 何かと一緒に使ったので、短押しではない
     if (st.held.Has(sc) && sc != 0x01 && sc != 0x3A)   ; 押しっぱなしのリピートは無視（取り消しの Esc / Caps は常に受ける）
         return
     k := _IHM_Resolve(st, opts, vk, sc)
@@ -135,6 +143,12 @@ _IHM_OnKeyDown(st, opts, idleMs, h, vk, sc) {
 _IHM_OnKeyUp(st, opts, h, vk, sc) {
     if st.held.Has(sc)
         st.held.Delete(sc)
+    if st.thumbDown.Has(sc) {
+        short := A_TickCount - st.thumbDown[sc] < IHM_TAP_MS
+        st.thumbDown.Delete(sc)
+        if (short && st.result = "" && opts.HasProp("onThumbTap"))
+            opts.onThumbTap.Call(st, sc)
+    }
     if opts.HasProp("onKeyUp")
         opts.onKeyUp.Call(st, vk, sc)
 }

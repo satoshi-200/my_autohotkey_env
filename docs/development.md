@@ -44,6 +44,8 @@ Lib/
   window_ops.ahk         ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューから呼ぶ）
   window_switch.ahk      アプリ切り替え、タブ・ページ切り替え、モニター移動
   screen_saver.ahk       スクリーンセーバー回避
+  outlook_mail.ahk       Outlook のメール選択モード（カーソルだけ動かして複数選択し、文面をクリップボードへコピー）。かなキー（keymap\leader_keys.ahk の Leader_Kana）から呼ぶ
+  obsidian_mode.ahk      Obsidian のリンク選択モード（Caps 短押しでプラグインのホットキーを送る）。かなキーから呼ぶ
   vimium_c_hints.ahk     Vimium C 風ヒント
   quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ）
   multi_clipboard.ahk    マルチクリップボード
@@ -98,7 +100,7 @@ docs/                    README から分けた説明（features / principles / 
   - 大きな変更の前にはフォルダを複製し、変更前と後で同じ試験を流して結果を比べる（複製の `main.ahk` を動かして試す）。
 
 ## AutoHotkey v2 の落とし穴
-- 文字列の中でも、半角スペース + `;` はコメントの始まりになる。文字列に入れるときは `` `; `` とする。
+- 文字列の中でも、半角スペース + `;` はコメントの始まりになる。文字列に入れるときは `` `; `` とする。**`/validate` はこれを見逃すことがあり**（文字列が閉じないまま通る）、実行時の読み込みで初めてエラーになる。日本語の案内文に「j k l ;」のようなキーの列挙を書いたときは特に注意し、編集後に `Select-String -Path 対象.ahk -Pattern '"[^"]* ;'` で、文字列の中の「空白 + `;`」が残っていないか確かめる。
 - `"\""` はエスケープにならない。引用符は `'...'` で囲むか `""` を使う。PowerShell を呼ぶときは `.ps1` ファイルに書いて呼ぶ。
 - JIS キーの無変換・変換・かなは `GetKeyName` が `""` を返す。`GetKeySC` / `GetKeyVK` で比べる。
 - `A & B` の組み合わせの A（例：無変換 `vk1D`）は InputHook に届かない。`#HotIf` でホットキーとして受ける（`Lib/key_wait.ahk` の `IH_StopWithKey`）。

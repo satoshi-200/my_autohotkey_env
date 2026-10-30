@@ -6,12 +6,12 @@
 ;   アプリごとの機能は powerpoint_pack.ahk など別の部品に置く。同じ「Office」カテゴリに、前面のアプリの分だけが出る（quick_menu.ahk）。
 ;
 ; 図形編集モード（Office_EditStart）：ホームポジションのまま選択中の図形の大きさ・位置を変える（Shift+矢印を使わない）
-;   j k l ; … 左 / 上 / 下 / 右へ動かす（Space+j k l ; の矢印と同じ配置）
-;   u i o p … 大きさ：左へ小さく(幅−) / 上へ小さく(高さ−) / 下へ大きく(高さ+) / 右へ大きく(幅+)
+;   Space+j k l ; … 左 / 上 / 下 / 右へ動かす（通常の Space+j k l ; の矢印と同じ。Space を押している間だけ）
+;   j k l ;         … 大きさ：左へ小さく(幅−) / 上へ小さく(高さ−) / 下へ大きく(高さ+) / 右へ大きく(幅+)
 ;   q / r … 左 / 右へ回転           a / f … 前 / 次の図形を選ぶ     z / v … 元に戻す / やり直す
 ;   w / e … 刻みを 1pt（細かく）/ 10pt（粗く）     s / d … 大きさを変える基準を 左上固定 / 中心固定
 ;   左手は「小指と人差し指」「薬指と中指」を、対になる動作のペアにしている（docs\principles.md）
-;   g / h / b / n / Esc / Caps / Enter / Space / カタカナひらがな … 終わる（押しっぱなしでキーリピートも効く）
+;   g / h / b / n / Esc / Caps / Enter / カタカナひらがな … 終わる（押しっぱなしでキーリピートも効く）
 ;
 ; 作り方
 ;   ・選択中の図形（ShapeRange）の Left / Top / Width / Height / Rotation を COM で書き換える。3 つのアプリで同じ書き方。
@@ -138,18 +138,23 @@ Office_AllShapes(host, app) {
 
 ;--- 図形編集モード ---------------------------------------------------------------
 ; スキャンコード → 操作。キーリピートを効かせるため、key_mode.ahk の layers := false（そのまま受ける）で動かす
-OFFICE_EDIT_KEYS := Map(0x24, "left", 0x25, "up", 0x26, "down", 0x27, "right"                ; j k l ; ：移動（Space+jkl; の矢印と同じ）
-    , 0x16, "narrower", 0x17, "shorter", 0x18, "taller", 0x19, "wider"                       ; u i o p ：大きさ（右手の 1 段上）
+OFFICE_EDIT_KEYS := Map(0x24, "narrower", 0x25, "shorter", 0x26, "taller", 0x27, "wider"             ; j k l ; ：大きさ
     , 0x10, "rotL", 0x13, "rotR", 0x1E, "prev", 0x21, "next", 0x2C, "undo", 0x2F, "redo"     ; q r / a f / z v（小指と人差し指のペア）
     , 0x11, "fineOn", 0x12, "fineOff", 0x1F, "anchorTL", 0x20, "anchorC")                    ; w e / s d（薬指と中指のペア）
-OFFICE_EDIT_END_SC := [0x01, 0x3A, 0x1C, 0x39, 0x70, 0x22, 0x23, 0x30, 0x31]    ; Esc / Caps / Enter / Space / カタカナひらがな / g h b n（決定）
+OFFICE_EDIT_MOVE := Map(0x24, "left", 0x25, "up", 0x26, "down", 0x27, "right")          ; Space を押しながら j k l ; ：移動
+OFFICE_EDIT_END_SC := [0x01, 0x3A, 0x1C, 0x70, 0x22, 0x23, 0x30, 0x31]          ; Esc / Caps / Enter / カタカナひらがな / g h b n（決定）
 
 Office_EditStart() {
     st := {fine: false, center: false, host: "", undo: [], redo: [], q: [], flushing: false
-        , ctx: "", ctxTick: 0, gAct: "", gTick: 0}
+        , ctx: "", ctxTick: 0, gAct: "", gTick: 0, space: false}
     st.flushFn := _OfficeEdit_Flush.Bind(st)
     IHM_Run(st, {message: _OfficeEdit_Message, onKey: _OfficeEdit_OnKey, onStart: _OfficeEdit_OnStart
-        , onEnd: (st) => SetTimer(st.flushFn, 0), layers: false, critical: true, tip: OFFICE_EDIT_TIP})
+        , onKeyUp: _OfficeEdit_OnKeyUp, onEnd: (st) => SetTimer(st.flushFn, 0), layers: false, critical: true, tip: OFFICE_EDIT_TIP})
+}
+
+_OfficeEdit_OnKeyUp(st, vk, sc) {
+    if (sc = 0x39)
+        st.space := false
 }
 
 _OfficeEdit_OnStart(st) {
@@ -171,10 +176,14 @@ _OfficeEdit_Message(st) {
 
 _OfficeEdit_Tip(st) {
     IHM_Tip(st, "✏️ [図形編集：" st.host.name "] 刻み " (st.fine ? OFFICE_EDIT_STEP_FINE : OFFICE_EDIT_STEP) "pt・" (st.center ? "中心固定" : "左上固定")
-        , "jkl;：移動　u i o p：左 上 下 右の辺（小 小 大 大）　q/r：回転　a/f：図形選択　z/v：戻す/やり直し　w/e：刻み 細/粗　s/d：基準 左上/中心　g h b n：決定")
+        , "Space+jkl;：移動　jkl;：左 上 下 右の辺（小 小 大 大）　q/r：回転　a/f：図形選択　z/v：戻す/やり直し　w/e：刻み 細/粗　s/d：基準 左上/中心　g h b n：決定")
 }
 
 _OfficeEdit_OnKey(st, k) {
+    if (k.sc = 0x39) {                                  ; Space は押している間だけ「移動」の合図
+        st.space := true
+        return
+    }
     for sc in OFFICE_EDIT_END_SC {
         if (k.sc = sc) {
             _OfficeEdit_Flush(st)                       ; 溜まっている操作を先に済ませてから終わる
@@ -182,7 +191,8 @@ _OfficeEdit_OnKey(st, k) {
             return
         }
     }
-    if !OFFICE_EDIT_KEYS.Has(k.sc)
+    moves := st.space ? OFFICE_EDIT_MOVE : OFFICE_EDIT_KEYS
+    if !moves.Has(k.sc)
         return
     if OFFICE_REQUIRE_ACTIVE {                          ; 別のアプリに移ったら、図形を取り違えないよう終える
         h := Office_HostOf(WinExist("A"))
@@ -192,7 +202,7 @@ _OfficeEdit_OnKey(st, k) {
             return
         }
     }
-    act := OFFICE_EDIT_KEYS[k.sc]
+    act := moves[k.sc]
     step := st.fine ? OFFICE_EDIT_STEP_FINE : OFFICE_EDIT_STEP
     switch act {
         case "fineOn":

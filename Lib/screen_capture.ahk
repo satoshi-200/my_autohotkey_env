@@ -4,7 +4,7 @@
 ; 画面キャプチャ（Snipping Tool 相当）。Caps → t / Ctrl+Shift+Alt+F11 でツールチップのメニュー（CaptureQuick_Show。InputHook でキーを受ける）を開く。クイックメニューの「C 画面キャプチャ」からも呼べる
 ;
 ; 撮り方の選択（CaptureQuick_Show）
-;   f / d / s / a / q：その撮り方で始める　↑ ↓（Space+k / l）：選ぶ　G / H / V / B / N / Enter：▶ の撮り方で始める　Esc / Caps / Space+Caps：キャンセル
+;   f / d / s / a / q：その撮り方で始める（x：付箋をすべて消す）　↑ ↓（Space+k / l）：選ぶ　G / H / V / B / N / Enter：▶ の撮り方で始める　Esc / Caps / Space+Caps：キャンセル
 ;
 ; 種類
 ;   Cap_Region()     … ドラッグで範囲を指定（画面を暗くし、選んだ範囲だけ明るく表示）
@@ -74,7 +74,8 @@ CAPTURE_QUICK_ITEMS := [
     {key: "d", label: "範囲を指定（端を自動トリミング）",    fn: Cap_RegionTrim},
     {key: "s", label: "ウィンドウを選んで全体",              fn: Cap_Window},
     {key: "a", label: "ウィンドウ内のクリックした領域",      fn: Cap_Area},
-    {key: "q", label: "範囲を指定して付箋（最前面に固定）",  fn: Cap_Pin}]
+    {key: "q", label: "範囲を指定して付箋（最前面に固定）",  fn: Cap_Pin},
+    {key: "x", label: "付箋をすべて消す",                    fn: Pin_CloseAll}]
 
 CaptureQuick_Show() {
     if (IH_waiting || IsObject(Cap_session))

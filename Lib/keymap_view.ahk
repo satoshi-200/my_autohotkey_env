@@ -32,6 +32,7 @@ KM_FUNC_NAMES := Km_Map(
     "AltTab", "次のアプリへ", "ShiftAltTab", "前のアプリへ", "ScreenSaver_Toggle", "スクリーンセーバー回避の切り替え",
     "ScreenSaver_Off", "スクリーンセーバー回避を解除",
     "Leader_SpaceF", "Space+F の入力待ち", "Leader_SpaceA", "Space+A の入力待ち", "Leader_Caps", "Caps の入力待ち",
+    "Leader_Kana", "かな：アプリ専用の機能（Outlook：s メール選択、Office：e 図形編集、VS Code：f 折りたたみ、Obsidian：リンク選択）",
     "WindowMonitor_Show", "ウィンドウを別のモニターへ",
     "AppSwitcher_Show", "アプリ切り替え", "TabPageSwitcher_Show", "タブ・ページ切り替え",
     "QuickPalette_Show", "コマンドパレット", "QuickMenu_Show", "クイックメニュー", "QM_SymbolMenu_Show", "記号メニュー",

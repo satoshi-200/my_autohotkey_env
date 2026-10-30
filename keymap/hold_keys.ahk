@@ -110,7 +110,7 @@ vk1D & 8::      return                              ; 未割り当て
 vk1D & 9::      return                              ; 未割り当て
 vk1D & 0::      return                              ; 未割り当て
 vk1D & [::      return                              ; 未割り当て
-vk1D & ]::      return                              ; 未割り当て
+vk1D & ]::      SendInput("{#}")
 vk1D & RButton::    SendInput("^{LButton}")
 vk1D & WheelUp::    Text_WheelCursor("Left")
 vk1D & WheelDown::  Text_WheelCursor("Right")
@@ -135,7 +135,7 @@ vk1D & u::      SendInput("{/}")
 vk1D & i::      SendInput("{*}")
 vk1D & o::      SendInput("{-}")
 vk1D & p::      SendInput("{+}")
-vk1D & m::      LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
+vk1D & m::      SendInput("{#}")
 vk1D & ,::      return                              ; 未割り当て
 vk1D & .::      return                              ; 未割り当て
 vk1D & /::      return                              ; 未割り当て
@@ -147,6 +147,7 @@ vk1D & RShift::      return                              ; 未割り当て
 vk1D & h::      Text_BulletPoint()                  ; 箇条書きの「- 」
 vk1D & sc07D::  return
 vk1D & sc00D::  return
+vk1D & sc058::  LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
 
 ;------------------------------------------------------------------------------
 ; Space (vk20) ＋ 各種キー
@@ -154,10 +155,10 @@ vk1D & sc00D::  return
 ; --- 特殊・システム ---
 vk20 & vk1C::   SendInput("{Space}")
 vk20 & vk1D::   return                              ; 無変換（未割り当て）
-vk20 & sc03A::  ShiftHold_Stop(), Pin_EscAll(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモード・付箋・スクリーンセーバー回避も解除）
+vk20 & sc03A::  ShiftHold_Stop(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモード・スクリーンセーバー回避も解除）
 vk20 & sc00F::  SendInput("^+{Tab}")                ; Tab -> 前のタブへ
 vk20 & F1::     ScreenSaver_Toggle()
-vk20 & sc070::  return                              ; かな（未割り当て）
+vk20 & sc070::  SendInput("+{RButton}")  ; shift+右クリック
 vk20 & f::      Leader_SpaceF()
 vk20 & a::      Leader_SpaceA()
 
@@ -207,7 +208,7 @@ vk20 & RControl::      return                              ; 未割り当て
 vk20 & m::      SendInput("^{LButton}")             ; Ctrl + クリック
 vk20 & ,::      MouseClick("Left", , , 2)           ; ダブルクリック
 vk20 & .::      MouseClick("Right")                 ; 右クリック
-vk20 & /::      MouseClick("Middle")                ; ホイール（中）クリック
+vk20 & /::      return                              ; 未割り当て
 
 ; --- ウィンドウ・タブ ---
 vk20 & z::      SendInput("!{Left}")

@@ -7,12 +7,11 @@
 ;
 ; 操作
 ;   クリック：拡大 / 元の大きさへ　　ドラッグ：移動　　右クリック：その付箋を消す
-;   Esc：すべて消す（入力待ち・撮影の選択中の Esc は、そちらの取り消しに使う）
+;   すべて消す：Caps → t のメニューの X、クイックメニューの C → X（Esc では消えない）
 ; 複数枚は、撮った範囲のあるモニターの右上から左へ、重ならないように並べる。
 ;==============================================================================
 #Include %A_LineFile%\..\config.ahk
 #Include %A_LineFile%\..\ui_common.ahk
-#Include %A_LineFile%\..\key_wait.ahk
 
 PIN_THUMB_W      := 200                    ; サムネイルの枠の幅 [px]。どの画像も同じ大きさの枠に、縦横比を保って収める（小さい画像は拡大しない）
 PIN_THUMB_H      := 120                    ; サムネイルの枠の高さ [px]
@@ -24,7 +23,6 @@ PIN_GAP_PX       := 8                      ; 付箋どうしの間隔
 PIN_DRAG_PX      := 5                       ; これ以上動かしたらクリックでなくドラッグとみなす
 
 Pin_list := []                             ; 出している付箋 {g, pic, full, thumb, big, w, h, tw, th, expanded, alive}
-Pin_hook := ""                             ; Esc を見る InputHook（付箋があるあいだだけ動かす）
 Pin_drag := ""                             ; 左ボタンを押している間の状態 {p, sx, sy, wx, wy, dragged}
 
 OnMessage(0x201, _Pin_OnLButtonDown)       ; WM_LBUTTONDOWN
@@ -47,7 +45,6 @@ Pin_Add(hbm, w, h, px := "", py := "") {
     _Pin_Place(p, &x, &y, mon)
     p.g.Show("NA x" x " y" y " w" tw + 2 * b " h" th + 2 * b)
     Pin_list.Push(p)
-    _Pin_HookStart()
 }
 
 Pin_CloseAll() {
@@ -123,8 +120,6 @@ _Pin_Close(p) {
     for bmp in [p.full, p.thumb, p.big]
         if bmp
             DllCall("DeleteObject", "Ptr", bmp)
-    if !Pin_list.Length
-        _Pin_HookStop()
 }
 
 ;------------------------------------------------------------------------------
@@ -203,39 +198,4 @@ _Pin_Toggle(p) {
         p.expPos := {x: x, y: y}
     } else if (p.HasProp("expPos") && x = p.expPos.x && y = p.expPos.y)
         p.g.Move(p.home.x, p.home.y)
-}
-
-;------------------------------------------------------------------------------
-; Esc ですべて消す（付箋があるあいだだけ見る。キーは奪わない）
-;------------------------------------------------------------------------------
-_Pin_HookStart() {
-    global Pin_hook
-    if IsObject(Pin_hook)
-        return
-    h := InputHook("V")
-    h.KeyOpt("{Escape}", "N")
-    h.OnKeyDown := _Pin_OnKeyDown
-    h.OnEnd := (*) => (Pin_list.Length ? h.Start() : 0)           ; 文字数の上限などで終わっても、続けて見る
-    h.Start()
-    Pin_hook := h
-}
-
-_Pin_HookStop() {
-    global Pin_hook
-    if IsObject(Pin_hook)
-        Pin_hook.Stop()
-    Pin_hook := ""
-}
-
-_Pin_OnKeyDown(ih, vk, sc) {
-    if (vk = 0x1B)
-        Pin_EscAll()
-}
-
-; Esc の働き（入力待ち・撮影の選択中の Esc は、そちらの取り消しに使うので何もしない）。
-; Space+Caps は hold_keys.ahk が Esc を送るが、自分で送ったキーは自分の InputHook に届かないので、そこからこれを呼ぶ
-Pin_EscAll() {
-    if (IH_waiting || (IsSet(Cap_session) && IsObject(Cap_session)))
-        return
-    Pin_CloseAll()
 }
