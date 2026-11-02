@@ -136,10 +136,10 @@ Leader_SpaceF() {
         "^",  "",
         "\",  "",
         ; --- 上段 ---
-        "q",  "^{Home}",                            ; 文書の先頭
-        "w",  "{Home}",                             ; 行頭
-        "e",  "{End}",                              ; 行末
-        "r",  "^{End}",                             ; 文書の末尾
+        "q",  "{Home}",  ; 行頭
+        "w",  "^{Home}",  ; 文書の先頭
+        "e",  "^{End}",  ; 文書の末尾
+        "r",  "{End}",  ; 行末
         "t",  "",
         "y",  "",
         "u",  QM_DateQuick_Show,                    ; 日付・時刻の一覧（ツールチップ。ファイル名の変更中にも使える）
@@ -268,8 +268,19 @@ Leader_KanaOffice() {
 
 Leader_KanaVSCode() {
     static keys := Leader_Keys(
-        "f",  QM_FoldMenu_Show)                     ; 折りたたみメニュー（Fold）
+        "f",  Leader_KanaVSCodeFold)                ; 折りたたみ（Fold）
     Leader_Run("かな：VS Code", keys)
+}
+
+; 折りたたみ（Ctrl+K の 2 段階ショートカットを送る）。折りたたむ・展開は対になるので、隣り合うキーに対で置く（e / w、d / s）
+Leader_KanaVSCodeFold() {
+    static keys := Leader_Keys(
+        "f",  () => QM_VSCodeChord("^l"),           ; カーソル位置を折りたたみ／展開を切り替え（Fold）
+        "e",  () => QM_VSCodeChord("^j"),           ; すべて展開
+        "w",  () => QM_VSCodeChord("^0"),           ; すべて折りたたむ
+        "d",  () => QM_VSCodeChord("^]", 100),      ; 再帰的に展開
+        "s",  () => QM_VSCodeChord("^[", 100))      ; 再帰的に折りたたむ
+    Leader_Run("かな：VS Code 折りたたみ", keys)
 }
 
 ;------------------------------------------------------------------------------

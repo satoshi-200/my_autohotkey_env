@@ -85,7 +85,7 @@ vk1D & LAlt::   return                              ; 左 Alt（未割り当て�
 vk1D & sc00F::  SendInput("^{PgUp}")               ; Tab -> 前のページ
 vk1D & t::      SendInput("^{PgDn}")               ; 次のページ
 vk1D & RAlt::   return                              ; 右 Alt（未割り当て）
-vk1D & sc03A::  Mouse_FocusUnderCursor()            ; CapsLock
+vk1D & sc03A::  MouseNav_WarpExternalCenter()  ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
 vk1D & 1::      SendInput("#{Up}")                  ; 最大化
 vk1D & 2::      ShiftAltTab                         ; 前のアプリへ
 vk1D & 3::      AltTab                              ; 次のアプリへ
@@ -100,17 +100,17 @@ vk1D & w::      MousePlain_ScrollUp()
 vk1D & e::      MousePlain_ScrollDown()
 vk1D & q::      MousePlain_ScrollLeft()
 vk1D & r::      MousePlain_ScrollRight()
-vk1D & n::      MouseNav_WarpExternalCenter()  ; 外付けモニター 1 ↔ 2 の中央へ（外付けが 1 台以下なら全モニターの中央を巡回）し、カーソル下をアクティブに
-vk1D & b::      MouseNav_WarpVertical()  ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
-vk1D & g::      MouseNav_WarpWindow()               ; アクティブウィンドウの中央へ
-vk1D & LShift::      return                              ; 未割り当て
+vk1D & n::      return                              ; 未割り当て
+vk1D & b::      return                              ; 未割り当て
+vk1D & g::      Mouse_FocusUnderCursor()  ; CapsLock
+vk1D & LShift::      MouseNav_WarpVertical()  ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
 vk1D & sc070::      return                              ; 未割り当て
 vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は Lib\archive\mouse_nav_timer.ahk にある）
 vk1D & 8::      return                              ; 未割り当て
 vk1D & 9::      return                              ; 未割り当て
 vk1D & 0::      return                              ; 未割り当て
 vk1D & [::      return                              ; 未割り当て
-vk1D & ]::      SendInput("{#}")
+vk1D & ]::      return                              ; 未割り当て
 vk1D & RButton::    SendInput("^{LButton}")
 vk1D & WheelUp::    Text_WheelCursor("Left")
 vk1D & WheelDown::  Text_WheelCursor("Right")
@@ -148,6 +148,7 @@ vk1D & h::      Text_BulletPoint()                  ; 箇条書きの「- 」
 vk1D & sc07D::  return
 vk1D & sc00D::  return
 vk1D & sc058::  LastInput_RecallChar()  ; 直前の 1 文字（記号など）をもう一度入力
+vk1D & sc057::  MouseNav_WarpWindow()  ; アクティブウィンドウの中央へ
 
 ;------------------------------------------------------------------------------
 ; Space (vk20) ＋ 各種キー
