@@ -64,7 +64,7 @@ z:F10  x:F1  c:F2  v:F3
 - カタカナひらがなキーを押して離すと、前面のアプリ専用の機能を選ぶ入力待ちになる。次の 1 キーはアプリごとに別の表（`Leader_KanaOutlook` など）で選ぶ。ほかのアプリでは「機能がない」と出る。
   - Outlook：`s`（Select）メール選択モード
   - PowerPoint・Word・Excel：`e`（Edit）図形編集モード
-  - VS Code：`f`（Fold）折りたたみメニュー
+  - VS Code：`f`（Fold）で折りたたみの入力待ち（ツールチップ）。次の 1 キー：`f` 切り替え（かな → f → f）、`e` すべて展開・`w` すべて折りたたむ、`d` 再帰的に展開・`s` 再帰的に折りたたむ（折りたたむと展開は隣り合うキーに対で置く。VS Code の Ctrl+K の 2 段階ショートカットを送る）
   - Obsidian：モードに入り、Caps でリンク選択（下。Caps → Caps の Vimium C 風ヒントと同じ「Caps でヒント」）
 - Obsidian のモード（`Lib/obsidian_mode.ahk`）：Caps を押すと、リンク選択のプラグインのホットキー（`OBSIDIAN_LINK_HOTKEY`、既定 Ctrl+J）を送る。Esc / Space+Caps / かなでやめる。
 - Outlook のメール選択モード（メール一覧にフォーカスがあるとき）：カーソルだけを動かして複数のメールを選び、文面をクリップボードへコピーする。状態（選択中の通数）は画面の左下に出る。
