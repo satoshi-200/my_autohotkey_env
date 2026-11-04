@@ -72,7 +72,8 @@ SET_DEFS := [
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_EDIT_ROTATE", "図形編集モードの回転の刻み [度]", "int", 1, 180),
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_EDIT_UNDO_MAX", "図形編集モードで元に戻せる操作の数", "int", 1, 2000),
     Set_Def("Office", "Lib\office_common.ahk", "OFFICE_EDIT_TIP", "案内の出し方", "choice", SET_TIP_OPTS),
-    Set_Def("PowerPoint", "Lib\powerpoint_pack.ahk", "PPT_SHOW_LEGACY", "従来機能（整列・等間隔など）をクイックメニューに出す", "bool")]
+    Set_Def("PowerPoint", "Lib\powerpoint_pack.ahk", "PPT_SHOW_LEGACY", "従来機能（整列・等間隔など）をクイックメニューに出す", "bool"),
+    Set_Def("AutoHotkey", "Lib\window_ops.ahk", "BACKUP_KEEP", "Box に残すバックアップの数（超えたら古いものから消す。0 で消さない）", "int", 0, 1000)]
 
 Set_Root() => RegExReplace(A_LineFile, "\\Lib\\[^\\]+$")
 

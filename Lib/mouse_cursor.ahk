@@ -355,6 +355,41 @@ Mouse_CancelDrag() {
     UI_TipFlash("Canceled", 2000)
 }
 
+; key（物理キー）を押している間だけ左ボタンを押す（ドラッグ＆ドロップ用）。ctrl で Ctrl も押す。ドラッグ中なら解除だけする
+Mouse_holdKey := ""
+Mouse_holdDown := false
+Mouse_holdCtrl := false
+
+Mouse_HoldLeft(key, ctrl := false) {
+    global Mouse_holdKey, Mouse_holdDown, Mouse_holdCtrl
+    if (Mouse_holdKey != "")                            ; キーの連打（リピート）は無視
+        return
+    Mouse_holdKey := key
+    Mouse_holdCtrl := ctrl
+    Mouse_holdDown := !Mouse_dragging
+    if Mouse_dragging {
+        Mouse_ToggleDrag()
+    } else {
+        if ctrl
+            SendInput("{Ctrl down}")
+        Click("Down")
+    }
+    SetTimer(Mouse_HoldCheck, 10)
+}
+
+Mouse_HoldCheck() {
+    global Mouse_holdKey, Mouse_holdDown, Mouse_holdCtrl
+    if GetKeyState(Mouse_holdKey, "P")
+        return
+    SetTimer(Mouse_HoldCheck, 0)
+    if Mouse_holdDown {
+        Click("Up")
+        if Mouse_holdCtrl
+            SendInput("{Ctrl up}")
+    }
+    Mouse_holdKey := ""
+}
+
 #HotIf Mouse_IsDragging() && !IH_waiting
 Esc:: Mouse_CancelDrag()
 vk20 & sc03A:: Mouse_CancelDrag()                   ; Space+Caps

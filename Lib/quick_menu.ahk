@@ -94,7 +94,8 @@ class QuickPalette {
         {key: "S", name: "システム"},
         {key: "C", name: "画面キャプチャ"},
         {key: "M", name: "マルチクリップボード"},
-        {key: "A", name: "アプリ・フォルダ"},
+        {key: "F", name: "フォルダ・アプリ"},
+        {key: "A", name: "AutoHotkey"},
         {key: "V", name: "VS Code の折りたたみ"},
         {key: "O", name: "Office"}]
 
@@ -185,8 +186,6 @@ class QuickPalette {
         this.Add("S", "T", "taskmgr",      "タスクマネージャー",            (*) => Send("^+{Esc}"), "task")
         this.Add("S", "L", "lock",         "PC をロック",                   (*) => DllCall("LockWorkStation"), "")
         this.Add("S", "O", "monitoroff",   "画面を消す",                    (*) => QM_DisplayOff(), "display off")
-        this.Add("S", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
-        this.Add("S", "K", "keymap",       "キー割り当て・設定（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate settei config")
 
         ;--- 画面キャプチャ（Lib\screen_capture.ahk。使わない撮り方は Lib\archive\capture_extras.ahk に移した）----------------
         this.Add("C", "R", "cap-region",  "範囲を指定（ドラッグ）",          (*) => Cap_Region(), "capture screenshot snip hanni")
@@ -203,13 +202,19 @@ class QuickPalette {
         this.Add("M", "C", "clip-content", "箱の中身を見る",              (*) => Clip_Show(), "clipboard box content list")
         this.Add("M", "D", "clip-clear",   "箱を空にする",                  (*) => Clip_Clear(), "clipboard box clear delete")
 
-        ;--- アプリ・フォルダ ---------------------------------------------------
-        this.Add("A", "D", "downloads",    "ダウンロードフォルダ",          (*) => Run("shell:Downloads"), "folder")
+        ;--- フォルダ・アプリ ---------------------------------------------------
+        this.Add("F", "D", "downloads",    "ダウンロードフォルダ",          (*) => Run("shell:Downloads"), "folder")
+        this.Add("F", "N", "notepad",      "メモ帳",                        (*) => Run("notepad.exe"), "memo")
+        this.Add("F", "K", "calc",         "電卓",                          (*) => Run("calc.exe"), "dentaku")
+        this.Add("F", "E", "winsettings",  "Windows の設定",                (*) => Run("ms-settings:"), "settei")
+
+        ;--- AutoHotkey（このスクリプト）-----------------------------------------
+        this.Add("A", "R", "reload",       "スクリプトを再読み込み",        (*) => Reload(), "ahk")
+        this.Add("A", "K", "keymap",       "キー割り当て・設定（JIS 配列）",   (*) => Keymap_Show(), "keyboard layout kiihaiti wariate settei config")
         this.Add("A", "S", "scriptdir",    "スクリプトのフォルダ",          (*) => Run(A_ScriptDir), "folder ahk")
         this.Add("A", "C", "vscode",       "スクリプトを VS Code で開く",   (*) => QM_OpenScriptInCode(), "code ahk")
-        this.Add("A", "N", "notepad",      "メモ帳",                        (*) => Run("notepad.exe"), "memo")
-        this.Add("A", "K", "calc",         "電卓",                          (*) => Run("calc.exe"), "dentaku")
-        this.Add("A", "E", "winsettings",  "Windows の設定",                (*) => Run("ms-settings:"), "settei")
+        this.Add("A", "B", "backup",       "スクリプトを Box にバックアップ", (*) => QM_BackupScript(), "ahk backup box hozon")
+        this.Add("A", "L", "restore",      "Box の最新バックアップをデスクトップに展開", (*) => QM_BackupRestore(), "ahk backup box restore local tenkai")
 
         ;--- VS Code（折りたたみ・展開）-----------------------------------------
         this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")

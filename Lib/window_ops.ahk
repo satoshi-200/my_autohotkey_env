@@ -1,12 +1,14 @@
 #Requires AutoHotkey v2.0
 ;==============================================================================
 ; window_ops.ahk
-; ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューの W / D / S / V から呼ぶ）
+; ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューの W / D / S / A / V から呼ぶ）
 ;   quick_menu.ahk から分けた。関数名の QM_ はそのまま
 ;   Window_CloseAndFocus（Space+F → [ / ]）もここにある
 ;==============================================================================
 #Include %A_LineFile%\..\ui_common.ahk
 #Include %A_LineFile%\..\mouse_cursor.ahk
+
+BACKUP_KEEP := 10                                  ; Box に残すバックアップの数（超えたら古いものから消す。0 で消さない）
 
 ;--- ウィンドウ ---------------------------------------------------------------
 QM_ToggleTopmost() {
@@ -55,6 +57,92 @@ QM_OpenScriptInCode() {
     try Run('code "' A_ScriptDir '"', , "Hide")
     catch
         Run(A_ScriptDir)
+}
+
+; 個人のパスを書かないよう、利用者のフォルダと利用者名から組み立てる
+QM_BackupRoot() => EnvGet("USERPROFILE") "\Box\" A_UserName "\20_開発・効率化\autohotkey\backup"
+QM_BackupLocalDir() => EnvGet("USERPROFILE") "\Desktop\my_autohotkey_env-main"
+
+; Box 同期フォルダへ日時付きでフォルダごとコピーする
+QM_BackupScript() {
+    root := QM_BackupRoot()
+    if !DirExist(root) {
+        MsgBox("バックアップ先が見つかりません。`n" root, "バックアップ", "Icon!")
+        return
+    }
+    dest := root "\autohotkey_" FormatTime(, "yyyyMMdd_HHmmss")
+    try DirCopy(A_ScriptDir, dest)
+    catch as e {
+        MsgBox("コピーに失敗しました。`n" e.Message, "バックアップ", "Icon!")
+        return
+    }
+    n := QM_BackupPrune(root)
+    UI_Tip("バックアップしました`n" dest (n ? "`n古いもの " n " 件を削除" : ""), 3000)
+}
+
+; 日時付きのバックアップのフォルダ名を古い順に返す
+QM_BackupList(root) {
+    names := ""
+    loop files root "\autohotkey_*", "D"
+        if RegExMatch(A_LoopFileName, "^autohotkey_\d{8}_\d{6}$")
+            names .= (names = "" ? "" : "`n") A_LoopFileName
+    return (names = "") ? [] : StrSplit(Sort(names), "`n")
+}
+
+; 日時付きのバックアップが BACKUP_KEEP を超えたら、古い順に消す（消した数を返す）
+QM_BackupPrune(root) {
+    if (BACKUP_KEEP <= 0)
+        return 0
+    list := QM_BackupList(root)
+    n := 0
+    loop list.Length - BACKUP_KEEP {
+        try {
+            DirDelete(root "\" list[A_Index], true)
+            n++
+        }
+    }
+    return n
+}
+
+; 最新のバックアップをデスクトップへ上書きで展開する。今の中身は先頭に「_old_」を付けたフォルダに 1 世代だけ避難する
+QM_BackupRestore() {
+    root := QM_BackupRoot()
+    list := DirExist(root) ? QM_BackupList(root) : []
+    if !list.Length {
+        MsgBox("バックアップが見つかりません。`n" root, "ローカルに展開", "Icon!")
+        return
+    }
+    src := root "\" list[list.Length]
+    dest := QM_BackupLocalDir()
+    SplitPath(dest, &name, &parent)
+    old := parent "\_old_" name
+    if (MsgBox(list[list.Length] " を`n" dest " に上書きで展開します。`n`n今の中身は " old " に避難します（前の避難分は消えます）。"
+        , "ローカルに展開", "OKCancel Icon? Default2") != "OK")
+        return
+    if DirExist(dest) {
+        try {
+            if DirExist(old)
+                DirDelete(old, true)
+            DirCopy(dest, old)
+        } catch as e {
+            MsgBox("避難に失敗したので、展開をやめました。`n" e.Message, "ローカルに展開", "Icon!")
+            return
+        }
+    }
+    failed := 0
+    loop files src "\*", "FR" {
+        to := dest SubStr(A_LoopFileFullPath, StrLen(src) + 1)
+        try {
+            SplitPath(to, , &dir)
+            DirCreate(dir)
+            FileCopy(A_LoopFileFullPath, to, 1)
+        } catch
+            failed++                                           ; 使用中のファイル（読み込み中の DLL など）は飛ばす
+    }
+    if failed
+        MsgBox("展開しましたが、" failed " 個のファイルは使用中などで上書きできませんでした。`n" dest, "ローカルに展開", "Icon!")
+    else
+        UI_Tip("展開しました`n" src "`n→ " dest, 3000)
 }
 
 ;--- VS Code ------------------------------------------------------------------

@@ -8,6 +8,7 @@
 ;==============================================================================
 #Include %A_LineFile%\..\ui_common.ahk
 #Include %A_LineFile%\..\key_mode.ahk
+#Include %A_LineFile%\..\text_input.ahk
 
 OBSIDIAN_LINK_HOTKEY := "^j"                        ; リンク選択のプラグインに割り当てたホットキー
 OBSIDIAN_MODE_IDLE_SEC := 10                        ; この秒数キー入力がなければ終わる
@@ -16,8 +17,10 @@ Obsidian_Mode() {
     st := {}
     IHM_Run(st, {message: _ObsMode_Message, onKey: _ObsMode_OnKey
         , onStart: _ObsMode_Tip, idleSec: OBSIDIAN_MODE_IDLE_SEC, tip: "corner"})
-    if (st.result = "link")
+    if (st.result = "link") {
+        Ime_AlnumCommit()                           ; ひらがなのままだと、ヒントの文字が IME に取られて選べない
         SendInput(OBSIDIAN_LINK_HOTKEY)
+    }
 }
 
 _ObsMode_Message(st) {

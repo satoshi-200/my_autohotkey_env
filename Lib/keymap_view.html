@@ -468,8 +468,8 @@ function showEditor(ly, it, sc, face) {
   input.focus();
 }
 
-// 入力待ちで、特殊キーとして割り当てられるキー（Tab / Space / Caps / 変換 / 無変換 / かな / 左 Shift / 右 Alt）
-var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 1, "02A": 1, "138": 1 };
+// 入力待ちで、特殊キーとして割り当てられるキー（Tab / Space / Caps / 変換 / 無変換 / かな / 左右 Shift / Enter / 右 Alt）
+var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 1, "02A": 1, "136": 1, "01C": 1, "138": 1 };
 
 // 行がまだ無いキーの雛形。{text, cursor}、使えないキーは {err}
 function addTemplate(ly, sc, face) {

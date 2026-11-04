@@ -40,7 +40,7 @@ OnMessage(0x20, _Cap_OnSetCursor)          ; WM_SETCURSOR
 
 #HotIf IsObject(Cap_session)
 LButton::    _Cap_OnDown()
-vk20 & n::   _Cap_OnDown(true)                                  ; Space+N / B：クリックと同じ（hold_keys の MouseClick は自分のホットキーに届かないのでここで受ける）
+vk20 & n::   _Cap_OnDown(true)                                  ; Space+N / B：クリックと同じ（hold_keys の Mouse_HoldLeft は自分のホットキーに届かないのでここで受ける）
 vk20 & b::   _Cap_OnDown(true)
 Enter::      _Cap_OnEnter()
 g::          _Cap_OnEnter()

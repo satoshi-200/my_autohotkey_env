@@ -26,7 +26,7 @@ KM_FUNC_NAMES := Km_Map(
     "MousePlain_ScrollLeft", "スクロール ←", "MousePlain_ScrollRight", "スクロール →",
     "MouseNav_WarpWindow", "ウィンドウの中央へ", "MouseNav_WarpCenter", "モニターの中央へ",
     "MouseNav_WarpExternalCenter", "外付けモニターの中央へ", "MouseNav_WarpVertical", "縦のモニターへ",
-    "MouseClick", "クリック", "Mouse_ToggleDrag", "ドラッグ開始／解除", "Mouse_FocusUnderCursor", "カーソル下をアクティブに",
+    "MouseClick", "クリック", "Mouse_HoldLeft", "クリック（押している間ボタンを押す）", "Mouse_ToggleDrag", "ドラッグ開始／解除", "Mouse_FocusUnderCursor", "カーソル下をアクティブに",
     "Mouse_ContextMenu", "右クリックメニュー", "Text_WheelCursor", "ホイールでカーソル移動",
     "Text_BulletPoint", "箇条書き「- 」", "Text_CapitalizeNext", "次の 1 文字を大文字に", "Text_InsertDate", "日付の入力",
     "AltTab", "次のアプリへ", "ShiftAltTab", "前のアプリへ", "ScreenSaver_Toggle", "スクリーンセーバー回避の切り替え",
@@ -42,7 +42,7 @@ KM_FUNC_NAMES := Km_Map(
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード", "ShiftHold_Start", "Shift 長押しモード",
     "Ime_AlnumCommit", "IME 半角英数（未確定は確定）", "LastInput_SpaceTap", "空白を入力",
-    "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
+    "AiChat_Cancel", "AI チャットを中止", "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
     "LastInput_Recall", "直前の入力をもう一度入力", "LastInput_RecallChar", "直前の 1 文字をもう一度入力")
 
 ; SendInput のキー名 → 表示名
