@@ -119,6 +119,46 @@ Leader_Caps() {
     Leader_Run("Caps", keys, specials, true)
 }
 
+AiChat_Cancel() {
+    if WinActive("ahk_exe Code.exe")
+        SendInput("!{Backspace}")
+    else if InStr(WinGetTitle("A"), "Microsoft Copilot")
+        AiChat_ClickStop("生成を停止")
+    else
+        SendInput("{Escape}")
+}
+
+; 入力欄から Tab 3 回で停止ボタンに届く。フォーカス先の名前が合ったときだけ Enter を送り、違えば元に戻す
+AiChat_ClickStop(label) {
+    SendInput("{Tab 3}")
+    loop 10 {
+        Sleep(30)
+        if InStr(AiChat_FocusedName(), label) {
+            SendInput("{Enter}")
+            return
+        }
+    }
+    SendInput("+{Tab 3}")
+    UI_TipFlash("停止ボタンが見つかりません")
+}
+
+; UI Automation で、いまフォーカスされている部品の名前（取れなければ ""）。IUIAutomation 8 GetFocusedElement、IUIAutomationElement 23 get_CurrentName
+AiChat_FocusedName() {
+    name := ""
+    try {
+        ComCall(8, UI_Uia(), "ptr*", &el := 0)
+        if el {
+            ComCall(23, el, "ptr*", &bstr := 0)
+            if bstr {
+                name := StrGet(bstr, "UTF-16")
+                DllCall("oleaut32\SysFreeString", "Ptr", bstr)
+            }
+            ObjRelease(el)
+        }
+    }
+    return name
+}
+
 Leader_SpaceF() {
     static keys := Leader_Keys(
         ; --- 数字列 ---
@@ -158,7 +198,7 @@ Leader_SpaceF() {
         "j",  "+{Enter}",
         "k",  "^{Enter}",
         "l",  "!{Enter}",
-        ";",  "",
+        ";",  AiChat_Cancel,                        ; AI チャットの応答・入力を中止（VS Code は Alt+Backspace、Microsoft Copilot は Tab 3 回 + Enter、他は Esc）
         ":",  "",
         "]",  Window_CloseAndFocus,                 ; ウィンドウを閉じてカーソル下にフォーカス
         ; --- 下段 ---
@@ -173,6 +213,8 @@ Leader_SpaceF() {
         ".",  "",
         "/",  "")
     static specials := Map(
+        0x136, Window_CloseAndFocus,  ; ウィンドウを閉じてカーソル下にフォーカス
+        0x1C, Window_CloseAndFocus,  ; ウィンドウを閉じてカーソル下にフォーカス
         0x3A, Reload,                               ; Caps：スクリプトを再読み込み
         0x79, "")
     ShiftHold_Remember()
@@ -287,8 +329,8 @@ Leader_KanaVSCodeFold() {
 ; 共通処理
 ;------------------------------------------------------------------------------
 LEADER_HELP_DELAY_MS := 1000              ; 入力待ちでこの時間キーを押さないと割り当て一覧を表示する
-LEADER_END_KEYS := "{Tab}{Esc}{RAlt}{LShift}{Space}{sc079}{sc07B}{sc070}"
-LEADER_KEY_NAMES := Map(0x138, "右Alt", 0x2A, "LShift", 0x0F, "Tab", 0x3A, "Caps", 0x39, "Spaceキー"
+LEADER_END_KEYS := "{Tab}{Esc}{RAlt}{LShift}{RShift}{Enter}{Space}{sc079}{sc07B}{sc070}"
+LEADER_KEY_NAMES := Map(0x138, "右Alt", 0x2A, "LShift", 0x136, "RShift", 0x1C, "Enter", 0x0F, "Tab", 0x3A, "Caps", 0x39, "Spaceキー"
     , 0x79, "変換キー", 0x7B, "無変換キー", 0x70, "カタカナひらがなキー")
 
 ; 文字キーの割り当て表を作る（大文字・小文字を区別しない）

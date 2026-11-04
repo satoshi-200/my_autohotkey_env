@@ -111,7 +111,7 @@ vk1D & 9::      return                              ; 未割り当て
 vk1D & 0::      return                              ; 未割り当て
 vk1D & [::      return                              ; 未割り当て
 vk1D & ]::      return                              ; 未割り当て
-vk1D & RButton::    SendInput("^{LButton}")
+vk1D & RButton::    Mouse_HoldLeft("RButton", true)     ; Ctrl + クリック（押している間。ドラッグ可）
 vk1D & WheelUp::    Text_WheelCursor("Left")
 vk1D & WheelDown::  Text_WheelCursor("Right")
 
@@ -184,9 +184,9 @@ vk20 & Left::      return                              ; 未割り当て
 ; --- マウス・スクロール ---
 vk20 & i::      MousePlain_ScrollUp()
 vk20 & o::      MousePlain_ScrollDown()
-vk20 & n::      MouseClick()
-vk20 & b::      MouseClick()
-vk20 & RButton::    MouseClick()
+vk20 & n::      Mouse_HoldLeft("n")                 ; 押している間、左ボタンを押す（ドラッグ可）
+vk20 & b::      Mouse_HoldLeft("b")  ; 押している間、左ボタンを押す（ドラッグ可）
+vk20 & RButton::    Mouse_HoldLeft("RButton")
 vk20 & LButton::    SendInput("{WheelDown}")
 vk20 & WheelUp::    Text_WheelCursor("Up")
 vk20 & WheelDown::  Text_WheelCursor("Down")
@@ -206,7 +206,7 @@ vk20 & w::      SendInput("+{F6}")
 vk20 & LShift:: return                              ; 左 Shift（未割り当て）
 vk20 & RShift::      return                              ; 未割り当て
 vk20 & RControl::      return                              ; 未割り当て
-vk20 & m::      SendInput("^{LButton}")             ; Ctrl + クリック
+vk20 & m::      Mouse_HoldLeft("m", true)           ; Ctrl + クリック（押している間。ドラッグ可）
 vk20 & ,::      MouseClick("Left", , , 2)           ; ダブルクリック
 vk20 & .::      MouseClick("Right")                 ; 右クリック
 vk20 & /::      return                              ; 未割り当て
