@@ -100,8 +100,8 @@ vk1D & w::      MousePlain_ScrollUp()
 vk1D & e::      MousePlain_ScrollDown()
 vk1D & q::      MousePlain_ScrollLeft()
 vk1D & r::      MousePlain_ScrollRight()
-vk1D & n::      return                              ; 未割り当て
-vk1D & b::      return                              ; 未割り当て
+vk1D & n::      SendInput("^{z}")  ; 元に戻す
+vk1D & b::      SendInput("^{y}")  ; Tab -> やり直し
 vk1D & g::      Mouse_FocusUnderCursor()  ; CapsLock
 vk1D & LShift::      MouseNav_WarpVertical()  ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
 vk1D & sc070::      return                              ; 未割り当て
@@ -227,7 +227,7 @@ vk20 & 4::      SendInput("^+{PgDn}")
 ;   Space は元の空白が入らないので、自分で送る。1 行で書く（キー割り当て一覧が読めるように）
 ;------------------------------------------------------------------------------
 *vk20:: LastInput_SpaceTap()                        ; 空白を入力（Shift / Ctrl などを押していればそのまま付ける：Shift+Space・Ctrl+Space）
-vk1C:: ShiftHold_Stop(), Ime_Hiragana()             ; IME をひらがなに（Shift 長押しモードも終える）
-vk1D:: ShiftHold_Stop(), Ime_AlnumCommit()          ; IME を半角英数に（未確定の文字は確定。Shift 長押しモードも終える）
+vk1C:: LastInput_ThumbLong("vk1C") || (ShiftHold_Stop(), Ime_Hiragana())     ; IME をひらがなに（Shift 長押しモードも終える。長押しして離したときは何もしない）
+vk1D:: LastInput_ThumbLong("vk1D") || (ShiftHold_Stop(), Ime_AlnumCommit())  ; IME を半角英数に（未確定の文字は確定。Shift 長押しモードも終える。長押しして離したときは何もしない）
 
 #HotIf

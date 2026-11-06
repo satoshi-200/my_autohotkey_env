@@ -4,6 +4,7 @@
 ; キーボードでのマウス操作
 ;   MousePlain … カーソル移動（1 回押すごとに固定量、押しっぱなしで加速。移動量はモニターの画素数に連動）と
 ;                スクロール（1 回押すごとに 1 ノッチ）。キーリピート駆動
+;   MouseBoost … 無変換を押している間、赤ポチ・マウスの移動量を増やす
 ;   MouseNav   … ワープ（アクティブウィンドウ・モニターの中央、縦に並んだモニター、外付けモニターの中央）
 ;   Mouse_*    … 右クリックメニュー、カーソル下をアクティブに、ドラッグ開始／解除
 ; 使っていなかったタイマー駆動のなめらかな移動・スクロール、2 分割ジャンプ、四隅へのワープ、微小移動は
@@ -279,8 +280,58 @@ class MousePlain {
 }
 
 ;==============================================================================
+; MouseBoost : 無変換を押している間、赤ポチ・マウスを速くする
+;------------------------------------------------------------------------------
+; 押している間だけ Raw Input で装置の移動量（カウント）を受け取り、その (MOUSEBOOST_FACTOR - 1) 倍を相対移動で足す。
+; 元の移動はそのまま通す。座標を扱わないのでモニターの拡大率に左右されず、フックも使わないので本体が忙しくてもマウスは止まらない。
+; 足す移動も Windows の速度・加速を通るので、倍率は目安。自分が送った移動（hDevice = 0）は数えない。
+;==============================================================================
+class MouseBoost {
+    static _on := false, _rx := 0.0, _ry := 0.0
+
+    static Start() {
+        OnMessage(0x00FF, (w, l, *) => this._OnInput(l))   ; WM_INPUT
+        SetTimer(() => this._Check(), 30)
+    }
+
+    static _Check() {
+        want := MOUSEBOOST_FACTOR > 1 && GetKeyState("vk1D", "P")
+        if (want != this._on)
+            this._Register(want)
+    }
+
+    ; RAWINPUTDEVICE { usUsagePage, usUsage, dwFlags, hwndTarget }。RIDEV_INPUTSINK = 0x100（背面でも受け取る）、RIDEV_REMOVE = 1
+    static _Register(on) {
+        this._on := on, this._rx := 0.0, this._ry := 0.0
+        rid := Buffer(8 + A_PtrSize, 0)
+        NumPut("UShort", 1, "UShort", 2, "UInt", on ? 0x100 : 0x1, "Ptr", on ? A_ScriptHwnd : 0, rid)
+        DllCall("RegisterRawInputDevices", "Ptr", rid, "UInt", 1, "UInt", rid.Size)
+    }
+
+    static _OnInput(hRaw) {
+        static buf := Buffer(48, 0), hs := 8 + 2 * A_PtrSize   ; RAWINPUTHEADER の大きさ。RAWMOUSE はその後ろ
+        if !this._on
+            return
+        size := buf.Size
+        if (DllCall("GetRawInputData", "Ptr", hRaw, "UInt", 0x10000003, "Ptr", buf, "UInt*", &size, "UInt", hs) = -1)   ; RID_INPUT
+            return
+        if (NumGet(buf, 0, "UInt") != 0 || !NumGet(buf, 8, "Ptr") || (NumGet(buf, hs, "UShort") & 1))   ; マウス以外・自分が送った移動・絶対座標
+            return
+        k := MOUSEBOOST_FACTOR - 1
+        this._rx += NumGet(buf, hs + 12, "Int") * k, this._ry += NumGet(buf, hs + 16, "Int") * k
+        ex := Integer(this._rx), ey := Integer(this._ry)
+        this._rx -= ex, this._ry -= ey
+        if (ex || ey)
+            DllCall("mouse_event", "UInt", 0x0001, "Int", ex, "Int", ey, "UInt", 0, "UPtr", 0)   ; MOUSEEVENTF_MOVE（相対）
+    }
+}
+
+;==============================================================================
 ; 呼び出し用ラッパー（引数なしで呼べる）
 ;==============================================================================
+MOUSEBOOST_FACTOR := 3.0                                ; 無変換を押している間の赤ポチ・マウスの速さの倍率（目安。1 以下で無効）
+MouseBoost.Start()
+
 ;--- MouseNav（ワープ）--------------------------------------------------------
 MouseNav_WarpWindow()        => MouseNav.WarpToActiveWindow()
 MouseNav_WarpCenter()        => MouseNav.WarpToMonitorCenter()

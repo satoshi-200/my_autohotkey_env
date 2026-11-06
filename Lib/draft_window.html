@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>下書き</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #f3f4f6; font-family: "Yu Gothic UI", "Meiryo", sans-serif; overflow: hidden; }
+  #wrap { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 10px; gap: 8px; }
+  #ta { flex: 1; resize: none; box-sizing: border-box; width: 100%; font: inherit; font-size: 16px; line-height: 1.55; padding: 10px 12px;
+        border: 1px solid #c8ccd2; border-radius: 8px; background: #fff; color: #1f2328; outline: none; }
+  #ta:focus { border-color: #1a56db; box-shadow: 0 0 0 2px #dbe7ff; }
+  #bar { display: flex; align-items: center; gap: 8px; }
+  #cnt { flex: 1; font-size: 13px; color: #667085; }
+  button { font: inherit; font-size: 13px; padding: 6px 14px; border: 1px solid #c8ccd2; border-radius: 6px; background: #fff; cursor: pointer; white-space: nowrap; }
+  button:hover { background: #f0f4ff; }
+  button.main { background: #1a56db; border-color: #1a56db; color: #fff; }
+  button.main:hover { background: #1647b8; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <textarea id="ta" spellcheck="false" autocomplete="off" autofocus></textarea>
+  <div id="bar">
+    <span id="cnt"></span>
+    <button id="bMain" class="main">貼り付け　Ctrl+Enter</button>
+    <button id="bAlt">コピー　Ctrl+Shift+Enter</button>
+    <button id="bClear">クリア</button>
+    <button id="bClose">閉じる　Esc</button>
+  </div>
+</div>
+<script>
+// 下書きウィンドウの画面（Lib/draft_window.ahk が WebView2 で開く）。履歴（Ctrl+P / Ctrl+N）と確定のキーはここで受ける
+// AHK → ページ：DR_open({text, main, hist})、DR_close()。ページ → AHK：「種類 US 引数…」の文字列（US = 区切り文字 0x1F）
+var SEP = String.fromCharCode(31);
+var host = (window.chrome && window.chrome.webview) ? window.chrome.webview : null;
+var ta = document.getElementById("ta"), cnt = document.getElementById("cnt");
+var bMain = document.getElementById("bMain"), bAlt = document.getElementById("bAlt");
+var st = { main: "paste", hist: [], idx: 0, work: "" };
+var composing = false, saveTimer = 0;
+
+function send() { if (host) host.postMessage(Array.prototype.slice.call(arguments).join(SEP)); }
+function other(a) { return a === "copy" ? "paste" : "copy"; }
+function label(a) { return a === "copy" ? "コピー" : "貼り付け"; }
+function current() { return st.idx === 0 ? ta.value : st.work; }
+function update() { cnt.textContent = Array.from(ta.value.replace(/\r\n/g, "\n")).length + " 文字"; }
+function caretEnd() { ta.setSelectionRange(ta.value.length, ta.value.length); }
+
+// 変換中の文字（下線つき）は、入力欄を一度外してから戻すと確定される
+function withCommit(fn) {
+  if (composing) { ta.blur(); setTimeout(function () { ta.focus(); fn(); }, 40); }
+  else fn();
+}
+
+function confirmAs(action) {
+  withCommit(function () {
+    if (ta.value.trim() === "") { send("tip", "下書きが空です"); return; }
+    var text = ta.value;
+    clearTimeout(saveTimer);
+    st.hist = [text].concat(st.hist.filter(function (s) { return s !== text; }));
+    ta.value = ""; st.idx = 0; st.work = ""; update();
+    send("confirm", action, text);
+  });
+}
+
+function histStep(dir) {
+  if (!st.hist.length) { send("tip", "履歴はまだありません"); return; }
+  if (st.idx === 0) st.work = ta.value;
+  var n = st.idx + dir;
+  if (n < 0) return;
+  if (n > st.hist.length) { send("tip", "これより古い履歴はありません"); return; }
+  st.idx = n;
+  ta.value = n === 0 ? st.work : st.hist[n - 1];
+  update();
+  caretEnd();
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function () { send("save", current()); }, 600);
+}
+
+window.DR_open = function (o) {
+  st.main = o.main; st.hist = o.hist; st.idx = 0; st.work = "";
+  ta.value = o.text;
+  bMain.textContent = label(o.main) + "　Ctrl+Enter";
+  bAlt.textContent = label(other(o.main)) + "　Ctrl+Shift+Enter";
+  update();
+  ta.focus();
+  caretEnd();
+};
+window.DR_close = function () { withCommit(function () { clearTimeout(saveTimer); send("close", current()); }); };
+
+ta.addEventListener("input", function () { st.idx = 0; update(); scheduleSave(); });
+ta.addEventListener("compositionstart", function () { composing = true; });
+ta.addEventListener("compositionend", function () { composing = false; });
+document.addEventListener("keydown", function (e) {
+  var enter = e.code === "Enter" || e.code === "NumpadEnter";
+  if (e.ctrlKey && !e.altKey && enter) { e.preventDefault(); confirmAs(e.shiftKey ? other(st.main) : st.main); return; }
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && !composing) {
+    if (e.code === "ArrowUp" || e.code === "KeyP") { e.preventDefault(); histStep(1); return; }
+    if (e.code === "ArrowDown" || e.code === "KeyN") { e.preventDefault(); histStep(-1); return; }
+  }
+  if (e.key === "Escape" && !composing && !e.isComposing) { e.preventDefault(); clearTimeout(saveTimer); send("close", current()); }
+}, true);
+bMain.onclick = function () { confirmAs(st.main); };
+bAlt.onclick = function () { confirmAs(other(st.main)); };
+document.getElementById("bClear").onclick = function () { ta.value = ""; st.idx = 0; update(); ta.focus(); scheduleSave(); };
+document.getElementById("bClose").onclick = function () { clearTimeout(saveTimer); send("close", current()); };
+update();
+send("ready");
+</script>
+</body>
+</html>

@@ -9,6 +9,9 @@
   #tabs button { font: inherit; font-size: 13px; padding: 6px 12px; margin: 0 4px 4px 0; border: 1px solid #b8bcc4;
                  border-radius: 6px; background: #fff; cursor: pointer; }
   #tabs button.active { background: #1a56db; border-color: #1a56db; color: #fff; }
+  #tabs .trow { display: flex; flex-wrap: wrap; align-items: center; }
+  #tabs .tgroup { display: inline-flex; align-items: center; flex-wrap: wrap; margin: 0 10px 6px 0; padding: 4px 2px 0 10px; border: 1px solid #e2e5ea; border-radius: 10px; background: #fafbfc; }
+  #tabs .gl { font-size: 11px; color: #98a2b3; margin: 0 8px 4px 0; white-space: nowrap; }
   #note { margin: 8px 0 0; font-size: 13px; color: #444; min-height: 1.4em; }
   #kb { position: relative; margin: 14px 0 6px; }
   .key { position: absolute; box-sizing: border-box; border: 1px solid #b8bcc4; border-radius: 6px; background: #fff;
@@ -82,7 +85,7 @@
 <div id="kb"></div>
 <div id="editor"></div>
 <div id="extra"></div>
-<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜7 でレイヤー・設定を切り替えられます。Ctrl+数字・Ctrl+Tab（Shift で逆順）でも切り替えられます（入力欄の中では Ctrl 付きだけ）。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。「割り当てをコピー」で選んだキーの内容を覇え、別のキーを選んで「コピーした割り当てを貼り付け」で当てはめられます（確定するまでは保存しません）。割り当てのないキーも、クリックして行を足せます。「設定」タブでは、設定値をクリックして変更できます。</span></div>
+<div id="foot">黄色：起点のキー　青：割り当てあり　キーにマウスを載せると、元の記述を表示します。数字キー 1〜9・0 でレイヤーを切り替えられます。Ctrl+Tab（Shift で逆順）・Ctrl+PageDown / PageUp で、クイックメニュー・設定も含めて切り替えられます（入力欄の中では Ctrl 付きだけ効きます）。F5：最新の状態に更新。<span id="foot-edit">キーをクリックすると、その行を編集できます。「割り当てをコピー」で選んだキーの内容を控え、別のキーを選んで「コピーした割り当てを貼り付け」で当てはめられます（確定するまでは保存しません）。割り当てのないキーも、クリックして行を足せます。「設定」タブでは、設定値をクリックして変更できます。「クイックメニュー」タブでは、項目をクリックしてキーを変更できます。</span></div>
 <script>
 var DATA = __DATA__;
 
@@ -163,7 +166,7 @@ function render(i) {
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"), function (b, j) {
     b.className = (j === i) ? "active" : "";
   });
-  if (isSet) { renderSettings(); return; }
+  if (isSet) { if (i === DATA.layers.length) renderQm(); else renderSettings(); return; }
   var ly = DATA.layers[i];
   document.getElementById("note").textContent = ly.note;
   kb.innerHTML = "";
@@ -801,6 +804,246 @@ function showSettingEditor(s) {
   ed.scrollIntoView({ block: "nearest" });
 }
 
+// 「クイックメニュー」タブ：項目をカテゴリごとのカードにして、行をクリックするとキーを編集する。検索欄で絞り込める
+var qmQuery = "";
+
+// 同じカテゴリの中で、同時にメニューに出る項目か（対象アプリが重なるか）
+function qmOverlap(a, b) {
+  return a === b || !a || !b || a === "office" || b === "office";
+}
+
+function qmOthers(it) {
+  return DATA.qm.items.filter(function (o) { return o !== it && o.c === it.c && qmOverlap(o.a, it.a); });
+}
+
+function qmUsed(it) {
+  var used = {};
+  qmOthers(it).forEach(function (o) {
+    o.k.split(" ").forEach(function (t) { used[t.toUpperCase()] = true; });
+  });
+  return used;
+}
+
+function qmClash(it) {
+  var used = qmUsed(it);
+  return it.k.split(" ").some(function (t) { return used[t.toUpperCase()]; });
+}
+
+function qmFree(it) {
+  var used = qmUsed(it);
+  return "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/;".split("").filter(function (c) { return !used[c]; }).join(" ");
+}
+
+function qmCatName(k) {
+  var n = k;
+  DATA.qm.cats.forEach(function (c) { if (c.k === k) n = c.n; });
+  return n;
+}
+
+function renderQm() {
+  document.getElementById("note").textContent = "クイックメニュー（Caps → j）の項目です。キーは、カテゴリを選んだあとに押す文字です。実際のメニューは使用回数の多い順に並びますが、ここでは登録順に出しています。項目の処理は Lib/quick_menu.ahk にあります。";
+  var ex = document.getElementById("extra");
+  ex.innerHTML = "";
+  var bar = document.createElement("div");
+  bar.className = "bar";
+  var q = document.createElement("input");
+  q.type = "search";
+  q.placeholder = "項目を検索（名前・キー・タグ）";
+  q.value = qmQuery;
+  var cnt = document.createElement("span");
+  cnt.className = "cnt";
+  bar.appendChild(q);
+  bar.appendChild(cnt);
+  ex.appendChild(bar);
+
+  var cards = [], sel = null;
+  // 1 階層目（Caps → j の直後に押すカテゴリのキー）。表示だけ（ShowMenu("D") のようにコードから直接指定している箇所があり、キーを変えると壊れるため）
+  var top = document.createElement("div");
+  top.className = "card";
+  var th = document.createElement("h2");
+  th.textContent = "1 階層目（Caps → j の直後に押すキー）";
+  var tc = document.createElement("span");
+  th.appendChild(tc);
+  top.appendChild(th);
+  var tt = document.createElement("table");
+  var trs0 = [];
+  DATA.qm.cats.map(function (c) {
+    var its = DATA.qm.items.filter(function (it) { return it.c === c.k; });
+    var used = its.reduce(function (s, it) { return s + it.u; }, 0);
+    return { k: c.k, n: c.n + "  ▸", d: its.length + " 件　使用 " + used + " 回" };
+  }).concat([{ k: "/", n: "コマンドパレットを開く", d: "Caps → u と同じ" }]).forEach(function (r) {
+    var tr = document.createElement("tr");
+    tr.className = "crow";
+    [["lbl", r.n], ["val", r.k], ["unit", ""], ["desc", r.d], ["nm", ""]].forEach(function (c) {
+      var td = document.createElement("td");
+      td.className = c[0];
+      if (c[0] === "val") {
+        var p = document.createElement("span");
+        p.className = "pill ch";
+        p.textContent = c[1];
+        td.appendChild(p);
+      } else td.textContent = c[1];
+      tr.appendChild(td);
+    });
+    tr.hay = (r.n + " " + r.k + " 1階層目 カテゴリ").toLowerCase();
+    tt.appendChild(tr);
+    trs0.push(tr);
+  });
+  top.appendChild(tt);
+  ex.appendChild(top);
+  cards.push({ el: top, rows: trs0, count: tc, top: true });
+  DATA.qm.cats.forEach(function (c) {
+    var its = DATA.qm.items.filter(function (it) { return it.c === c.k; });
+    if (!its.length) return;
+    var card = document.createElement("div");
+    card.className = "card";
+    var h = document.createElement("h2");
+    h.textContent = c.k + "　" + c.n;
+    var gc = document.createElement("span");
+    h.appendChild(gc);
+    card.appendChild(h);
+    var t = document.createElement("table");
+    var trs = [];
+    its.forEach(function (it) {
+      var tr = document.createElement("tr");
+      tr.className = "srow" + (it.t === selSc ? " sel" : "");
+      tr.dataset.name = it.t;
+      if (it.t === selSc) sel = it;
+      var nm = document.createElement("td");
+      nm.className = "lbl";
+      nm.textContent = it.n;
+      tr.appendChild(nm);
+      var kv = document.createElement("td");
+      kv.className = "val";
+      var pill = document.createElement("span");
+      pill.className = "pill ch";
+      pill.textContent = it.k;
+      if (qmClash(it)) {
+        pill.style.cssText = "background:#ffe3e3;color:#c92a2a;";
+        kv.title = "同じカテゴリの別の項目と、キーが重なっています（押すたびに次の候補を選びます）";
+      }
+      kv.appendChild(pill);
+      tr.appendChild(kv);
+      var un = document.createElement("td");
+      un.className = "unit";
+      un.textContent = it.a;
+      tr.appendChild(un);
+      var ds = document.createElement("td");
+      ds.className = "desc";
+      ds.textContent = "使用 " + it.u + " 回" + (it.w ? "　（" + it.w + " が true のときだけ出る）" : "");
+      tr.appendChild(ds);
+      var tg = document.createElement("td");
+      tg.className = "nm";
+      tg.textContent = it.t;
+      tr.appendChild(tg);
+      tr.hay = (it.n + " " + it.k + " " + it.t + " " + it.a + " " + c.k + " " + c.n).toLowerCase();
+      if (host) tr.onclick = function () { selectQm(it); };
+      t.appendChild(tr);
+      trs.push(tr);
+    });
+    card.appendChild(t);
+    ex.appendChild(card);
+    cards.push({ el: card, rows: trs, count: gc });
+  });
+
+  function applyFilter() {
+    var words = qmQuery.toLowerCase().split(/\s+/).filter(Boolean), shown = 0;
+    cards.forEach(function (c) {
+      var n = 0;
+      c.rows.forEach(function (tr) {
+        var hit = words.every(function (w) { return tr.hay.indexOf(w) >= 0; });
+        tr.style.display = hit ? "" : "none";
+        if (hit) n++;
+      });
+      c.el.style.display = n ? "" : "none";
+      c.count.textContent = n + " 件";
+      if (!c.top) shown += n;
+    });
+    cnt.textContent = shown + " / " + DATA.qm.items.length + " 件";
+  }
+  q.oninput = function () { qmQuery = q.value; applyFilter(); };
+  applyFilter();
+  if (sel) showQmEditor(sel);
+  else closeEditor();
+}
+
+function selectQm(it) {
+  selSc = it.t;
+  setHash();
+  Array.prototype.forEach.call(document.querySelectorAll("#extra tr.srow"), function (tr) {
+    tr.classList.toggle("sel", tr.dataset.name === it.t);
+  });
+  showQmEditor(it);
+}
+
+// クイックメニューの項目のキーの編集欄（確定するとホストが書式を確かめて、Add の行のキーだけを書き換える）
+function showQmEditor(it) {
+  var ed = document.getElementById("editor");
+  ed.innerHTML = "";
+  if (!host) return;
+  ed.style.display = "block";
+  var h = document.createElement("h2");
+  h.textContent = qmCatName(it.c) + "　" + it.n + "　（" + it.f.replace(/\\/g, "/") + " の " + it.l + " 行目　" + it.t + "）";
+  ed.appendChild(h);
+
+  var wrap = document.createElement("div");
+  var ctl = document.createElement("input");
+  ctl.type = "text";
+  ctl.className = "code";
+  ctl.style.width = "240px";
+  ctl.spellcheck = false;
+  ctl.value = it.k;
+  wrap.appendChild(ctl);
+  ed.appendChild(wrap);
+
+  var err = document.createElement("div");
+  err.className = "err";
+  var btns = document.createElement("div");
+  btns.className = "btns";
+  function button(label, cls, fn) {
+    var b = document.createElement("button");
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.onclick = fn;
+    btns.appendChild(b);
+    return b;
+  }
+  function save(v) {
+    err.textContent = "保存して構文を確認しています…";
+    window.KM_current = { err: err };
+    host.postMessage(["qmsave", it.f, it.t, it.l, it.r, v].join(SEP));
+  }
+  function close() { selSc = ""; setHash(); render(curLayer); }
+  button("確定", "ok", function () { save(ctl.value); });
+  button("現在の値に戻す", "", function () { ctl.value = it.k; ctl.focus(); });
+  var undo = button("1 つ前に戻す", "", function () { save(it.p); });
+  undo.disabled = !it.hasPrev;
+  button("閉じる", "", close);
+  ed.appendChild(btns);
+
+  var help = document.createElement("div");
+  help.className = "help";
+  help.textContent = "キー：英数字・/ ・; を、空白で区切って複数書けます（例：N F ;）。\nこのカテゴリで空いているキー：" + qmFree(it)
+    + "\nEnter：確定　Esc：閉じる　確定すると構文を確認してからファイルに保存します。反映は、Insert で再読み込みしたあとです。";
+  ed.appendChild(help);
+  if (it.hasPrev) {
+    var prev = document.createElement("div");
+    prev.className = "prev";
+    prev.textContent = "1 つ前のキー：" + it.p;
+    ed.appendChild(prev);
+  }
+  ed.appendChild(err);
+
+  wrap.addEventListener("keydown", function (e) {
+    if (e.isComposing) return;
+    if (e.key === "Enter") { e.preventDefault(); save(ctl.value); }
+    else if (e.key === "Escape") close();
+  });
+  ctl.focus();
+  ctl.select();
+  ed.scrollIntoView({ block: "nearest" });
+}
+
 // ホスト（AHK）からの結果
 window.KM_onResult = function (ok, msg) {
   if (ok) {
@@ -812,40 +1055,61 @@ window.KM_onResult = function (ok, msg) {
 };
 
 var tabs = document.getElementById("tabs");
-var TAB_COUNT = DATA.layers.length + 1;
+var TAB_COUNT = DATA.layers.length + 2;
 function goTab(i) {
   i = (i + TAB_COUNT) % TAB_COUNT;
   selSc = "";
   setHash();
   render(i);
 }
-DATA.layers.forEach(function (ly, i) {
+// タブ：レイヤー（起点の種類ごとにグループ）を 1 段目、クイックメニューと設定を 2 段目に並べる。DOM の並び＝タブの番号（render が順番で色を付ける）
+var GROUP_LABEL = { hold: "押しながら", leader: "入力待ち", hotkey: "単独のキー" };
+function newRow() {
+  var r = document.createElement("div");
+  r.className = "trow";
+  tabs.appendChild(r);
+  return r;
+}
+function newGroup(row, label) {
+  var g = document.createElement("span");
+  g.className = "tgroup";
+  var l = document.createElement("span");
+  l.className = "gl";
+  l.textContent = label;
+  g.appendChild(l);
+  row.appendChild(g);
+  return g;
+}
+function addTab(g, i, text) {
   var b = document.createElement("button");
-  b.textContent = (i + 1) + "  " + ly.name;
-  b.title = "Ctrl+" + (i + 1);
+  var key = i < 10 ? (i + 1) % 10 : "";
+  b.textContent = (key !== "" ? key + "  " : "") + text;
+  b.title = key !== "" ? "Ctrl+" + key : "Ctrl+Tab で切り替え";
   b.onclick = function () { goTab(i); };
-  tabs.appendChild(b);
+  g.appendChild(b);
+}
+var row1 = newRow(), row2 = newRow(), grp = null, grpKind = null;
+DATA.layers.forEach(function (ly, i) {
+  if (ly.kind !== grpKind) { grp = newGroup(row1, GROUP_LABEL[ly.kind] || ly.kind); grpKind = ly.kind; }
+  addTab(grp, i, ly.name);
 });
-var sb = document.createElement("button");
-sb.textContent = TAB_COUNT + "  設定";
-sb.title = "Ctrl+" + TAB_COUNT;
-sb.onclick = function () { goTab(TAB_COUNT - 1); };
-tabs.appendChild(sb);
-var footEl = document.getElementById("foot");
-footEl.innerHTML = footEl.innerHTML.replace(/1.\d+ でレイヤー/, "1\u301c" + TAB_COUNT + " でレイヤー");
-// タブの切り替え：Ctrl+数字・Ctrl+Tab / Ctrl+Shift+Tab・Ctrl+PageDown / PageUp（入力欄の中でも効く）。数字キーだけは、入力欄にいないときだけ
+var tools = newGroup(row2, "メニュー・設定");
+addTab(tools, DATA.layers.length, "クイックメニュー");
+addTab(tools, DATA.layers.length + 1, "設定");
+// タブの切り替え：Ctrl+数字・Ctrl+Tab / Ctrl+Shift+Tab・Ctrl+PageDown / PageUp（入力欄の中でも効く）。数字キーだけは、入力欄にいないときだけ。数字は 1〜9 が 1〜9 番目、0 が 10 番目
 document.addEventListener("keydown", function (e) {
   if (e.isComposing || e.altKey || e.metaKey) return;
   var typing = e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT");
-  var d = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+  var d = /^(?:Digit|Numpad)([0-9])$/.exec(e.code);
+  var n = d ? (+d[1] + 9) % 10 : -1;
   if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); goTab(curLayer + (e.shiftKey ? -1 : 1)); }
   else if (e.ctrlKey && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); goTab(curLayer + (e.key === "PageDown" ? 1 : -1)); }
-  else if (d && !e.shiftKey && +d[1] <= TAB_COUNT && (e.ctrlKey || !typing)) { e.preventDefault(); goTab(+d[1] - 1); }
+  else if (n >= 0 && n < TAB_COUNT && !e.shiftKey && (e.ctrlKey || !typing)) { e.preventDefault(); goTab(n); }
 });
 
 // 再読み込み（保存後・F5）のあとも、同じレイヤーとキーを開く
-var m = location.hash.match(/^#(\d+)(?:,(\w+))?/);
-if (m && +m[1] <= DATA.layers.length) {
+var m = location.hash.match(/^#(\d+)(?:,([\w-]+))?/);
+if (m && +m[1] <= DATA.layers.length + 1) {
   curLayer = +m[1];
   selSc = m[2] || "";
 }

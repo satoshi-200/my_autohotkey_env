@@ -26,4 +26,6 @@ vk1C & i::
 vk1D & i::      return                              ; 未割り当て
 vk1C & +::
 vk1D & +::  AiChat_Cancel()  ; AI チャットの応答・入力を中止（VS Code は Alt+Backspace、Microsoft Copilot は Tab 3 回 + Enter、他は Esc）
+vk1C & h::
+vk1D & h::  SendInput("^+{Enter}")
 #HotIf

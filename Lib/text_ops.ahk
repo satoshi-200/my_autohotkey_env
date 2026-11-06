@@ -99,7 +99,7 @@ QM_PastePlain() {
 QM_ImeOff(hwnd) {
     hIme := DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", hwnd, "Ptr")
     if hIme
-        DllCall("SendMessage", "Ptr", hIme, "UInt", 0x0283, "Ptr", 0x0006, "Ptr", 0)  ; IMC_SETOPENSTATUS = 0
+        QM_ImeQuery(hIme, 0x0006)                                ; IMC_SETOPENSTATUS = 0（応答しない相手は 200ms で打ち切る）
 }
 
 ;--- 文字変換 -----------------------------------------------------------------

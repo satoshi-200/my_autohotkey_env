@@ -28,7 +28,7 @@ KP_HoldRows(src, prefix) {
 }
 
 ; 返す行：{key, action, comment, lineNo, raw}。起点キーの欄（「#HotIf !IH_waiting」で始まる行から次の「#HotIf」まで。複数あってもよい）にある、単独のホットキー「キー::  処理  ; コメント」
-;   key は修飾キーを含むホットキーの名前（例：sc03A、^+!F12）
+;   key は修飾キーを含むホットキーの名前（例：sc03A、^+!sc058）
 KP_HotkeyRows(src) {
     rows := [], inBlock := false
     loop parse src, "`n", "`r" {

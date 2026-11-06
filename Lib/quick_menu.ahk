@@ -83,7 +83,9 @@ class QuickPalette {
     ;--- 設定 -----------------------------------------------------------------
     static MENU_TIMEOUT_MS := 15000  ; 操作がないとき自動で閉じるまでの時間 [ms]（0 で無効）
 
-    ;--- カテゴリ（メニューの表示順）--------------------------------------------
+    static USAGE_FILE := A_ScriptDir "\quick_usage.ini"   ; 項目ごとの使用回数（メニューの表示順に使う）
+
+    ;--- カテゴリ（登録順。メニューでは使用回数の多い順に並べ替える）----------------
     static Cats := [
         {key: "T", name: "テキスト変換"},
         {key: "I", name: "挿入"},
@@ -96,12 +98,14 @@ class QuickPalette {
         {key: "M", name: "マルチクリップボード"},
         {key: "F", name: "フォルダ・アプリ"},
         {key: "A", name: "AutoHotkey"},
-        {key: "V", name: "VS Code の折りたたみ"},
+        {key: "P", name: "AI・プロンプト"},
+        ; {key: "V", name: "VS Code の折りたたみ"},   ; 外してある（アプリ専用の項目を並べないため）
         {key: "O", name: "Office"}]
 
     static Items := []
     static _inited := false
     static _used   := Map()     ; 表示名 → 最後に使った時刻（最近使った順の並べ替え用）
+    static _count  := Map()     ; tag → 使用回数（USAGE_FILE に保存）
     static _view   := []        ; パレットの ListView の行番号 → 項目
     static _target := 0         ; パレット／メニューを開く前にアクティブだったウィンドウ
     static _hostId := ""       ; そのウィンドウが Office のアプリなら "ppt" / "word" / "excel"（項目をアプリで絞る用）
@@ -116,6 +120,7 @@ class QuickPalette {
         if this._inited
             return
         this._inited := true
+        this._LoadCounts()
 
         ;--- テキスト変換（選択中の文字を変換して置き換える）---------------------
         this.Add("T", "U", "upper",        "大文字に",                      (*) => QM_TransformSelection(StrUpper), "oomoji")
@@ -216,12 +221,15 @@ class QuickPalette {
         this.Add("A", "B", "backup",       "スクリプトを Box にバックアップ", (*) => QM_BackupScript(), "ahk backup box hozon")
         this.Add("A", "L", "restore",      "Box の最新バックアップをデスクトップに展開", (*) => QM_BackupRestore(), "ahk backup box restore local tenkai")
 
-        ;--- VS Code（折りたたみ・展開）-----------------------------------------
-        this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")
-        this.Add("V", "Q", "fold-recursive",   "再帰的に折りたたむ",         (*) => QM_VSCodeChord("^[", 100), "vscode tatami")
-        this.Add("V", "R", "unfold-recursive", "再帰的に展開",               (*) => QM_VSCodeChord("^]", 100), "vscode tenkai expand")
-        this.Add("V", "W", "fold-all",         "すべて折りたたむ",           (*) => QM_VSCodeChord("^0"), "vscode tatami")
-        this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
+        ;--- AI・プロンプト（AI チャットへの指示を書く補助。Lib\draft_window.ahk）------------------------------
+        this.Add("P", "D", "ai-draft",    "下書きウィンドウ（Ctrl+Enter で元のウィンドウへ貼り付け）", (*) => Draft_Show(), "ai chat prompt copilot shitagaki kakidashi")
+
+        ;--- VS Code（折りたたみ・展開。メニューから外してある。戻すときは Cats の V も）---
+        ; this.Add("V", "T", "fold-toggle",      "折りたたみ／展開を切り替え", (*) => QM_VSCodeChord("^l"), "vscode tatami tenkai")
+        ; this.Add("V", "Q", "fold-recursive",   "再帰的に折りたたむ",         (*) => QM_VSCodeChord("^[", 100), "vscode tatami")
+        ; this.Add("V", "R", "unfold-recursive", "再帰的に展開",               (*) => QM_VSCodeChord("^]", 100), "vscode tenkai expand")
+        ; this.Add("V", "W", "fold-all",         "すべて折りたたむ",           (*) => QM_VSCodeChord("^0"), "vscode tatami")
+        ; this.Add("V", "E", "unfold-all",       "すべて展開",                 (*) => QM_VSCodeChord("^j"), "vscode tenkai expand")
 
         ;--- Office（Lib\office_common.ahk と powerpoint_pack.ahk。前面のアプリのものだけがメニューに出る）---------
         ; 最後の引数が対象アプリ："office"（Office のどれでも）/ "ppt" / "word" / "excel"。省くとどこでも
@@ -272,6 +280,14 @@ class QuickPalette {
     ; 項目を出すか。対象アプリを指定した項目は、そのアプリが前面だったときだけ
     static _Visible(it) => it.app = "" || it.app = this._hostId || (it.app = "office" && this._hostId != "")
 
+    static _CatCount(catKey) {
+        n := 0
+        for it in this.Items
+            if (it.catKey = catKey)
+                n += this._count.Get(it.tag, 0)
+        return n
+    }
+
     static _CatVisible(catKey) {
         for it in this.Items
             if (it.catKey = catKey && this._Visible(it))
@@ -309,10 +325,41 @@ class QuickPalette {
 
     ; 機能を実行する（元のウィンドウに戻してから）
     static _Exec(it) {
+        this._CountUp(it)
         QM_BackToTarget(this._target, 50)
         try it.fn.Call()
         catch as e
             UI_Tip("実行できませんでした：" e.Message)
+    }
+
+    static _LoadCounts() {
+        try txt := IniRead(this.USAGE_FILE, "count")
+        catch
+            return
+        loop parse txt, "`n", "`r"
+            if RegExMatch(A_LoopField, "^(.+?)=(\d+)$", &m)
+                this._count[m[1]] := Integer(m[2])
+    }
+
+    static _CountUp(it) {
+        n := this._count.Get(it.tag, 0) + 1
+        this._count[it.tag] := n
+        try IniWrite(n, this.USAGE_FILE, "count", it.tag)
+    }
+
+    ; 使用回数の多い順に並べ替える（同数なら元の順を保つ）。score は要素から回数を返す関数
+    static _ByCount(list, score) {
+        out := []
+        for v in list {
+            s := score(v)
+            j := out.Length + 1
+            while (j > 1 && out[j - 1].s < s)
+                j--
+            out.InsertAt(j, {v: v, s: s})
+        }
+        for i, o in out
+            out[i] := o.v
+        return out
     }
 
     ;=== コマンドパレット =======================================================
@@ -520,7 +567,7 @@ class QuickPalette {
         this._mView := []
         if (this._mLevel = "") {
             this._menu.title.Value := "クイックメニュー"
-            for c in this.Cats {
+            for c in this._ByCount(this.Cats, c => this._CatCount(c.key)) {
                 if !this._CatVisible(c.key)
                     continue
                 lv.Add(, c.key, c.name "  ▸")
@@ -530,7 +577,7 @@ class QuickPalette {
             this._mView.Push({type: "palette", key: "/"})
         } else {
             this._menu.title.Value := "クイックメニュー ▸ " this._CatName(this._mLevel)
-            for it in this.Items
+            for it in this._ByCount(this.Items, it => this._count.Get(it.tag, 0))
                 if (it.catKey = this._mLevel && this._Visible(it)) {
                     lv.Add(, it.key, it.name)
                     this._mView.Push({type: "item", key: it.key, it: it})

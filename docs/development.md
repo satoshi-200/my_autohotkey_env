@@ -39,7 +39,7 @@ Lib/
   oneshot_modifiers.ahk  次のキーを Fn / Ctrl / Alt / Win 付きで送る入力モード
   shift_hold.ahk         Shift 長押しモード
   date_input.ahk         日付入力（日付を調整 → フォーマットを選んで入力）
-  mouse_cursor.ahk       キーボードでのマウス操作（加速つきの移動、スクロール、ワープ、ドラッグ）
+  mouse_cursor.ahk       キーボードでのマウス操作（加速つきの移動、スクロール、ワープ、ドラッグ）。無変換を押している間の赤ポチの倍速
   mouse_grid.ahk         カーソル移動モード
   window_ops.ahk         ウィンドウ・仮想デスクトップ・システムの操作（クイックメニューから呼ぶ）
   window_switch.ahk      アプリ切り替え、タブ・ページ切り替え、モニター移動
@@ -48,6 +48,7 @@ Lib/
   obsidian_mode.ahk      Obsidian のリンク選択モード（Caps 短押しでプラグインのホットキーを送る）。かなキーから呼ぶ
   vimium_c_hints.ahk     Vimium C 風ヒント
   quick_menu.ahk         クイックメニュー・コマンドパレット・記号メニュー（登録と画面だけ）
+  draft_window.ahk / .html  AI 下書きウィンドウ（Caps → m。画面は WebView2 の入力欄なので、IME の変換中の文字がその場に出る。Ctrl+Enter で元のウィンドウへ貼り付け。書きかけと履歴をファイルに残す）
   multi_clipboard.ahk    マルチクリップボード
   screen_capture.ahk     画面キャプチャ
   capture_pin.ahk        付箋スクリーンショット（撮った画像を最前面に固定。screen_capture.ahk から使う）
@@ -55,6 +56,7 @@ Lib/
   powerpoint_pack.ahk    PowerPoint 専用の機能（メニューには出していない）
   keymap_view.ahk / .html  キー割り当て・設定の画面（keymap のファイルを読んで JIS 配列の図を作り、WebView2 で開く。行の編集もできる）
   settings_view.ahk      設定値を画面の「設定」タブで確認・編集する部品（出す設定の一覧 SET_DEFS を持つ）
+  quickmenu_view.ahk     クイックメニューの項目を画面の「クイックメニュー」タブで確認・キーを編集する部品（quick_menu.ahk の `this.Add("カテゴリ", "キー", ...` の行を読む）
   webview2/, ComVar.ahk, Promise.ahk  外部の部品（thqby/ahk2_lib と Microsoft の WebView2Loader.dll）。変更しない
   archive/               使わなくなったスクリプトの保管場所（読み込まれない）
 docs/                    README から分けた説明（features / principles / development / backlog / ideas）と、archive/（履歴）
@@ -104,7 +106,7 @@ docs/                    README から分けた説明（features / principles / 
 - `"\""` はエスケープにならない。引用符は `'...'` で囲むか `""` を使う。PowerShell を呼ぶときは `.ps1` ファイルに書いて呼ぶ。
 - JIS キーの無変換・変換・かなは `GetKeyName` が `""` を返す。`GetKeySC` / `GetKeyVK` で比べる。
 - `A & B` の組み合わせの A（例：無変換 `vk1D`）は InputHook に届かない。`#HotIf` でホットキーとして受ける（`Lib/key_wait.ahk` の `IH_StopWithKey`）。
-- 自分の `SendInput` は、自分のホットキーに無視される。
+- 自分の `SendInput` は、自分のホットキーに無視される。入力待ち（Caps → l → p など）が送ったキーにも反応させたい窓の中のキーは、ホットキーでなく、窓の中で受ける（WebView2 ならページの keydown。`Lib/draft_window.html`）。標準の Edit 部品（`Gui.AddEdit`）は、IME の変換中の文字をその場に出さない（候補の窓だけが出る）ので、文章を書く窓には WebView2 の入力欄を使う。
 - IME のオン・オフは `SendInput("{vk16}")`（オン）/ `{vk1A}`（オフ）が確実。`WM_IME_CONTROL` は不安定。
 - クリックを通す透明ウィンドウ：`+E0x20 +E0x08000000` に加えて `WinSetTransparent(250)`（透過属性が必要）。
 - 全画面のウィンドウを `WinSetTransColor`（色抜き）で透かさない。`Show` の直後に画面全体が一瞬塗りつぶされて暗転する。透過・半透明の属性は `Show` の前に付け、見せたい部分だけを `SetWindowRgn` で切り抜く（`Lib/vimium_c_hints.ahk`、`Lib/screen_capture.ahk`）。
@@ -119,4 +121,4 @@ docs/                    README から分けた説明（features / principles / 
 - 「A & B」の起点のキー（Space・変換・無変換）を単独で押して離しても、元の働きは出ない。単独のホットキー（`vk20::` など）を足して自分で送る（離したときに、組み合わせを使っていなければ発動する）。`*` なしだと、Shift / Ctrl を押している間は発動せず、そのキーが消える。
 - `*vk20::` は、Shift などを押している間は離したときでなく押した時点で発動する（Shift 長押しモード中の Space+A で空白が入った）。`LastInput_SpaceTap` は、押した時点で呼ばれたら離すまで待ち、間にほかのホットキーが働いていれば送らない。
 - 補助スクリプトが `SendInput` で送るとき、`{Blind}` なしだと、いま押している修飾キー（Shift 長押しモードの Shift など）がいったん離される。押したままの状態を試すときは `{Blind}` を付ける。Alt+Space はシステムメニューが開いて補助スクリプトが止まるので試さない。変数名 `log` も使わない（`Log()` と衝突する）。
-- 同じ物理キーを、名前（`+`、`j` など）とスキャンコード（`sc027`）の両方でホットキーに書かない。スキャンコードで書いたホットキーが 1 つでもあると、そのキーはスキャンコード側で探され、名前で書いた別の行（`vk20 & +` など）が効かなくなる（Space+; が右矢印でなく `;` になった）。記号キーは名前で書く（`;` = `+`、`:` = `*`、`@` = `` ` ``）。スキャンコードで書くのは、名前のないキー（Caps、Tab、半角/全角、かな、`\`、`^`）だけで、すべての行を同じ書き方にそろえる。
+- 同じ物理キーを、名前（`+`、`j` など）とスキャンコード（`sc027`）の両方でホットキーに書かない。スキャンコードで書いたホットキーが 1 つでもあると、そのキーはスキャンコード側で探され、名前で書いた別の行（`vk20 & +` など）が効かなくなる（Space+; が右矢印でなく `;` になった）。F11 / F12 も同じで、`vk1D & sc057` / `vk1D & sc058`（hold_keys.ahk）があるため、`^+!F11` / `^+!F12` は `^+!sc057` / `^+!sc058` と書く（名前で書くと Logi Options からの Ctrl+Shift+Alt+F11 / F12 が効かなくなった。キー履歴に F12 の行が出るのに `h` が付かないのが目印）。記号キーは名前で書く（`;` = `+`、`:` = `*`、`@` = `` ` ``）。スキャンコードで書くのは、名前のないキー（Caps、Tab、半角/全角、かな、`\`、`^`）だけで、すべての行を同じ書き方にそろえる。

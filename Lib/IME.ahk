@@ -73,6 +73,14 @@
       実行環境を Autohotkey v2.0 とする。
       ファイル名を IMEv2.ahk に変更。
 */
+; IME ウィンドウへ WM_IME_CONTROL を送る。相手が応答しなくても 200ms で打ち切り（0 を返す）、メインスレッドを止めない
+_IME_Send(hwnd, wParam, lParam) {
+    r := 0
+    DllCall("SendMessageTimeout", "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", hwnd, "Ptr"), "UInt", 0x0283
+        , "Ptr", wParam, "Ptr", lParam, "UInt", 0x2, "UInt", 200, "UPtr*", &r, "Ptr")
+    return r
+}
+
 ;-----------------------------------------------------------
 ; IMEの状態の取得
 ;   WinTitle="A"    対象Window
@@ -88,11 +96,7 @@ IME_GET(WinTitle:="A")  {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "UInt", 0x0283  ;Message : WM_IME_CONTROL
-          ,  "Int", 0x0005  ;wParam  : IMC_GETOPENSTATUS
-          ,  "Int", 0)      ;lParam  : 0
+    return _IME_Send(hwnd, 0x0005, 0)   ; IMC_GETOPENSTATUS
 }
 
 ;-----------------------------------------------------------
@@ -111,11 +115,7 @@ IME_SET(SetSts, WinTitle:="A")    {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "UInt", 0x0283  ;Message : WM_IME_CONTROL
-          ,  "Int", 0x006   ;wParam  : IMC_SETOPENSTATUS
-          ,  "Int", SetSts) ;lParam  : 0 or 1
+    return _IME_Send(hwnd, 0x006, SetSts)   ; IMC_SETOPENSTATUS
 }
 
 
@@ -177,11 +177,7 @@ IME_GetConvMode(WinTitle:="A")   {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "Uint", 0x0283  ;Message : WM_IME_CONTROL
-          ,  "Int", 0x001   ;wParam  : IMC_GETCONVERSIONMODE
-          ,  "Int", 0)      ;lParam  : 0
+    return _IME_Send(hwnd, 0x001, 0)   ; IMC_GETCONVERSIONMODE
 }
 
 ;-------------------------------------------------------
@@ -200,11 +196,7 @@ IME_SetConvMode(ConvMode,WinTitle:="A")   {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr",stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "UInt", 0x0283      ;Message : WM_IME_CONTROL
-          ,  "Int", 0x002       ;wParam  : IMC_SETCONVERSIONMODE
-          ,  "Int", ConvMode)   ;lParam  : CONVERSIONMODE
+    return _IME_Send(hwnd, 0x002, ConvMode)   ; IMC_SETCONVERSIONMODE
 }
 
 
@@ -234,11 +226,7 @@ IME_GetSentenceMode(WinTitle:="A")   {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "UInt", 0x0283  ;Message : WM_IME_CONTROL
-          ,  "Int", 0x003   ;wParam  : IMC_GETSENTENCEMODE
-          ,  "Int", 0)      ;lParam  : 0
+    return _IME_Send(hwnd, 0x003, 0)   ; IMC_GETSENTENCEMODE
 }
 
 
@@ -262,11 +250,7 @@ IME_SetSentenceMode(SentenceMode,WinTitle:="A")  {
         hwnd := DllCall("GetGUIThreadInfo", "Uint",0, "Ptr", stGTI.Ptr)
                  ? NumGet(stGTI.Ptr,8+PtrSize,"Ptr") : hwnd
     }
-    return DllCall("SendMessage"
-          , "Ptr", DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr",hwnd, "Ptr")
-          , "UInt", 0x0283          ;Message : WM_IME_CONTROL
-          ,  "Int", 0x004           ;wParam  : IMC_SETSENTENCEMODE
-          ,  "Int", SentenceMode)   ;lParam  : SentenceMode
+    return _IME_Send(hwnd, 0x004, SentenceMode)   ; IMC_SETSENTENCEMODE
 }
 
 

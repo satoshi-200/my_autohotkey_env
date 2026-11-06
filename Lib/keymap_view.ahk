@@ -2,7 +2,7 @@
 ;==============================================================================
 ; keymap_view.ahk
 ; キー割り当ての見える化：keymap\ の hold_keys.ahk・leader_keys.ahk・chord_keys.ahk を読み、
-; JIS 配列のキーボード図の上に、レイヤーごとの割り当てを表示する HTML を作ってブラウザで開く。同じ画面の「設定」タブで、設定値（settings_view.ahk）も確認・編集できる
+; JIS 配列のキーボード図の上に、レイヤーごとの割り当てを表示する HTML を作ってブラウザで開く。同じ画面の「設定」タブで、設定値（settings_view.ahk）も確認・編集できる。「クイックメニュー」タブで、クイックメニューの項目（quickmenu_view.ahk）も確認でき、キーを変えられる
 ;   Keymap_Show()  … クイックメニューの「システム → キー割り当て一覧」から呼ぶ
 ;   起動時（Insert での再読み込みを含む）にも HTML を作り直すので、開いたままのブラウザは F5 で最新になる
 ;
@@ -17,6 +17,7 @@
 ;==============================================================================
 #Include %A_LineFile%\..\keymap_parse.ahk
 #Include %A_LineFile%\..\settings_view.ahk
+#Include %A_LineFile%\..\quickmenu_view.ahk
 #Include %A_LineFile%\..\ui_common.ahk
 
 ; 関数名 → 表示名（キー割り当てに出てくるもの）
@@ -42,6 +43,7 @@ KM_FUNC_NAMES := Km_Map(
     "Oneshot_CtrlShiftChar", "Ctrl+Shift + 文字キー", "Oneshot_WinChar", "Win + 文字キー", "Oneshot_CtrlNum", "Ctrl + 数字キー",
     "Ime_Alnum", "IME 半角英数", "Ime_Hiragana", "IME ひらがな", "ShiftHold_Toggle", "Shift 長押しモード", "ShiftHold_Start", "Shift 長押しモード",
     "Ime_AlnumCommit", "IME 半角英数（未確定は確定）", "LastInput_SpaceTap", "空白を入力",
+    "Draft_Show", "AI 下書きウィンドウ",
     "AiChat_Cancel", "AI チャットを中止", "Window_CloseAndFocus", "ウィンドウを閉じてカーソル下にフォーカス", "MouseGrid_Start", "カーソル移動モード",
     "LastInput_Recall", "直前の入力をもう一度入力", "LastInput_RecallChar", "直前の 1 文字をもう一度入力")
 
@@ -134,7 +136,7 @@ Km_BuildHtml() {
     json := "{`"layers`":["
     for i, ly in layers
         json .= (i > 1 ? "," : "") Km_LayerJson(ly, hist)
-    json .= "],`"settings`":" Set_Json(hist) "}"
+    json .= "],`"settings`":" Set_Json(hist) ",`"qm`":" Qmv_Json(hist) "}"
     return StrReplace(FileRead(A_LineFile "\..\keymap_view.html", "UTF-8"), "__DATA__", json)
 }
 
@@ -425,6 +427,8 @@ Km_HandleMessage(msg) {
         res := Km_Insert(parts[2], parts[4], parts[5], parts[6])
     else if (parts.Length = 6 && parts[1] = "setsave")
         res := Set_Save(parts[2], parts[3], Integer(parts[4]), parts[5], parts[6])
+    else if (parts.Length = 6 && parts[1] = "qmsave")
+        res := Qmv_Save(parts[2], parts[3], Integer(parts[4]), parts[5], parts[6])
     else
         return
     if KM_wv
@@ -436,7 +440,7 @@ Km_HandleMessage(msg) {
 ;------------------------------------------------------------------------------
 ; file の lineNo 行目（元の内容 raw）を newText に置き換える。結果は {ok, msg}
 Km_Save(file, layerName, keyName, lineNo, raw, newText) {
-    if !(Km_IsKeymapFile(file) || Set_IsEditableFile(file))
+    if !(Km_IsKeymapFile(file) || Set_IsEditableFile(file) || Qmv_IsFile(file))
         return {ok: false, msg: "このファイルは編集できません。"}
     newText := RTrim(newText, " `t")
     if (newText = "" || RegExMatch(newText, "[\r\n]"))

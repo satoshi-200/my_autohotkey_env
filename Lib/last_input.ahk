@@ -37,7 +37,7 @@
 LASTINPUT_ENABLED := true
 LASTINPUT_MAX_LEN := 200                     ; 覚える文字数の上限（超えたら古い方から忘れる）
 LASTINPUT_GAP_MS := 3000                     ; この時間、何も打たなければ、ひとまとまりが終わる
-SPACE_LONG_MS := 150                         ; Space をこれ以上押して、何も押さずに離したら、押しそびれとして何も入力しない（0 で無効）
+SPACE_LONG_MS := 150                         ; Space・変換・無変換をこれ以上押して、何も押さずに離したら、押しそびれとして何も働かせない（0 で無効）
 
 LastInput_cur := ""                          ; 入力中のひとまとまり
 LastInput_last := ""                         ; 直前の入力
@@ -248,8 +248,29 @@ LastInput_SpaceTap() {
         LastInput_Add(" ")
 }
 
+; 変換・無変換（単独のホットキーは離したときに働く）。押し始めを覚え、判定のときに記録を消す
+LastInput_thumbSince := Map("vk1C", 0, "vk1D", 0)
+LastInput_thumbDown := Map("vk1C", false, "vk1D", false)
+
+; vk（"vk1C" / "vk1D"）を SPACE_LONG_MS 以上押してから離したか（赤ポチ操作の間に押しっぱなしにした場合など）
+LastInput_ThumbLong(vk) {
+    since := LastInput_thumbSince[vk]
+    LastInput_thumbSince[vk] := 0
+    return SPACE_LONG_MS > 0 && since && A_TickCount - since >= SPACE_LONG_MS
+}
+
+_LastInput_PollThumbs() {
+    for vk, was in LastInput_thumbDown {
+        down := GetKeyState(vk, "P")
+        if (down && !was)
+            LastInput_thumbSince[vk] := A_TickCount
+        LastInput_thumbDown[vk] := down
+    }
+}
+
 _LastInput_PollSpace() {
     global LastInput_spaceSince, LastInput_spaceUsed
+    _LastInput_PollThumbs()
     _LastInput_PollHotkey()
     _LastInput_PollMouse()
     down := GetKeyState("vk20", "P")

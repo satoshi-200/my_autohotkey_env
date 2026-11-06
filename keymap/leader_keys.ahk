@@ -26,6 +26,7 @@
 #Include %A_LineFile%\..\..\Lib\mouse_cursor.ahk
 #Include %A_LineFile%\..\..\Lib\mouse_grid.ahk
 #Include %A_LineFile%\..\..\Lib\quick_menu.ahk
+#Include %A_LineFile%\..\..\Lib\draft_window.ahk
 #Include %A_LineFile%\..\..\Lib\vimium_c_hints.ahk
 #Include %A_LineFile%\..\..\Lib\shift_hold.ahk
 #Include %A_LineFile%\..\..\Lib\outlook_mail.ahk
@@ -37,8 +38,8 @@
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
 sc070:: Leader_Kana()                               ; カタカナひらがな（前面のアプリ専用の機能。Outlook：s、Office：e、VS Code：f、Obsidian：モード→Caps）
-^+!F12:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ）
-^+!F11:: QM_CaptureMenu_Show()                      ; 画面キャプチャメニュー（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる。Caps → t と同じ）
+^+!sc058:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ。F12 は sc058）
+^+!sc057:: QM_CaptureMenu_Show()                      ; 画面キャプチャメニュー（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる。Caps → t と同じ。F11 は sc057）
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す
@@ -106,8 +107,8 @@ Leader_Caps() {
         "c",  "",
         "v",  "",
         "b",  Mouse_ToggleDrag,                     ; ドラッグ開始／解除
-        "n",  Mouse_ToggleDrag,
-        "m",  "",
+        "n",  Mouse_ToggleDrag,  ; ドラッグ開始／解除
+        "m",  Draft_Show,  ; AI 下書きウィンドウ（Ctrl+Enter で元のウィンドウへ貼り付け。Esc で閉じても内容は残る）
         ",",  "",
         ".",  "",
         "/",  "")
@@ -194,7 +195,7 @@ Leader_SpaceF() {
         "d",  "{LAlt}",
         "f",  Mouse_ContextMenu,                    ; 右クリックメニュー
         "g",  "",
-        "h",  "",
+        "h",  "^+{Enter}",
         "j",  "+{Enter}",
         "k",  "^{Enter}",
         "l",  "!{Enter}",
