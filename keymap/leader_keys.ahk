@@ -37,9 +37,15 @@
 ;------------------------------------------------------------------------------
 #HotIf !IH_waiting
 sc03A:: Leader_Caps()                               ; CapsLock
-sc070:: Leader_Kana()                               ; カタカナひらがな（前面のアプリ専用の機能。Outlook：s、Office：e、VS Code：f、Obsidian：モード→Caps）
+sc070:: Leader_Kana()                               ; 前面のアプリ専用の機能。Outlook：s、Office：e、VS Code：f、Obsidian：モード→Caps
 ^+!sc058:: Oneshot_CtrlChar()                         ; Ctrl + 文字キー（Ctrl+Shift+Alt+F12。Logi Options のボタンに割り当てる。Caps → l と同じ。F12 は sc058）
-^+!sc057:: QM_CaptureMenu_Show()                      ; 画面キャプチャメニュー（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる。Caps → t と同じ。F11 は sc057）
+^+!sc057::      return                              ; 未割り当て
+^+!sc044::      return                              ; 未割り当て
+^+!sc03B:: Mouse_FocusUnderCursor()
+^+!sc03F:: SendInput("")                      ; 画面キャプチャメニュー
+^+!sc041:: Cap_Area()  ; 画面キャプチャ(ウィンドウ内のクリックした領域)（Ctrl+Shift+Alt+F11。Logi Options のボタンに割り当てる）
+^+!sc040:: Cap_Region()  ; 画面キャプチャ(ドラッグ)（Ctrl+Shift+Alt+__。Logi Options のボタンに割り当てる）
+^+!sc042:: Cap_Pin()  ; 画面キャプチャ(サムネイルピン止め)（Ctrl+Shift+Alt+__。Logi Options のボタンに割り当てる）
 #HotIf
 
 ; 無変換は hold_keys.ahk の「vk1D & ○」のプレフィックスとして止められ InputHook に届かないので、ホットキーで渡す

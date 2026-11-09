@@ -74,6 +74,7 @@
 #Include %A_LineFile%\..\window_ops.ahk
 #Include %A_LineFile%\..\multi_clipboard.ahk
 #Include %A_LineFile%\..\screen_capture.ahk
+#Include %A_LineFile%\..\page_export.ahk
 #Include %A_LineFile%\..\keymap_view.ahk
 #Include %A_LineFile%\..\office_common.ahk
 #Include %A_LineFile%\..\powerpoint_pack.ahk
@@ -165,6 +166,7 @@ class QuickPalette {
         this.Add("W", "R", "opacity",      "半透明を切り替え",              (*) => QM_ToggleTransparent(), "transparent toumei")
         this.Add("W", "C", "center",       "画面の中央へ移動",              (*) => QM_CenterWindow(), "chuuou")
         this.Add("W", "I", "wininfo",      "ウィンドウ情報をコピー",        (*) => QM_CopyWindowInfo(), "ahk_exe class")
+        this.Add("W", "E", "page-export",  "画面の内容を Markdown で保存",  (*) => PageExport_Run(), "export page md markdown nyuuryoku hozon shuturyoku web")
 
         ;--- 仮想デスクトップ ---------------------------------------------------
         this.Add("D", "C", "desk-new",     "新しいデスクトップを作成",      (*) => QM_DesktopNew(), "virtual desktop create sakusei")

@@ -102,7 +102,7 @@ vk1D & q::      MousePlain_ScrollLeft()
 vk1D & r::      MousePlain_ScrollRight()
 vk1D & n::      SendInput("^{z}")  ; 元に戻す
 vk1D & b::      SendInput("^{y}")  ; Tab -> やり直し
-vk1D & g::      Mouse_FocusUnderCursor()  ; CapsLock
+vk1D & g::      Mouse_FocusUnderCursor()  ;
 vk1D & LShift::      MouseNav_WarpVertical()  ; かな -> 縦に並んだモニターへ（下にあれば下へ、なければ上へ）の中央へ移動し、カーソル下をアクティブに
 vk1D & sc070::      return                              ; 未割り当て
 vk1D & 7::      return                              ; 未割り当て（2 分割ジャンプ MouseNav_Jump* は Lib\archive\mouse_nav_timer.ahk にある）
@@ -127,7 +127,7 @@ vk1D & Right::      return                              ; 未割り当て
 vk1D & 6::      return
 
 ; --- 記号・入力 ---
-vk1D & j::      SendInput("{_}")
+vk1D & j::      SendInput("{_}")      ; _(アンダーバー)
 vk1D & k::      SendInput("{,}")
 vk1D & l::      SendInput("{.}")
 vk1D & +::      SendInput("{=}")

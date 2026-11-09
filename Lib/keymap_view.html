@@ -476,7 +476,11 @@ var LEADER_SPECIAL = { "00F": 1, "039": 1, "03A": 1, "079": 1, "07B": 1, "070": 
 
 // 行がまだ無いキーの雛形。{text, cursor}、使えないキーは {err}
 function addTemplate(ly, sc, face) {
-  if (ly.kind === "hotkey") return { err: "この層には、ここから行を足せません。keymap フォルダーの起点キーの欄（「#HotIf !IH_waiting」の中）に直接書いてください。" };
+  if (ly.kind === "hotkey") {
+    if (ly.name !== "特殊") return { err: "この層には、ここから行を足せません。keymap フォルダーの起点キーの欄（「#HotIf !IH_waiting」の中）に直接書いてください。" };
+    if (!/^[0-9A-F]{3}$/.test(sc)) return { err: "このキーは割り当てに使えません。" };
+    return { text: "^+!sc" + sc + ':: SendInput("")' };
+  }
   if (ly.kind === "hold") {
     if (ly.origin.indexOf(sc) >= 0) return { err: "起点のキー自身には、割り当てられません。" };
     // 記号キーは、keymap の既存の行と同じ名前で書く（スキャンコードで書くと、同じキーの名前で書いた行が効かなくなる）
@@ -549,7 +553,9 @@ function showAddEditor(ly, sc, face, free) {
 
   var help = document.createElement("div");
   help.className = "help";
-  help.textContent = ly.kind === "hold"
+  help.textContent = ly.kind === "hotkey"
+    ? "書き方：「^+!sc03B::  処理」（Ctrl+Shift+Alt+F1 の例。^ Ctrl、+ Shift、! Alt）。起点キーの欄の末尾に足します。"
+    : ly.kind === "hold"
     ? "書き方：「" + ly.anchor + " & キー::  処理」。キーは文字（t）、キー名（WheelUp・RButton・F1・Left）、スキャンコード（sc029）のどれでも書けます。"
     : "書き方：「\"キー\",  処理」（文字キー）、「0x79,  処理」（特殊キー。Tab 0x0F / Space 0x39 / Caps 0x3A / 変換 0x79 / 無変換 0x7B / かな 0x70）。"
       + "表の先頭に足します。";

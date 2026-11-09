@@ -7,6 +7,11 @@
 - **個々のキー割り当ては文書に書かない**（変えるたびに古くなる）。`keymap\` の行末コメントと、画面（クイックメニュー A → K）が正。文書に書くのは、レイヤーの役割とモードの動き。
 - 依頼・アイデア：`backlog.md`（依頼の表。要約 1 行）、`ideas.md`（未実装）。終わった依頼の詳細・設計の経緯は `archive\backlog_history.md` / `archive\ideas_history.md` に置く（ここは経緯の記録で、現在の仕様とは違うことがある）。
 
+## 設定ファイルと個人パス
+- リポジトリに置く設定ファイルへ、ユーザー名・ホームディレクトリ・ドライブ構成などの個人パスを絶対パスで書かない。
+- パスを記録する必要があるときは、`%USERPROFILE%` などの環境変数、相対パス、または置き換え用の例示値を使う。`page_export.ini` の保存先もこのルールに従う。
+- AutoHotkey の既定値も `EnvGet("USERPROFILE")` などから組み立て、実行環境のディレクトリ構成をコードや文書に埋め込まない。
+
 ## 構成と読み込み順
 - `main.ahk` が入口。`Lib\` の部品を上から順に読み込み、そのあと `keymap\` のキー割り当てを読み込む。
 - 部品は `#Include %A_LineFile%\..\○○.ahk` で、必要な部品を自分で読み込む。同じファイルは 1 回しか読み込まれない。
@@ -52,6 +57,7 @@ Lib/
   multi_clipboard.ahk    マルチクリップボード
   screen_capture.ahk     画面キャプチャ
   capture_pin.ahk        付箋スクリーンショット（撮った画像を最前面に固定。screen_capture.ahk から使う）
+  page_export.ahk        前面のウィンドウの内容（ラベルと入力欄の値）を UI Automation で読み、Markdown で保存・コピー。クイックメニューの「ウィンドウ → E」から呼ぶ
   office_common.ahk      Office（PowerPoint・Word・Excel）共通の機能（図形編集モード）
   powerpoint_pack.ahk    PowerPoint 専用の機能（メニューには出していない）
   keymap_view.ahk / .html  キー割り当て・設定の画面（keymap のファイルを読んで JIS 配列の図を作り、WebView2 で開く。行の編集もできる）

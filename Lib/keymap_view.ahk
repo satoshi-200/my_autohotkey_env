@@ -551,6 +551,27 @@ Km_Insert(file, kind, anchor, newText) {
         at := head + 1
         text := "        " action (comment != "" ? "  `; " comment : "")
     }
+    else if (kind = "hotkey") {
+        if !RegExMatch(newText, "^(\S+?)::", &nm)
+            return {ok: false, msg: "「キー::  処理」の形で書いてください。"}
+        newId := Km_HotkeyId(nm[1])
+        blockStart := 0, blockEnd := 0
+        for i, l in lines {
+            if RegExMatch(l, "^#HotIf\b") {
+                if blockStart {
+                    blockEnd := i
+                    break
+                }
+                if RegExMatch(l, "^#HotIf !IH_waiting\b")
+                    blockStart := i
+            }
+            else if (blockStart && RegExMatch(l, "^(\S+?)::", &m) && Km_HotkeyId(m[1]) = newId)
+                return {ok: false, msg: "すでに同じキーの行があります（" i " 行目）。"}
+        }
+        if !(blockStart && blockEnd)
+            return {ok: false, msg: file " に「#HotIf !IH_waiting」の欄が見つかりません。"}
+        at := blockEnd, text := newText
+    }
     else
         return {ok: false, msg: "足せない種類のレイヤーです。"}
 
@@ -570,6 +591,13 @@ Km_Insert(file, kind, anchor, newText) {
     }
     try Km_WriteHtml()
     return {ok: true, msg: "行を足しました（" file " の " at " 行目）。Insert で再読み込みすると反映されます。"}
+}
+
+; ホットキー名を、修飾キーとスキャンコードにそろえた比較用の文字列にする（^+!sc058 と ^+!F12 を同じとみなす）
+Km_HotkeyId(key) {
+    base := RegExReplace(key, "^[\^+!#*~$<>]+")
+    sc := Km_Sc(base)
+    return SubStr(key, 1, StrLen(key) - StrLen(base)) (sc != "" ? sc : StrLower(base))
 }
 
 ; keymap\ の編集できるファイル名。設定のファイルは「Lib\config.ahk」のようにリポジトリの直下からのパスで渡される
