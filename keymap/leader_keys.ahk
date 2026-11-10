@@ -193,7 +193,7 @@ Leader_SpaceF() {
         "i",  DateInput_Start,                      ; 日付入力（日付を調整 → フォーマットを選ぶ）
         "o",  () => Text_InsertDate("yyyy/MM/dd"),
         "p",  () => Text_InsertDate("yyMMdd_"),     ; Obsidian のページ名用
-        "@",  "",
+        "@",  Window_CloseAndFocus,  ; ウィンドウを閉じてカーソル下にフォーカス
         "[",  Window_CloseAndFocus,                 ; ウィンドウを閉じてカーソル下にフォーカス
         ; --- 中段 ---
         "a",  "{LWin}",
