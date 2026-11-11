@@ -256,7 +256,7 @@ TabPageSwitcher_Show() => KeyCycler_Show("タブ・ページ切り替え", TABPA
 
 ;------------------------------------------------------------------------------
 ; ウィンドウを別のモニターへ移す（Caps → r）
-;   Win+Shift+→ / ← でアクティブウィンドウを移し、カーソルも移した先のモニターの中央へ動かす。
+;   Win+Shift+→ / ← でアクティブウィンドウを移し、カーソルをそのウィンドウの中央へ動かして、そのウィンドウをアクティブにする。
 ;   WindowMonitor_Show(reverse)
 ;     reverse … false：次のモニターへ、true：前のモニターへ
 ;   呼び出した直後は動かさない。呼び出しに使ったキー（Caps → Tab なら Tab）をもう一度押すと次へ、Shift 付きで前へ。
@@ -280,6 +280,7 @@ WindowMonitor_Show(reverse := false) {
     h := IH_ChoiceHook(WINMONITOR_IDLE_SEC, prefix)
 
     mon := _WinMonitor_Info(hwnd)                   ; 呼び出した時点では動かさない（キーを押したときに移す）
+    moved := false
     loop {
         UI_ToolTip("🖥 [モニター移動] モニター " mon.idx " / " count
             . "`n" triggerKey "：次　Shift+" triggerKey "：前　w：大きく（Win+↑）　e：小さく（Win+↓）"
@@ -297,6 +298,7 @@ WindowMonitor_Show(reverse := false) {
             if (count > 1) {
                 back := (reverse != GetKeyState("Shift"))   ; Shift 付きなら逆方向
                 mon := _WinMonitor_Step(hwnd, back)
+                moved := true
             }
         }
         else if (key = "w" || key = "e") {
@@ -312,6 +314,8 @@ WindowMonitor_Show(reverse := false) {
         else if (_Switch_IsDecideKey(key) || key = "Escape" || IH_IsCapsKey(key))
             break                                   ; Esc / Caps も取り消しではなく、そのときのモニターで決定する
     }
+    if moved                                        ; 大きさを変えた後の中央へ合わせ直す
+        _WinMonitor_Focus(hwnd)
     IH_ModeEnd("✅ [モニター移動] 決定")
 }
 
@@ -323,9 +327,17 @@ _WinMonitor_Step(hwnd, back) {
     deadline := A_TickCount + 500
     while (DllCall("MonitorFromWindow", "Ptr", hwnd, "UInt", 2, "Ptr") = before && A_TickCount < deadline)
         Sleep(15)
-    mon := _WinMonitor_Info(hwnd)
-    DllCall("SetCursorPos", "Int", mon.cx, "Int", mon.cy)
-    return mon
+    _WinMonitor_Focus(hwnd)
+    return _WinMonitor_Info(hwnd)
+}
+
+; ウィンドウをアクティブにし、カーソルをその中央へ動かす
+_WinMonitor_Focus(hwnd) {
+    try WinActivate(hwnd)
+    if (WinGetMinMax(hwnd) = -1)
+        return
+    WinGetPos(&x, &y, &w, &h, hwnd)
+    DllCall("SetCursorPos", "Int", x + w // 2, "Int", y + h // 2)
 }
 
 ; ウィンドウがいるモニターの番号と中央の座標

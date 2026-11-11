@@ -207,9 +207,9 @@ vk20 & LShift:: return                              ; 左 Shift（未割り当�
 vk20 & RShift::      return                              ; 未割り当て
 vk20 & RControl::      return                              ; 未割り当て
 vk20 & Insert::  SendInput("{Insert}")               ; 上書きモードの切り替え（Insert 単独は再読み込み）
-vk20 & m::      Mouse_HoldLeft("m", true)           ; Ctrl + クリック（押している間。ドラッグ可）
-vk20 & ,::      MouseClick("Left", , , 2)           ; ダブルクリック
-vk20 & .::      MouseClick("Right")                 ; 右クリック
+vk20 & m::      MouseClick("Right")  ; 右クリック
+vk20 & ,::      Mouse_HoldLeft("m", true)  ; Ctrl + クリック（押している間。ドラッグ可）
+vk20 & .::      MouseClick("Left", , , 2)  ; ダブルクリック
 vk20 & /::      return                              ; 未割り当て
 
 ; --- ウィンドウ・タブ ---
@@ -222,6 +222,7 @@ vk20 & 1::      SendInput("^+{PgUp}")
 vk20 & 2::      SendInput("^{PgUp}")                ; 前のページ
 vk20 & 3::      SendInput("^{PgDn}")                ; 次のページ
 vk20 & 4::      SendInput("^+{PgDn}")
+vk20 & sc138::      return                              ; 未割り当て
 
 ;------------------------------------------------------------------------------
 ; 短押し（単独で押して離したとき。「○ & キー」を使ったときは働かない。元のキーの動きは置き換わる）

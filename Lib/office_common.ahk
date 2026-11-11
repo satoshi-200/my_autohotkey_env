@@ -416,8 +416,11 @@ _OfficeEdit_Resize(s, dw, dh, center) {
     lock := s.LockAspectRatio
     s.LockAspectRatio := 0
     w := s.Width, h := s.Height
-    nw := Max(2, w + dw), nh := Max(2, h + dh)
-    s.Width := nw, s.Height := nh
+    nw := w, nh := h
+    if dw                                           ; 変えない側は触らない（線の高さ 0 が 2pt や 0.07 にずれる）
+        nw := Max(2, w + dw), s.Width := nw
+    if dh
+        nh := Max(2, h + dh), s.Height := nh
     if center
         s.Left -= (nw - w) / 2, s.Top -= (nh - h) / 2
     s.LockAspectRatio := lock

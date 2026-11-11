@@ -4,7 +4,7 @@
 ; キーボードでのマウス操作
 ;   MousePlain … カーソル移動（1 回押すごとに固定量、押しっぱなしで加速。移動量はモニターの画素数に連動）と
 ;                スクロール（1 回押すごとに 1 ノッチ）。キーリピート駆動
-;   MouseBoost … 無変換を押している間、赤ポチ・マウスの移動量を増やす
+;   MouseBoost … 無変換を押している間、赤ポチ・マウスの移動量を増やす。Space を押している間は、移動をスクロールに変える
 ;   MouseNav   … ワープ（アクティブウィンドウ・モニターの中央、縦に並んだモニター、外付けモニターの中央）
 ;   Mouse_*    … 右クリックメニュー、カーソル下をアクティブに、ドラッグ開始／解除
 ; 使っていなかったタイマー駆動のなめらかな移動・スクロール、2 分割ジャンプ、四隅へのワープ、微小移動は
@@ -285,19 +285,66 @@ class MousePlain {
 ; 押している間だけ Raw Input で装置の移動量（カウント）を受け取り、その (MOUSEBOOST_FACTOR - 1) 倍を相対移動で足す。
 ; 元の移動はそのまま通す。座標を扱わないのでモニターの拡大率に左右されず、フックも使わないので本体が忙しくてもマウスは止まらない。
 ; 足す移動も Windows の速度・加速を通るので、倍率は目安。自分が送った移動（hDevice = 0）は数えない。
+; Space を押している間（組み合わせを使っていない間）は、同じ Raw Input の移動量をスクロールに変え、カーソルは ClipCursor で 1 画素に留める。
+; 押した直後からカーソルを留めるので、長押しになる前に少し動くことがない。スクロールした Space は、離しても空白を入れない。
 ;==============================================================================
 class MouseBoost {
-    static _on := false, _rx := 0.0, _ry := 0.0
+    static _on := false, _rx := 0.0, _ry := 0.0, _scroll := false, _sx := 0, _sy := 0, _spaceT := 0, _spaceUsed := false
 
     static Start() {
         OnMessage(0x00FF, (w, l, *) => this._OnInput(l))   ; WM_INPUT
-        SetTimer(() => this._Check(), 30)
+        OnExit((*) => (DllCall("ClipCursor", "Ptr", 0), 0))
+        SetTimer(() => this._Check(), 10)
     }
 
     static _Check() {
-        want := MOUSEBOOST_FACTOR > 1 && GetKeyState("vk1D", "P")
+        scroll := this._WantScroll()
+        want := scroll || (MOUSEBOOST_FACTOR > 1 && GetKeyState("vk1D", "P"))
         if (want != this._on)
             this._Register(want)
+        if (scroll != this._scroll)
+            this._SetScroll(scroll)
+    }
+
+    ; Space を押していて、その間に組み合わせ・入力待ち・ドラッグがない
+    static _WantScroll() {
+        global SpaceScroll_used
+        if (!SPACESCROLL_ENABLED || !GetKeyState("vk20", "P")) {
+            this._spaceT := 0
+            return false
+        }
+        if !this._spaceT {
+            this._spaceT := A_TickCount, this._spaceUsed := false
+            SpaceScroll_used := false
+        }
+        else if (A_ThisHotkey != "" && A_TimeSinceThisHotkey < A_TickCount - this._spaceT)
+            this._spaceUsed := true                     ; 押してから働いたホットキー = 組み合わせ
+        return !this._spaceUsed && !IH_waiting && !Mouse_dragging
+    }
+
+    static _SetScroll(on) {
+        this._scroll := on, this._sx := 0, this._sy := 0
+        if !on
+            return DllCall("ClipCursor", "Ptr", 0)
+        MouseNav._GetPos(&x, &y)
+        rc := Buffer(16, 0)
+        NumPut("Int", x, "Int", y, "Int", x + 1, "Int", y + 1, rc)
+        DllCall("ClipCursor", "Ptr", rc)
+    }
+
+    ; 移動量を SPACESCROLL_COUNTS ごとにホイール 1 ノッチへ（下へ動かせば下、右へ動かせば右）
+    static _ScrollBy(dx, dy) {
+        global SpaceScroll_used
+        n := Max(1, SPACESCROLL_COUNTS)
+        this._sx += dx, this._sy += dy
+        nx := Integer(this._sx / n), ny := Integer(this._sy / n)
+        this._sx -= nx * n, this._sy -= ny * n
+        if (nx || ny)
+            SpaceScroll_used := true
+        if ny
+            SendInput("{Wheel" (ny > 0 ? "Down" : "Up") " " Abs(ny) "}")
+        if nx
+            SendInput("{Wheel" (nx > 0 ? "Right" : "Left") " " Abs(nx) "}")
     }
 
     ; RAWINPUTDEVICE { usUsagePage, usUsage, dwFlags, hwndTarget }。RIDEV_INPUTSINK = 0x100（背面でも受け取る）、RIDEV_REMOVE = 1
@@ -317,8 +364,13 @@ class MouseBoost {
             return
         if (NumGet(buf, 0, "UInt") != 0 || !NumGet(buf, 8, "Ptr") || (NumGet(buf, hs, "UShort") & 1))   ; マウス以外・自分が送った移動・絶対座標
             return
+        dx := NumGet(buf, hs + 12, "Int"), dy := NumGet(buf, hs + 16, "Int")
+        if this._scroll
+            return this._ScrollBy(dx, dy)
+        if (MOUSEBOOST_FACTOR <= 1 || !GetKeyState("vk1D", "P"))
+            return
         k := MOUSEBOOST_FACTOR - 1
-        this._rx += NumGet(buf, hs + 12, "Int") * k, this._ry += NumGet(buf, hs + 16, "Int") * k
+        this._rx += dx * k, this._ry += dy * k
         ex := Integer(this._rx), ey := Integer(this._ry)
         this._rx -= ex, this._ry -= ey
         if (ex || ey)
@@ -330,6 +382,9 @@ class MouseBoost {
 ; 呼び出し用ラッパー（引数なしで呼べる）
 ;==============================================================================
 MOUSEBOOST_FACTOR := 3.0                                ; 無変換を押している間の赤ポチ・マウスの速さの倍率（目安。1 以下で無効）
+SPACESCROLL_ENABLED := true                             ; Space を押している間、カーソルを動かす代わりにスクロールする
+SpaceScroll_used := false                               ; 今の Space でスクロールした（離しても空白を入れない）
+SPACESCROLL_COUNTS := 40                                ; ホイール 1 ノッチあたりの移動量（装置のカウント。小さいほど速い）
 MouseBoost.Start()
 
 ;--- MouseNav（ワープ）--------------------------------------------------------

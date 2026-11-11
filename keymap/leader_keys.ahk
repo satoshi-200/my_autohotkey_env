@@ -6,7 +6,7 @@
 ;   Space + F         … Leader_SpaceF()   （hold_keys.ahk の Space レイヤーから呼ぶ）
 ;   Space + A         … Leader_SpaceA()   （同上）
 ;   カタカナひらがな  … Leader_Kana()     （前面のアプリ専用の機能。次の 1 キーで選ぶ。Outlook：s メール選択、Office：e 図形編集、VS Code：f 折りたたみ、Obsidian：モードに入って Caps でリンク選択）
-;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、Caps で Ctrl+クリック、変換で右クリック、Space で移動だけ、無変換でダブルクリック）
+;   Caps → Caps       … VimiumC_ShowHints()（Vimium C 風ヒント。表示中に左 Shift で Caps → Caps → LShift = カーソル移動モード、無変換で Ctrl+クリック、変換で右クリック、Space で移動だけ）
 ;   Caps → Space      … IME 半角英数、Caps → 無変換 … Shift 長押しモード、Caps → 変換 … 次の 1 文字を大文字に
 ;
 ; 割り当ての書き方（各関数の中の表）
@@ -120,7 +120,7 @@ Leader_Caps() {
         "/",  "")
     static specials := Map(
         0x39, Ime_AlnumCommit,                      ; Space：IME を半角英数に（未確定の文字は確定）
-        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中に左 Shift でカーソル移動モード、Caps で右クリック）
+        0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中に左 Shift でカーソル移動モード、無変換で Ctrl+クリック）
         0x79, Text_CapitalizeNext,                  ; 変換：次の 1 文字を大文字に
         0x7B, ShiftHold_Start)                      ; 無変換：Shift 長押しモード
     Leader_Run("Caps", keys, specials, true)

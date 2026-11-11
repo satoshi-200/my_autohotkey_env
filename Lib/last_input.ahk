@@ -37,7 +37,7 @@
 LASTINPUT_ENABLED := true
 LASTINPUT_MAX_LEN := 200                     ; 覚える文字数の上限（超えたら古い方から忘れる）
 LASTINPUT_GAP_MS := 3000                     ; この時間、何も打たなければ、ひとまとまりが終わる
-SPACE_LONG_MS := 150                         ; Space・変換・無変換をこれ以上押して、何も押さずに離したら、押しそびれとして何も働かせない（0 で無効）
+SPACE_LONG_MS := 200                         ; Space・変換・無変換をこれ以上押して、何も押さずに離したら、押しそびれとして何も働かせない（0 で無効）
 
 LastInput_cur := ""                          ; 入力中のひとまとまり
 LastInput_last := ""                         ; 直前の入力
@@ -242,6 +242,8 @@ LastInput_SpaceTap() {
             return
     }
     else if (SPACE_LONG_MS > 0 && LastInput_spaceSince && A_TickCount - LastInput_spaceSince >= SPACE_LONG_MS)
+        return
+    if SpaceScroll_used                             ; Space を押している間にスクロールした（mouse_cursor.ahk）
         return
     SendInput("{Blind}{Space}")
     if (LASTINPUT_ENABLED && LastInput_cur != "" && !GetKeyState("Ctrl") && !GetKeyState("Alt") && !GetKeyState("LWin") && !GetKeyState("RWin"))
