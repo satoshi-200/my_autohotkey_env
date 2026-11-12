@@ -132,7 +132,7 @@ _LastInput_HoldChars() {
     try src := KP_Read("hold_keys.ahk")
     for prefix in ["vk1C", "vk1D", "vk20"] {
         for row in KP_HoldRows(src, prefix) {
-            if RegExMatch(row.action, '^SendInput\("(.*)"\)$', &m) {
+            if RegExMatch(row.action, '^(?:SendInput|ShiftHold_SendPlain)\("(.*)"\)$', &m) {
                 ch := LastInput_CharOf(m[1])
                 if (ch != "")
                     chars[prefix " & " row.key] := ch

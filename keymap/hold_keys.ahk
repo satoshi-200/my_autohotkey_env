@@ -57,19 +57,19 @@ vk1C & *::      SendInput("{'}")
 vk1C & `::      return                              ; @（未割り当て）
 vk1C & h::      SendInput("{`"}")
 
-; --- テンキー (wer / sdf / xcv / z) ---
-vk1C & w::      SendInput("{7}")
-vk1C & e::      SendInput("{8}")
-vk1C & r::      SendInput("{9}")
-vk1C & s::      SendInput("{4}")
-vk1C & d::      SendInput("{5}")
-vk1C & f::      SendInput("{6}")
-vk1C & x::      SendInput("{1}")
-vk1C & c::      SendInput("{2}")
-vk1C & v::      SendInput("{3}")
-vk1C & z::      SendInput("{0}")
-vk1C & q::      SendInput("{,}")
-vk1C & a::      SendInput("{.}")
+; --- テンキー (wer / sdf / xcv / z / q a。Shift 長押しモード中も Shift なしの数字) ---
+vk1C & w::      ShiftHold_SendPlain("{7}") ; 7
+vk1C & e::      ShiftHold_SendPlain("{8}") ; 8
+vk1C & r::      ShiftHold_SendPlain("{9}") ; 9
+vk1C & s::      ShiftHold_SendPlain("{4}") ; 4
+vk1C & d::      ShiftHold_SendPlain("{5}") ; 5
+vk1C & f::      ShiftHold_SendPlain("{6}") ; 6
+vk1C & x::      ShiftHold_SendPlain("{1}") ; 1
+vk1C & c::      ShiftHold_SendPlain("{2}") ; 2
+vk1C & v::      ShiftHold_SendPlain("{3}") ; 3
+vk1C & z::      ShiftHold_SendPlain("{0}") ; 0
+vk1C & q::      ShiftHold_SendPlain("{,}") ; ,
+vk1C & a::      ShiftHold_SendPlain("{.}") ; .
 
 ; --- 計算記号 (1234) ---
 vk1C & 1::      SendInput("{/}")
@@ -158,7 +158,7 @@ vk20 & vk1C::   SendInput("{Space}")
 vk20 & vk1D::   return                              ; 無変換（未割り当て）
 vk20 & sc03A::  ShiftHold_Stop(), SendInput("{Escape}"), ScreenSaver_Off()   ; CapsLock -> Esc（Shift 長押しモード・スクリーンセーバー回避も解除）
 vk20 & sc00F::  SendInput("^+{Tab}")                ; Tab -> 前のタブへ
-vk20 & F1::     ScreenSaver_Toggle()
+vk20 & F1::      return                              ; 未割り当て
 vk20 & sc070::  SendInput("+{RButton}")  ; shift+右クリック
 vk20 & f::      Leader_SpaceF()
 vk20 & a::      Leader_SpaceA()

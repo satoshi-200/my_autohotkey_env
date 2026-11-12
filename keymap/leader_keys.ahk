@@ -119,6 +119,7 @@ Leader_Caps() {
         ".",  "",
         "/",  "")
     static specials := Map(
+        0x1C, ScreenSaver_Toggle,
         0x39, Ime_AlnumCommit,                      ; Space：IME を半角英数に（未確定の文字は確定）
         0x3A, VimiumC_ShowHints,                    ; Caps：Vimium C 風ヒント（表示中に左 Shift でカーソル移動モード、無変換で Ctrl+クリック）
         0x79, Text_CapitalizeNext,                  ; 変換：次の 1 文字を大文字に
