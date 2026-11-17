@@ -76,6 +76,7 @@ vk1C & 1::      SendInput("{/}")
 vk1C & 2::      SendInput("{*}")
 vk1C & 3::      SendInput("{-}")
 vk1C & 4::      SendInput("{+}")
+vk1C & y::      return                              ; 未割り当て
 
 ;------------------------------------------------------------------------------
 ; 無変換 (vk1D) ＋ 各種キー
@@ -92,10 +93,10 @@ vk1D & 3::      AltTab                              ; 次のアプリへ
 vk1D & 4::      SendInput("#{Down}")                ; 最小化
 
 ; --- マウス ---
-vk1D & f::      MousePlain_Right()
-vk1D & d::      MousePlain_Down()
-vk1D & s::      MousePlain_Up()
-vk1D & a::      MousePlain_Left()
+vk1D & f::      MousePlain_Dir("f")                 ; 右（f+d で右下など、fdsa は同時押しで斜め）
+vk1D & d::      MousePlain_Dir("d")                 ; 下
+vk1D & s::      MousePlain_Dir("s")                 ; 上
+vk1D & a::      MousePlain_Dir("a")                 ; 左
 vk1D & w::      MousePlain_ScrollUp()
 vk1D & e::      MousePlain_ScrollDown()
 vk1D & q::      MousePlain_ScrollLeft()
@@ -136,9 +137,9 @@ vk1D & i::      SendInput("{*}")
 vk1D & o::      SendInput("{-}")
 vk1D & p::      SendInput("{+}")
 vk1D & m::      SendInput("{#}")
-vk1D & ,::      return                              ; 未割り当て
-vk1D & .::      return                              ; 未割り当て
-vk1D & /::      return                              ; 未割り当て
+vk1D & ,::      SendInput("{$}")
+vk1D & .::      SendInput("{%}")
+vk1D & /::      SendInput("{&}")
 vk1D & *::      SendInput("{?}")
 vk1D & `::      SendInput("{!}")
 vk1D & y::      SendInput("{~}")

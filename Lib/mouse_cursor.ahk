@@ -235,6 +235,7 @@ class MousePlain {
     ;--- 設定 -----------------------------------------------------------------
     static MOVE_PX          := 200   ; 1 回の移動量 [px]（BASE_W×BASE_H での値）
     static REPEAT_WINDOW    := 100   ; この ms 以内の再呼び出しを「押しっぱなし」とみなす
+    static DIAG_WAIT        := 35    ; 斜め移動用：最初の 1 回の移動を待つ ms（2 つ目のキーを受ける時間）
     static MAX_ACCEL        := 4.0   ; 加速の上限倍率
     static ACCEL_STEP       := 0.35  ; 1 回あたりの加速量
     static SCROLL_NOTCH     := 1     ; 1 回のスクロール量 [ノッチ]
@@ -406,6 +407,26 @@ MousePlain_Left()            => MousePlain.Move(-MousePlain.MOVE_PX, 0)
 MousePlain_Right()           => MousePlain.Move( MousePlain.MOVE_PX, 0)
 MousePlain_Up()              => MousePlain.Move(0, -MousePlain.MOVE_PX)
 MousePlain_Down()            => MousePlain.Move(0,  MousePlain.MOVE_PX)
+; 無変換 + f/d/s/a の同時押しで斜め移動（f=右 d=下 s=上 a=左）。最初の 1 回だけ DIAG_WAIT ms 待って、そのとき押されているキーで向きを決める
+MousePlain_Dir(key) {
+    static pending := false, last := Map()
+    now := A_TickCount
+    repeat := last.Has(key) && now - last[key] < 150
+    last[key] := now
+    if pending
+        return                                          ; 先に押したキーの処理が、このキーも含めて動かす
+    if !repeat {
+        pending := true
+        Sleep(MousePlain.DIAG_WAIT)
+        pending := false
+    }
+    dx := GetKeyState("f", "P") - GetKeyState("a", "P")
+    dy := GetKeyState("d", "P") - GetKeyState("s", "P")
+    if (dx = 0 && dy = 0)
+        return
+    k := (dx != 0 && dy != 0) ? 0.7071 : 1
+    MousePlain.Move(dx * MousePlain.MOVE_PX * k, dy * MousePlain.MOVE_PX * k)
+}
 ; スクロール（1 回押すごとにホイール SCROLL_NOTCH ノッチ）
 MousePlain_ScrollUp()        => MousePlain.Scroll("Up")
 MousePlain_ScrollDown()      => MousePlain.Scroll("Down")

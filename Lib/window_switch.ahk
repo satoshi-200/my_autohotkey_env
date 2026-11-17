@@ -38,8 +38,9 @@ _Switch_SpaceChord() {
 ;   呼び出しに使ったキーは自動で調べ、そのキーで同じ方向へ続けて動かせる。
 ;     例：Caps → e で AppSwitcher_Show(false, "w") … e：次、w：前
 ;   j k l ; / a s d f：一覧の中で ← / ↑ / ↓ / → に動かす
+;   Space を押したまま：g / h＝決定、Caps＝キャンセル（Space だけなら無視）。矢印は下の「矢印」を参照
+;   矢印：j k l ; / a s d f と普通の矢印キーのほか、keymap\hold_keys.ahk で Space・無変換に割り当てた矢印（ホイール含む）も同じに使える
 ;   変換や v など他のキー：決定　Delete / x / c：選択中のウィンドウを閉じる　Esc / Caps / :：キャンセル
-;   Space を押したまま：j k l ;＝←↑↓→、g / h＝決定、Caps＝キャンセル（Space だけなら無視。ほかのキーも無視）
 ;   APPSWITCH_IDLE_SEC 秒操作がなければ、そのとき選んでいるアプリに決定する。
 ;   決定後はマウスカーソルをそのウィンドウの中央へ移し、Ctrl を押して位置を表示する
 ;   （Windows の「Ctrl キーを押すとポインターの位置を表示する」をオンにしておくこと）。
@@ -49,16 +50,49 @@ APPSWITCH_ARROWS := Map(
     "j", "Left", "k", "Up", "l", "Down", ";", "Right",
     "a", "Left", "s", "Up", "d", "Down", "f", "Right")
 APPSWITCH_CLOSE_KEYS := ["Delete", "x", "c"]   ; 選択中のウィンドウを閉じるキー
-APPSWITCH_SPACE_ARROWS := Map("j", "Left", "k", "Up", "l", "Down", ";", "Right")   ; Space を押したまま打つ矢印
+APPSWITCH_PLAIN_ARROWS := ["Left", "Up", "Down", "Right"]   ; 普通の矢印キー
+
+; Space・無変換を押したまま打つ矢印（keymap\hold_keys.ahk の「SendInput("{Left}")」「Text_WheelCursor("Up")」などの割り当て）を、
+; モード中だけ有効なホットキーとして登録する。割り当てを変えれば、モードもこれに従う（再読み込み後）。
+; Space は InputHook に届かないことがあり、ホイールは InputHook に届かないので、ホットキーで受ける。
+AppSwitch_hook := ""
+AppSwitch_moved := false
+
+_AppSwitcher_Active(*) => IsObject(AppSwitch_hook)
+
+_AppSwitcher_HotArrow(dir) {
+    global AppSwitch_moved := true
+    Send("{Blind}{" dir "}")
+    try AppSwitch_hook.Stop()                       ; 待ち時間を数え直す（Stopped はループ側で読み飛ばす）
+}
+
+_AppSwitcher_RegisterArrows() {
+    try
+        src := KP_Read("hold_keys.ahk")
+    catch
+        return
+    HotIf(_AppSwitcher_Active)
+    for prefix in ["vk20", "vk1D"]
+        for row in KP_HoldRows(src, prefix) {
+            if !RegExMatch(row.action, "^(?:SendInput\(`"(?:\{Blind\})?\{(Left|Up|Down|Right)\}`"\)|Text_WheelCursor\(`"(Left|Up|Down|Right)`"\))$", &m)
+                continue
+            dir := m[1] != "" ? m[1] : m[2]
+            try Hotkey(prefix " & " row.key, ((d, *) => _AppSwitcher_HotArrow(d)).Bind(dir))
+        }
+    HotIf()
+}
+_AppSwitcher_RegisterArrows()
 
 AppSwitcher_Show(reverse := false, pairKey := "") {
-    global IH_waiting
+    global IH_waiting, AppSwitch_hook, AppSwitch_moved
     IH_ModeBegin()
+    AppSwitch_moved := false
 
     triggerKey := IH_HotkeyTrigger(&prefix, IH_hook.Input)
     sameVK := (triggerKey != "") ? GetKeyVK(triggerKey) : 0
     pairVK := (pairKey != "") ? GetKeyVK(pairKey) : 0
     h := IH_ChoiceHook(APPSWITCH_IDLE_SEC, prefix)
+    AppSwitch_hook := h
 
     nextName := reverse ? pairKey : triggerKey
     prevName := reverse ? triggerKey : pairKey
@@ -73,23 +107,21 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
     posUnknown := false                             ; 矢印で動かす・閉じると、steps では判断できなくなる
     result := "決定"
     loop {
-        UI_ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / :：キャンセル"
-            . "`nSpace+j k l `;：←↑↓→　Space+g / h：決定　Space+Caps：キャンセル"
+        UI_ToolTip("🔀 [アプリ切り替え] " hint "j k l `; / a s d f / 矢印キー：←↑↓→`n変換 / Enter など：決定　" closeHint "：閉じる　Esc / Caps / :：キャンセル"
+            . "`nSpace・無変換 + 矢印の割り当て（ホイール含む）：←↑↓→"
+            . "`nSpace+g / h：決定　Space+Caps：キャンセル"
             . "`n（" APPSWITCH_IDLE_SEC " 秒操作しなければ決定）")
         h.Start()                                   ; 待ち時間は押すたびに数え直す
         h.Wait()
+        if (h.EndReason = "Stopped")                ; Space・無変換+矢印のホットキーが矢印を送った
+            continue
         key := h.EndKey
         vk := (h.EndReason = "EndKey") ? GetKeyVK(key) : 0
         if (vk = 0x20) {                            ; Space：押したまま打ったキーで決める（Space だけなら何もしない）
             key := IH_KeyWhileSpaceHeld()
             if (key = "")
                 continue
-            dir := _AppSwitcher_SpaceArrow(key)
-            if (dir != "") {
-                Send("{Blind}{" dir "}")
-                posUnknown := true
-            }
-            else if (key = "Escape" || IH_IsCapsKey(key)) {
+            if (key = "Escape" || IH_IsCapsKey(key)) {
                 Send("{Blind}{Esc}")
                 result := "キャンセル"
                 break
@@ -106,8 +138,8 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
             Send(reverse ? "{Blind}{Tab}" : "{Blind}+{Tab}")
             steps += reverse ? 1 : -1
         }
-        else if APPSWITCH_ARROWS.Has(key) {
-            Send("{Blind}{" APPSWITCH_ARROWS[key] "}")
+        else if APPSWITCH_ARROWS.Has(key) || _AppSwitcher_IsPlainArrow(key) {
+            Send("{Blind}{" (APPSWITCH_ARROWS.Has(key) ? APPSWITCH_ARROWS[key] : key) "}")
             posUnknown := true
         }
         else if _AppSwitcher_IsCloseKey(key) {      ; Alt+Tab 標準の「選んでいるウィンドウを閉じる」
@@ -125,6 +157,8 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
     }
     Send("{Alt up}")
     IH_waiting := false
+    AppSwitch_hook := ""
+    posUnknown := posUnknown || AppSwitch_moved
 
     if (result = "決定") {
         ; 切り替わったウィンドウの中央へカーソルを移し、Ctrl で位置を知らせる波紋を出す
@@ -134,13 +168,11 @@ AppSwitcher_Show(reverse := false, pairKey := "") {
     IH_ModeEnd((result = "決定" ? "✅" : "❌") " [アプリ切り替え] " result)
 }
 
-; Space を押したまま打ったキーが矢印の割り当てなら、その矢印のキー名。なければ ""（キー名は VK で比べる。JIS の ; は名前が違うことがある）
-_AppSwitcher_SpaceArrow(key) {
-    vk := GetKeyVK(key)
-    for k, dir in APPSWITCH_SPACE_ARROWS
-        if (vk && vk = GetKeyVK(k))
-            return dir
-    return ""
+_AppSwitcher_IsPlainArrow(key) {
+    for k in APPSWITCH_PLAIN_ARROWS
+        if (key = k)
+            return true
+    return false
 }
 
 _AppSwitcher_IsCloseKey(key) {
